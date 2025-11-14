@@ -1,0 +1,8 @@
+{
+  "name": "@msgr/frontend",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "graphql-ws": "^6.0.6"
+  }
+}
