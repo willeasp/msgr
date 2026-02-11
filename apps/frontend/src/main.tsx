@@ -2,7 +2,12 @@ import { StrictMode } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import * as ReactDOM from 'react-dom/client';
 import App from './app/app';
-import { ApolloClient, InMemoryCache, HttpLink, split } from '@apollo/client';
+import {
+  ApolloClient,
+  InMemoryCache,
+  HttpLink,
+  ApolloLink,
+} from '@apollo/client';
 import { ApolloProvider } from '@apollo/client/react';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
@@ -25,14 +30,17 @@ const wsLink = new GraphQLWsLink(
     connectionParams: () => {
       // Get token from localStorage for WebSocket authentication
       const token = localStorage.getItem('authToken');
-      console.log('WebSocket connectionParams - token:', token ? 'present' : 'missing');
+      console.log(
+        'WebSocket connectionParams - token:',
+        token ? 'present' : 'missing'
+      );
       return { token };
     },
   })
 );
 
 // Split link: use WebSocket for subscriptions, HTTP for queries/mutations
-const link = split(
+const link = ApolloLink.split(
   ({ query }) => {
     const definition = getMainDefinition(query);
     return (
@@ -40,8 +48,8 @@ const link = split(
       definition.operation === 'subscription'
     );
   },
-  wsLink,      // Use WebSocket for subscriptions
-  httpLink,    // Use HTTP for queries and mutations
+  wsLink, // Use WebSocket for subscriptions
+  httpLink // Use HTTP for queries and mutations
 );
 
 const client = new ApolloClient({
