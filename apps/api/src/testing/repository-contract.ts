@@ -3,14 +3,17 @@ import type { Repositories } from '../application/ports.js';
 import {
   ChatId,
   directPair,
+  type ChannelName,
   type Chat,
   type GroupChat,
 } from '../domain/chat.js';
+import { newInvite, type InviteCode } from '../domain/invite.js';
 import type { Message, MessageContent } from '../domain/message.js';
 import {
   Email,
   SearchTerm,
   UserId,
+  type DisplayName,
   type PasswordHash,
   type User,
 } from '../domain/user.js';
@@ -183,6 +186,170 @@ export function repositoryContract(
         group,
         direct,
       ]);
+    });
+  });
+
+  describe('channels', () => {
+    const channel = (name: string) => name as ChannelName;
+
+    it('creates a channel on first join and adds whoever joins after', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+
+      const created = await repositories.chats.joinChannel(
+        channel('general'),
+        ada.id
+      );
+      const joined = await repositories.chats.joinChannel(
+        channel('general'),
+        grace.id
+      );
+      const again = await repositories.chats.joinChannel(
+        channel('general'),
+        grace.id
+      );
+
+      expect(created).toEqual({
+        kind: 'channel',
+        id: created.id,
+        name: 'general',
+        participantIds: [ada.id],
+      });
+      expect(joined).toEqual({
+        ...created,
+        participantIds: [ada.id, grace.id].sort(),
+      });
+      expect(again).toEqual(joined);
+      expect(await repositories.chats.findByIds([created.id])).toEqual([
+        joined,
+      ]);
+    });
+
+    it('lists every channel by name, joined or not', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const random = await repositories.chats.joinChannel(
+        channel('random'),
+        ada.id
+      );
+      const books = await repositories.chats.joinChannel(
+        channel('books'),
+        grace.id
+      );
+      await fixtures.groupChat('Not a channel', [ada, grace]);
+
+      expect(await repositories.chats.findChannels()).toEqual([books, random]);
+    });
+
+    it('lets a member leave, and leaving twice changes nothing', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      await repositories.chats.joinChannel(channel('general'), ada.id);
+      const general = await repositories.chats.joinChannel(
+        channel('general'),
+        grace.id
+      );
+
+      await repositories.chats.leaveChannel(general.id, grace.id);
+      await repositories.chats.leaveChannel(general.id, grace.id);
+
+      expect(await repositories.chats.findByIds([general.id])).toEqual([
+        { ...general, participantIds: [ada.id] },
+      ]);
+      expect(await repositories.chats.findByParticipant(grace.id)).toEqual([]);
+    });
+
+    it('does not count joining or leaving as activity', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const general = await repositories.chats.joinChannel(
+        channel('general'),
+        ada.id
+      );
+      const group = await fixtures.groupChat('Group', [ada, grace]);
+      await send(group, ada, 'ping', '2030-01-01T00:00:00Z');
+
+      await repositories.chats.joinChannel(channel('general'), grace.id);
+      await repositories.chats.leaveChannel(general.id, grace.id);
+
+      expect(
+        (await repositories.chats.findByParticipant(ada.id)).map(({ id }) => id)
+      ).toEqual([group.id, general.id]);
+    });
+  });
+
+  describe('invites', () => {
+    const now = new Date('2030-01-01T00:00:00.000Z');
+    const later = (days: number) =>
+      new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+    const code = (n: number) =>
+      `invite-code-${n}`.padEnd(22, '0') as InviteCode;
+    const newcomer = (name: string) => ({
+      email: email(fixtureEmail(name)),
+      name: name as DisplayName,
+      passwordHash: `hash-of-${name}` as PasswordHash,
+    });
+
+    it('spends an invite once, on the user it creates', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      await repositories.invites.create(newInvite(code(1), ada.id, now));
+
+      const grace = await repositories.invites.redeem(
+        code(1),
+        newcomer('Grace'),
+        later(1)
+      );
+      const again = await repositories.invites.redeem(
+        code(1),
+        newcomer('Linus'),
+        later(1)
+      );
+
+      if (!grace.ok) throw new Error(grace.error);
+      expect(grace.value).toEqual({
+        id: grace.value.id,
+        email: 'grace@example.com',
+        name: 'Grace',
+      });
+      expect(
+        await repositories.users.findCredentials(email('grace@example.com'))
+      ).toEqual({ user: grace.value, passwordHash: 'hash-of-Grace' });
+      expect(again).toEqual({ ok: false, error: 'InviteUnavailable' });
+      expect(
+        await repositories.users.findCredentials(email('linus@example.com'))
+      ).toBeNull();
+      expect(await repositories.invites.isRedeemable(code(1), later(1))).toBe(
+        false
+      );
+    });
+
+    it('refuses an expired or unknown invite', async () => {
+      await repositories.invites.create(newInvite(code(2), null, now));
+
+      expect(await repositories.invites.isRedeemable(code(2), later(6))).toBe(
+        true
+      );
+      expect(await repositories.invites.isRedeemable(code(2), later(8))).toBe(
+        false
+      );
+      expect(
+        await repositories.invites.redeem(code(2), newcomer('Ada'), later(8))
+      ).toEqual({ ok: false, error: 'InviteUnavailable' });
+      expect(
+        await repositories.invites.redeem(code(3), newcomer('Ada'), later(1))
+      ).toEqual({ ok: false, error: 'InviteUnavailable' });
+    });
+
+    it('leaves the invite unspent when its email is already taken', async () => {
+      await fixtures.user({ name: 'Ada' });
+      await repositories.invites.create(newInvite(code(4), null, now));
+
+      expect(
+        await repositories.invites.redeem(code(4), newcomer('Ada'), later(1))
+      ).toEqual({ ok: false, error: 'EmailTaken' });
+      expect(await repositories.invites.isRedeemable(code(4), later(1))).toBe(
+        true
+      );
     });
   });
 

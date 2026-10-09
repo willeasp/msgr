@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Email, SearchTerm } from './user.js';
+import { DisplayName, Email, NewPassword, SearchTerm } from './user.js';
 
 describe('Email.parse', () => {
   it('trims and lower-cases', () => {
@@ -37,5 +37,47 @@ describe('SearchTerm.parse', () => {
     expect(SearchTerm.parse('x'.repeat(SearchTerm.MAX_LENGTH + 1)).ok).toBe(
       false
     );
+  });
+});
+
+describe('DisplayName.parse', () => {
+  it('trims', () => {
+    expect(DisplayName.parse('  Ada Lovelace ')).toEqual({
+      ok: true,
+      value: 'Ada Lovelace',
+    });
+  });
+
+  it('rejects blank and overlong names', () => {
+    expect(DisplayName.parse('   ')).toMatchObject({
+      ok: false,
+      error: { type: 'InvalidInput', field: 'name' },
+    });
+    expect(DisplayName.parse('x'.repeat(DisplayName.MAX_LENGTH + 1)).ok).toBe(
+      false
+    );
+  });
+});
+
+describe('NewPassword.parse', () => {
+  it('keeps the password exactly as typed', () => {
+    expect(NewPassword.parse(' correct horse ')).toEqual({
+      ok: true,
+      value: ' correct horse ',
+    });
+  });
+
+  it('needs at least 8 characters', () => {
+    expect(NewPassword.parse('1234567')).toMatchObject({
+      ok: false,
+      error: { type: 'InvalidInput', field: 'password' },
+    });
+  });
+
+  it('refuses more than bcrypt reads: 72 bytes, not characters', () => {
+    expect(NewPassword.parse('a'.repeat(72)).ok).toBe(true);
+    expect(NewPassword.parse('a'.repeat(73)).ok).toBe(false);
+    // Each "é" is two bytes in UTF-8.
+    expect(NewPassword.parse('é'.repeat(37)).ok).toBe(false);
   });
 });

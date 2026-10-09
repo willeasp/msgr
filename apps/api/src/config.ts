@@ -2,14 +2,19 @@ import { err, ok, type Result } from './domain/result.js';
 
 export interface Config {
   readonly port: number;
-  /** The one browser origin allowed to call the API with credentials. */
+  /**
+   * The one browser origin allowed to call the API with credentials, over
+   * HTTP and WebSocket: in production, the address people open the app at.
+   */
   readonly corsOrigin: string;
   readonly jwtSecret: string;
   readonly sessionTtlSeconds: number;
   readonly secureCookies: boolean;
+  /** The built frontend, served from the API's own address; `null` serves only the API. */
+  readonly staticDir: string | null;
 }
 
-const SESSION_TTL_SECONDS = 2 * 60 * 60;
+const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 const MIN_SECRET_LENGTH = 32;
 const DEVELOPMENT_SECRET = 'msgr-development-only-secret-0123456789';
 
@@ -33,12 +38,24 @@ export function parseConfig(
     );
   }
 
+  // Render tells each web service its own public address.
+  const corsOrigin =
+    env['CORS_ORIGIN'] ??
+    env['RENDER_EXTERNAL_URL'] ??
+    (production ? '' : 'http://localhost:4200');
+  if (!corsOrigin) {
+    problems.push(
+      'CORS_ORIGIN, the address people open the app at, is required in production'
+    );
+  }
+
   if (problems.length > 0) return err(problems);
   return ok({
     port,
-    corsOrigin: env['CORS_ORIGIN'] ?? 'http://localhost:4200',
+    corsOrigin,
     jwtSecret,
     sessionTtlSeconds: SESSION_TTL_SECONDS,
     secureCookies: production,
+    staticDir: env['STATIC_DIR'] || null,
   });
 }

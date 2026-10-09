@@ -1,6 +1,5 @@
-import { useQuery, useSubscription } from '@apollo/client/react';
+import { useQuery } from '@apollo/client/react';
 import { gql } from '../../../lib/__generated__';
-import { withReceivedMessage } from '../../../lib/chat-list';
 import Button from '../../../sacred/components/Button';
 import { LoadingState } from '../LoadingState';
 import { MacWindow } from '../MacWindow';
@@ -12,6 +11,7 @@ export const GET_CHATS = gql(`
   query GetChats {
     chats {
       id
+      kind
       title
       participants {
         id
@@ -26,25 +26,6 @@ export const GET_CHATS = gql(`
   }
 `);
 
-// Selects a whole chat-list row, so a chat the list hasn't seen can join it.
-const MESSAGE_RECEIVED_SUBSCRIPTION = gql(`
-  subscription OnMessageReceivedForSidebar {
-    messageReceived {
-      id
-      content
-      createdAt
-      chat {
-        id
-        title
-        participants {
-          id
-          name
-        }
-      }
-    }
-  }
-`);
-
 interface ChatSidebarProps {
   selectedChatId: string | undefined;
   onNewChat: () => void;
@@ -52,18 +33,6 @@ interface ChatSidebarProps {
 
 export function ChatSidebar({ selectedChatId, onNewChat }: ChatSidebarProps) {
   const { data: chatsData, loading: chatsLoading } = useQuery(GET_CHATS);
-
-  useSubscription(MESSAGE_RECEIVED_SUBSCRIPTION, {
-    onData: ({ data, client }) => {
-      const message = data.data?.messageReceived;
-      if (!message) return;
-      client.cache.updateQuery({ query: GET_CHATS }, (existing) =>
-        existing
-          ? { chats: withReceivedMessage(existing.chats, message) }
-          : existing
-      );
-    },
-  });
 
   const chats = chatsData?.chats ?? [];
 

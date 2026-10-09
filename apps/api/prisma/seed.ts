@@ -17,11 +17,22 @@ type Person = keyof typeof people;
 interface Conversation {
   /** Present for group chats; a chat without one is direct. */
   readonly title?: string;
+  /** Present for channels, without the "#". */
+  readonly channel?: string;
   readonly members: readonly Person[];
   readonly lines: readonly (readonly [Person, string, string])[];
 }
 
 const conversations: Conversation[] = [
+  {
+    channel: 'general',
+    members: ['test', 'alice', 'bob', 'charlie', 'diana'],
+    lines: [
+      ['alice', '2024-01-17T09:00:00Z', 'Morning, everyone!'],
+      ['charlie', '2024-01-17T09:02:00Z', 'Who is up for lunch later?'],
+      ['diana', '2024-01-17T09:05:00Z', 'Count me in.'],
+    ],
+  },
   {
     members: ['test', 'alice'],
     lines: [
@@ -100,11 +111,15 @@ async function seed(db: PrismaClient) {
 
   await db.chat.deleteMany();
 
-  for (const { title, members, lines } of conversations) {
+  for (const { title, channel, members, lines } of conversations) {
     const participantIds = members.map((member) => ids[member]);
     await db.chat.create({
       data: {
-        ...(title ? { title } : { directKey: directKeyOf(participantIds) }),
+        ...(channel
+          ? { channelName: channel }
+          : title
+          ? { title }
+          : { directKey: directKeyOf(participantIds) }),
         participants: { connect: participantIds.map((id) => ({ id })) },
         messages: {
           create: lines.map(([sender, sentAt, content]) => ({

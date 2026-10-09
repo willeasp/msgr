@@ -26,7 +26,43 @@ export interface GroupChat {
   readonly participantIds: readonly UserId[];
 }
 
-export type Chat = DirectChat | GroupChat;
+/**
+ * An open, named chat that any user can find and join, IRC-style: "#general".
+ * Like any chat, only its participants can read it.
+ */
+export interface ChannelChat {
+  readonly kind: 'channel';
+  readonly id: ChatId;
+  readonly name: ChannelName;
+  readonly participantIds: readonly UserId[];
+}
+
+export type Chat = DirectChat | GroupChat | ChannelChat;
+
+/**
+ * A channel's name without its "#": lower-case letters, digits and dashes,
+ * starting with a letter or digit. Spaces become dashes, as people type them.
+ */
+export type ChannelName = Brand<string, 'ChannelName'>;
+export const ChannelName = {
+  MAX_LENGTH: 30,
+  parse(raw: string): Result<ChannelName, InvalidInput> {
+    const name = raw
+      .trim()
+      .replace(/^#/, '')
+      .toLowerCase()
+      .replace(/\s+/g, '-');
+    if (
+      name.length > ChannelName.MAX_LENGTH ||
+      !/^[a-z0-9][a-z0-9-]*$/.test(name)
+    ) {
+      return err(
+        invalidInput('name', 'Use letters, numbers and dashes, like #general')
+      );
+    }
+    return ok(name as ChannelName);
+  },
+};
 
 export const isParticipant = (chat: Chat, userId: UserId): boolean =>
   chat.participantIds.includes(userId);

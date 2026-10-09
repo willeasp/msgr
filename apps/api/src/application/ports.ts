@@ -1,9 +1,20 @@
-import type { Chat, ChatId, DirectChat, DirectPair } from '../domain/chat.js';
+import type {
+  ChannelChat,
+  ChannelName,
+  Chat,
+  ChatId,
+  DirectChat,
+  DirectPair,
+} from '../domain/chat.js';
+import type { Invite, InviteCode } from '../domain/invite.js';
 import type { Message, NewMessage } from '../domain/message.js';
 import type { Page } from '../domain/page.js';
+import type { Result } from '../domain/result.js';
 import type {
   Credentials,
   Email,
+  NewPassword,
+  NewUser,
   PasswordHash,
   SearchTerm,
   SessionToken,
@@ -34,6 +45,15 @@ export interface ChatRepository {
   findByParticipant(userId: UserId): Promise<Chat[]>;
   /** Idempotent and race-safe: the pair's existing chat, or a new one. */
   saveDirect(pair: DirectPair): Promise<DirectChat>;
+  /** Every channel, ordered by name. */
+  findChannels(): Promise<ChannelChat[]>;
+  /**
+   * The channel called `name`, with `userId` in it: created on first join.
+   * Idempotent and race-safe. Joining is not activity.
+   */
+  joinChannel(name: ChannelName, userId: UserId): Promise<ChannelChat>;
+  /** Takes `userId` out of a channel; a no-op if they weren't in it. Not activity. */
+  leaveChannel(chatId: ChatId, userId: UserId): Promise<void>;
 }
 
 export interface MessageRepository {
@@ -46,13 +66,30 @@ export interface MessageRepository {
   append(message: NewMessage): Promise<Message>;
 }
 
+export interface InviteRepository {
+  create(invite: Invite): Promise<void>;
+  /** Unused, and not yet expired at `at`. */
+  isRedeemable(code: InviteCode, at: Date): Promise<boolean>;
+  /**
+   * Spends the invite on a new user, atomically: if anything fails, nothing
+   * changes. A used, expired or unknown invite is `InviteUnavailable`.
+   */
+  redeem(
+    code: InviteCode,
+    user: NewUser,
+    at: Date
+  ): Promise<Result<User, 'InviteUnavailable' | 'EmailTaken'>>;
+}
+
 export interface Repositories {
   readonly users: UserRepository;
   readonly chats: ChatRepository;
   readonly messages: MessageRepository;
+  readonly invites: InviteRepository;
 }
 
 export interface PasswordHasher {
+  hash(password: NewPassword): Promise<PasswordHash>;
   /**
    * With `hash === null` the password is checked against a decoy, so a login
    * for an unknown email takes as long as one with a wrong password.
@@ -73,6 +110,15 @@ export interface MessageEvents {
 
 export type Clock = () => Date;
 
+/** A fresh, unguessable invite code. */
+export type InviteCodes = () => InviteCode;
+
+/** Counts attempts per key and refuses a key that has had too many lately. */
+export interface Throttle {
+  /** Records an attempt; `false` if `key` is already over its limit. */
+  attempt(key: string): boolean;
+}
+
 /** Everything the application needs from the outside world. */
 export interface Dependencies {
   readonly repositories: Repositories;
@@ -80,4 +126,6 @@ export interface Dependencies {
   readonly tokens: TokenService;
   readonly events: MessageEvents;
   readonly clock: Clock;
+  readonly inviteCodes: InviteCodes;
+  readonly throttle: Throttle;
 }

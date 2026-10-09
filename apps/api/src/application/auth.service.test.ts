@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { Clock } from './ports.js';
 import { UserId } from '../domain/user.js';
 import { createJwtTokenService } from '../infrastructure/token-service.js';
 import {
@@ -51,11 +52,147 @@ describe('login', () => {
 
   it('still checks a password when the email is unknown, so timing reveals nothing', async () => {
     const verify = vi.fn(fakePasswordHasher.verify);
-    const { services } = createTestApp({ passwords: { verify } });
+    const { services } = createTestApp({
+      passwords: { ...fakePasswordHasher, verify },
+    });
 
     await services().auth.login({ email: 'nobody@example.com', password: 'x' });
 
     expect(verify).toHaveBeenCalledWith('x', null);
+  });
+});
+
+describe('login throttling', () => {
+  it('refuses an email that has been tried too often, without checking the password', async () => {
+    const verify = vi.fn(fakePasswordHasher.verify);
+    const attempt = vi.fn(() => false);
+    const { services } = createTestApp({
+      passwords: { ...fakePasswordHasher, verify },
+      throttle: { attempt },
+    });
+
+    expect(
+      await services().auth.login({
+        email: ' ADA@example.com',
+        password: 'correct horse',
+      })
+    ).toEqual({ ok: false, error: { type: 'TooManyAttempts' } });
+    expect(attempt).toHaveBeenCalledWith('login:ada@example.com');
+    expect(verify).not.toHaveBeenCalled();
+  });
+});
+
+/** A clock the test moves by hand. */
+function handClock(start = '2030-01-01T00:00:00.000Z') {
+  let now = new Date(start).getTime();
+  const clock: Clock = () => new Date(now);
+  return {
+    clock,
+    advanceDays: (days: number) => (now += days * 24 * 60 * 60 * 1000),
+  };
+}
+
+describe('signUp', () => {
+  async function invited(overrides: Parameters<typeof createTestApp>[0] = {}) {
+    const app = createTestApp(overrides);
+    const ada = await app.fixtures.user({ name: 'Ada' });
+    const invite = await app.services().invites.create(ada);
+    const signUp = (input: Partial<Record<string, string>> = {}) =>
+      app.services().auth.signUp({
+        inviteCode: invite.code,
+        name: 'Grace Hopper',
+        email: 'grace@example.com',
+        password: 'cobol-forever',
+        ...input,
+      });
+    return { ...app, invite, signUp };
+  }
+
+  it('creates the account and signs it in', async () => {
+    const { services, signUp } = await invited();
+
+    const session = expectOk(await signUp({ email: ' Grace@Example.com ' }));
+
+    expect(session.user).toMatchObject({
+      name: 'Grace Hopper',
+      email: 'grace@example.com',
+    });
+    expect(await services().auth.authenticate(session.token)).toEqual(
+      session.user
+    );
+    expect(
+      expectOk(
+        await services().auth.login({
+          email: 'grace@example.com',
+          password: 'cobol-forever',
+        })
+      ).user
+    ).toEqual(session.user);
+  });
+
+  it('works once per invite', async () => {
+    const { signUp } = await invited();
+    expectOk(await signUp());
+
+    expect(await signUp({ email: 'linus@example.com' })).toEqual({
+      ok: false,
+      error: { type: 'NotFound', entity: 'Invite' },
+    });
+  });
+
+  it('refuses an invite after a week', async () => {
+    const { clock, advanceDays } = handClock();
+    const { signUp } = await invited({ clock });
+
+    advanceDays(8);
+
+    expect(await signUp()).toEqual({
+      ok: false,
+      error: { type: 'NotFound', entity: 'Invite' },
+    });
+  });
+
+  it('turns away a made-up invite before spending any effort hashing', async () => {
+    const hash = vi.fn(fakePasswordHasher.hash);
+    const { signUp } = await invited({
+      passwords: { ...fakePasswordHasher, hash },
+    });
+
+    for (const inviteCode of ['made-up', 'invite9999999999999999']) {
+      expect(await signUp({ inviteCode })).toEqual({
+        ok: false,
+        error: { type: 'NotFound', entity: 'Invite' },
+      });
+    }
+    expect(hash).not.toHaveBeenCalled();
+  });
+
+  it('says so when the email already has an account, and keeps the invite', async () => {
+    const { signUp, fixtures } = await invited();
+    await fixtures.user({ name: 'Grace', email: 'grace@example.com' });
+
+    expect(await signUp()).toEqual({
+      ok: false,
+      error: {
+        type: 'InvalidInput',
+        field: 'email',
+        reason: 'Someone already signed up with this email',
+      },
+    });
+    expect((await signUp({ email: 'hopper@example.com' })).ok).toBe(true);
+  });
+
+  it.each([
+    ['name', { name: '  ' }],
+    ['email', { email: 'grace' }],
+    ['password', { password: 'short' }],
+  ])('checks the %s', async (field, input) => {
+    const { signUp } = await invited();
+
+    expect(await signUp(input)).toMatchObject({
+      ok: false,
+      error: { type: 'InvalidInput', field },
+    });
   });
 });
 

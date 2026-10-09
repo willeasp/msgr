@@ -1,16 +1,29 @@
 import {
   invalidCredentials,
+  invalidInput,
+  notFound,
+  tooManyAttempts,
   type InvalidCredentials,
+  type InvalidInput,
+  type NotFound,
+  type TooManyAttempts,
 } from '../domain/errors.js';
+import { InviteCode } from '../domain/invite.js';
 import { err, ok, type Result } from '../domain/result.js';
-import { Email, type Session, type User } from '../domain/user.js';
+import {
+  DisplayName,
+  Email,
+  NewPassword,
+  type Session,
+  type User,
+} from '../domain/user.js';
 import type { Loaders } from './loaders.js';
 import type { Dependencies } from './ports.js';
 
 export type AuthService = ReturnType<typeof createAuthService>;
 
 export function createAuthService(
-  { repositories, passwords, tokens }: Dependencies,
+  { repositories, passwords, tokens, throttle, clock }: Dependencies,
   loaders: Loaders
 ) {
   return {
@@ -18,9 +31,12 @@ export function createAuthService(
     async login(input: {
       readonly email: string;
       readonly password: string;
-    }): Promise<Result<Session, InvalidCredentials>> {
+    }): Promise<Result<Session, InvalidCredentials | TooManyAttempts>> {
       const email = Email.parse(input.email);
       if (!email.ok) return err(invalidCredentials());
+      if (!throttle.attempt(`login:${email.value}`)) {
+        return err(tooManyAttempts());
+      }
 
       const credentials = await repositories.users.findCredentials(email.value);
       const verified = await passwords.verify(
@@ -31,6 +47,47 @@ export function createAuthService(
 
       const { user } = credentials;
       return ok({ user, token: await tokens.issue(user.id) });
+    },
+
+    /** Spends an invite on a new account and signs it in. */
+    async signUp(input: {
+      readonly inviteCode: string;
+      readonly name: string;
+      readonly email: string;
+      readonly password: string;
+    }): Promise<Result<Session, InvalidInput | NotFound>> {
+      const code = InviteCode.parse(input.inviteCode);
+      if (!code.ok) return code;
+      const name = DisplayName.parse(input.name);
+      if (!name.ok) return name;
+      const email = Email.parse(input.email);
+      if (!email.ok) return email;
+      const password = NewPassword.parse(input.password);
+      if (!password.ok) return password;
+
+      // Checked before hashing, so made-up codes cost nothing.
+      const now = clock();
+      if (!(await repositories.invites.isRedeemable(code.value, now))) {
+        return err(notFound('Invite'));
+      }
+
+      const user = await repositories.invites.redeem(
+        code.value,
+        {
+          email: email.value,
+          name: name.value,
+          passwordHash: await passwords.hash(password.value),
+        },
+        now
+      );
+      if (!user.ok) {
+        return err(
+          user.error === 'EmailTaken'
+            ? invalidInput('email', 'Someone already signed up with this email')
+            : notFound('Invite')
+        );
+      }
+      return ok({ user: user.value, token: await tokens.issue(user.value.id) });
     },
 
     /** The user behind a session token, or `null` for an anonymous viewer. */

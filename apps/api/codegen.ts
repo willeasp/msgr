@@ -11,7 +11,9 @@ const config: CodegenConfig = {
         // Resolvers take and return domain entities; field resolvers walk relations.
         mappers: {
           AuthPayload: '../../domain/user.js#Session',
+          ChannelListing: '../../domain/chat.js#ChannelChat',
           Chat: '../../domain/chat.js#Chat',
+          Invite: '../../domain/invite.js#Invite',
           Message: '../../domain/message.js#Message',
           User: '../../domain/user.js#User',
         },

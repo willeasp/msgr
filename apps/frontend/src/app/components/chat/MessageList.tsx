@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useQuery, useSubscription } from '@apollo/client/react';
+import { useQuery } from '@apollo/client/react';
 import { gql } from '../../../lib/__generated__';
 import { LoadingState } from '../LoadingState';
 import { Muted } from '../Muted';
@@ -20,23 +20,6 @@ export const GET_CHAT_MESSAGES = gql(`
   }
 `);
 
-const MESSAGE_RECEIVED_SUBSCRIPTION = gql(`
-  subscription OnMessageReceived {
-    messageReceived {
-      id
-      content
-      sender {
-        id
-        name
-      }
-      chat {
-        id
-      }
-      createdAt
-    }
-  }
-`);
-
 interface MessageListProps {
   chatId: string;
   currentUserId: string | undefined;
@@ -45,48 +28,22 @@ interface MessageListProps {
 export function MessageList({ chatId, currentUserId }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // The page's feed appends live messages; opening the chat also refreshes
+  // it, catching anything sent while this tab was offline or asleep.
   const { data: messagesData, loading: messagesLoading } = useQuery(
     GET_CHAT_MESSAGES,
     {
       variables: { chatId },
+      fetchPolicy: 'cache-and-network',
     }
   );
-
-  // Subscribe to new messages
-  useSubscription(MESSAGE_RECEIVED_SUBSCRIPTION, {
-    onData: ({ data, client }) => {
-      const newMessage = data.data?.messageReceived;
-      if (!newMessage || newMessage.chat.id !== chatId) return;
-
-      // Update cache with new message
-      client.cache.updateQuery(
-        {
-          query: GET_CHAT_MESSAGES,
-          variables: { chatId },
-        },
-        (existing) => {
-          if (!existing?.messages) return existing;
-
-          // Avoid duplicates
-          const isDuplicate = existing.messages.some(
-            (m) => m.id === newMessage.id
-          );
-          if (isDuplicate) return existing;
-
-          return {
-            messages: [...existing.messages, newMessage],
-          };
-        }
-      );
-    },
-  });
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messagesData?.messages]);
 
-  if (messagesLoading) {
+  if (messagesLoading && !messagesData) {
     return (
       <div className={styles.root}>
         <LoadingState label="Loading messages" />

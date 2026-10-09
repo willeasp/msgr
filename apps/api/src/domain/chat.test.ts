@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ChannelName,
   ChatId,
   counterpart,
   directPair,
@@ -66,4 +67,26 @@ describe('visibleTo', () => {
     expect(visibleTo(direct, linus)).toEqual(notFound);
     expect(visibleTo(null, linus)).toEqual(notFound);
   });
+});
+
+describe('ChannelName.parse', () => {
+  it.each([
+    ['general', 'general'],
+    ['#general', 'general'],
+    ['  #General ', 'general'],
+    ['Book Club', 'book-club'],
+    ['#2026-trip', '2026-trip'],
+  ])('reads %j as #%s', (raw, name) => {
+    expect(ChannelName.parse(raw)).toEqual({ ok: true, value: name });
+  });
+
+  it.each(['', '#', '-general', 'café', 'a/b', 'x'.repeat(31)])(
+    'refuses %j',
+    (raw) => {
+      expect(ChannelName.parse(raw)).toMatchObject({
+        ok: false,
+        error: { type: 'InvalidInput', field: 'name' },
+      });
+    }
+  );
 });

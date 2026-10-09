@@ -1,0 +1,32 @@
+# One container for all of Msgr: the API also serves the built app, so a
+# single address and a single session cookie cover both.
+
+FROM node:22-slim AS build
+WORKDIR /app
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
+COPY package.json package-lock.json ./
+COPY apps/api/package.json apps/api/
+COPY apps/frontend/package.json apps/frontend/
+RUN npm ci --no-audit --no-fund
+COPY . .
+ENV NX_DAEMON=false NX_NO_CLOUD=true
+RUN npx prisma generate --schema apps/api/prisma/schema.prisma \
+  && npx nx run-many -t build --projects=@msgr/api,@msgr/frontend
+
+FROM node:22-slim
+WORKDIR /app
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
+ENV NODE_ENV=production STATIC_DIR=/app/apps/frontend/dist
+COPY package.json package-lock.json ./
+COPY apps/api/package.json apps/api/
+COPY apps/frontend/package.json apps/frontend/
+RUN npm ci --omit=dev --no-audit --no-fund
+COPY --from=build /app/apps/api/dist apps/api/dist
+COPY --from=build /app/apps/api/generated apps/api/generated
+COPY --from=build /app/apps/api/prisma apps/api/prisma
+COPY --from=build /app/apps/frontend/dist apps/frontend/dist
+EXPOSE 4000
+# Bring the database up to date, then serve.
+CMD ["sh", "-c", "npx prisma migrate deploy --schema apps/api/prisma/schema.prisma && exec node apps/api/dist/main.js"]

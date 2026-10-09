@@ -61,7 +61,9 @@ function DropdownMenuTrigger({ children, items, hotkey }: DropdownMenuTriggerPro
   //NOTE(jimmylee): WAI-ARIA requires focus return to the trigger on close so keyboard users are not stranded.
   const prevOpen = React.useRef(false);
   React.useEffect(() => {
-    if (prevOpen.current && !open) {
+    //NOTE(msgr): Only rescue focus that the closing menu would strand. An item that opened a dialog has already focused it.
+    const active = document.activeElement;
+    if (prevOpen.current && !open && (!active || active === document.body)) {
       triggerRef.current?.focus();
     }
     prevOpen.current = open;

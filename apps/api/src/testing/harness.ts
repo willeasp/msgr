@@ -1,12 +1,15 @@
 import type {
   Clock,
   Dependencies,
+  InviteCodes,
   PasswordHasher,
 } from '../application/ports.js';
 import { createScope } from '../application/scope.js';
+import type { InviteCode } from '../domain/invite.js';
 import type { Result } from '../domain/result.js';
 import type { PasswordHash } from '../domain/user.js';
 import { createPubSubMessageEvents } from '../infrastructure/message-events.js';
+import { createMemoryThrottle } from '../infrastructure/throttle.js';
 import { createJwtTokenService } from '../infrastructure/token-service.js';
 import { createInMemoryRepositories } from './in-memory-repositories.js';
 
@@ -16,8 +19,15 @@ export const TEST_JWT_SECRET = 'test-secret-that-is-at-least-32-characters';
 export const fakeHash = (password: string) =>
   `fake-hash:${password}` as PasswordHash;
 export const fakePasswordHasher: PasswordHasher = {
+  hash: async (password) => fakeHash(password),
   verify: async (password, hash) => hash === fakeHash(password),
 };
+
+/** Valid, predictable invite codes: `invite0000000000000001`, then `…02`. */
+export function sequentialInviteCodes(): InviteCodes {
+  let issued = 0;
+  return () => `invite${String(++issued).padStart(16, '0')}` as InviteCode;
+}
 
 /** Starts at `start` and advances one second per reading, so ordering is deterministic. */
 export function tickingClock(
@@ -57,12 +67,15 @@ export function nextEvent<T>(
  */
 export function createTestApp(overrides: Partial<Dependencies> = {}) {
   const { repositories, fixtures } = createInMemoryRepositories();
+  const clock = overrides.clock ?? tickingClock();
   const deps: Dependencies = {
     repositories,
     passwords: fakePasswordHasher,
     tokens: createJwtTokenService({ secret: TEST_JWT_SECRET, ttlSeconds: 60 }),
     events: createPubSubMessageEvents(),
-    clock: tickingClock(),
+    clock,
+    inviteCodes: sequentialInviteCodes(),
+    throttle: createMemoryThrottle({ limit: 10, windowMs: 60_000, clock }),
     ...overrides,
   };
   return {

@@ -2,12 +2,15 @@ import type { Repositories } from '../application/ports.js';
 import {
   ChatId,
   isParticipant,
+  type ChannelChat,
   type Chat,
   type DirectChat,
   type DirectChatKey,
   type GroupChat,
 } from '../domain/chat.js';
+import type { Invite, InviteCode } from '../domain/invite.js';
 import { MessageId, type Message } from '../domain/message.js';
+import { err, ok } from '../domain/result.js';
 import {
   Email,
   UserId,
@@ -34,6 +37,11 @@ export function createInMemoryRepositories(): {
 } {
   const users = new Map<UserId, Credentials>();
   const chats = new Map<ChatId, ChatRecord>();
+  const invites = new Map<InviteCode, { invite: Invite; used: boolean }>();
+  const redeemable = (code: InviteCode, at: Date) => {
+    const record = invites.get(code);
+    return !!record && !record.used && at < record.invite.expiresAt;
+  };
   const messages: Message[] = [];
   let lastId = 0;
   const nextId = () => `id-${String(++lastId).padStart(6, '0')}`;
@@ -90,6 +98,69 @@ export function createInMemoryRepositories(): {
         };
         chats.set(chat.id, { chat, directKey: key, activeAt: new Date() });
         return chat;
+      },
+
+      findChannels: async () =>
+        [...chats.values()]
+          .flatMap(({ chat }) => (chat.kind === 'channel' ? [chat] : []))
+          .sort((a, b) => compare(a.name, b.name)),
+
+      joinChannel: async (name, userId) => {
+        requireUser(userId);
+        const record = [...chats.values()].find(
+          ({ chat }) => chat.kind === 'channel' && chat.name === name
+        );
+        if (!record) {
+          const chat: ChannelChat = {
+            kind: 'channel',
+            id: ChatId(nextId()),
+            name,
+            participantIds: [userId],
+          };
+          chats.set(chat.id, { chat, directKey: null, activeAt: new Date() });
+          return chat;
+        }
+        const channel = record.chat as ChannelChat;
+        const joined: ChannelChat = {
+          ...channel,
+          participantIds: distinct([...channel.participantIds, userId]).sort(),
+        };
+        chats.set(channel.id, { ...record, chat: joined });
+        return joined;
+      },
+
+      leaveChannel: async (chatId, userId) => {
+        const record = chats.get(chatId);
+        if (record?.chat.kind !== 'channel') return;
+        chats.set(chatId, {
+          ...record,
+          chat: {
+            ...record.chat,
+            participantIds: record.chat.participantIds.filter(
+              (id) => id !== userId
+            ),
+          },
+        });
+      },
+    },
+
+    invites: {
+      create: async (invite) => {
+        invites.set(invite.code, { invite, used: false });
+      },
+
+      isRedeemable: async (code, at) => redeemable(code, at),
+
+      redeem: async (code, { email, name, passwordHash }, at) => {
+        const record = invites.get(code);
+        if (!record || !redeemable(code, at)) return err('InviteUnavailable');
+        if ([...users.values()].some(({ user }) => user.email === email)) {
+          return err('EmailTaken');
+        }
+        const user: User = { id: UserId(nextId()), email, name };
+        users.set(user.id, { user, passwordHash });
+        invites.set(code, { ...record, used: true });
+        return ok(user);
       },
     },
 

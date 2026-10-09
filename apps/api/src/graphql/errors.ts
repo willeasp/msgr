@@ -17,6 +17,11 @@ export function toGraphQLError(error: DomainError): GraphQLError {
       return new GraphQLError(`${error.entity} not found`, {
         extensions: { code: 'NOT_FOUND' },
       });
+    case 'TooManyAttempts':
+      return new GraphQLError(
+        'Too many attempts. Wait a few minutes and try again.',
+        { extensions: { code: 'TOO_MANY_REQUESTS' } }
+      );
   }
 }
 

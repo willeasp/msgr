@@ -20,6 +20,8 @@ Kept small so upstream diffs stay readable:
   `MessageViewer` props, `position.ts` rects, unused locals, empty types, and
   hooks hoisted above early returns (`BlockLoader`) or made unconditional
   (`DropdownMenuTrigger`).
+- `DropdownMenuTrigger` returns focus to its trigger only if nothing else took
+  it, so a menu item that opens a dialog leaves the dialog's field focused.
 - `common/utilities.ts` keeps only the helpers these components call.
 - `modules/hotkeys.ts` replaces upstream's vendored `react-hotkeys-hook` with
   the one call it needs, `useHotkeys(keys, callback, options)`.

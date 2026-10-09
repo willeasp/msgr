@@ -9,17 +9,20 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  name      String
-  password  String
-  chats     Chat[]    @relation("ChatParticipants")
-  messages  Message[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id          String    @id @default(cuid())
+  email       String    @unique
+  name        String
+  password    String
+  chats       Chat[]    @relation("ChatParticipants")
+  messages    Message[]
+  invitesSent Invite[]  @relation("InvitesSent")
+  invite      Invite?   @relation("InviteUsed")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
-/// Exactly one of `directKey` and `title` is set (enforced by a CHECK constraint).
+/// Exactly one of `directKey`, `title` and `channelName` is set, which says
+/// what kind of chat it is (enforced by a CHECK constraint).
 model Chat {
   id           String    @id @default(cuid())
   /// Direct chats only: the two participant ids, sorted and joined by ":".
@@ -27,6 +30,8 @@ model Chat {
   directKey    String?   @unique
   /// Group chats only. A direct chat is titled by its counterpart's name.
   title        String?
+  /// Channels only: the name without its "#". Unique, so a name means one channel.
+  channelName  String?   @unique
   participants User[]    @relation("ChatParticipants")
   messages     Message[]
   createdAt    DateTime  @default(now())
@@ -46,4 +51,18 @@ model Message {
 
   @@index([chatId, createdAt, id])
   @@index([senderId])
+}
+
+/// A single-use way in for someone new. Stores a hash of the code, never the
+/// code itself, so the database alone cannot sign anyone up.
+model Invite {
+  /// SHA-256 of the code, hex.
+  codeHash    String    @id
+  invitedById String?
+  invitedBy   User?     @relation("InvitesSent", fields: [invitedById], references: [id], onDelete: SetNull)
+  expiresAt   DateTime
+  usedAt      DateTime?
+  usedById    String?   @unique
+  usedBy      User?     @relation("InviteUsed", fields: [usedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
 }

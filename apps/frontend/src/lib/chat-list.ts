@@ -14,10 +14,20 @@ export type ReceivedMessage =
  */
 export function withReceivedMessage(
   chats: readonly ChatRow[],
-  { chat, ...message }: ReceivedMessage
+  { chat, id, content, createdAt }: ReceivedMessage
 ): ChatRow[] {
   return [
-    { ...chat, messages: [message] },
-    ...chats.filter(({ id }) => id !== chat.id),
+    { ...chat, messages: [{ id, content, createdAt }] },
+    ...chats.filter((row) => row.id !== chat.id),
   ];
+}
+
+/** A chat's history with `message` at the end, unless it already has it. */
+export function withMessage<M extends { readonly id: string }>(
+  history: readonly M[],
+  message: M
+): readonly M[] {
+  return history.some(({ id }) => id === message.id)
+    ? history
+    : [...history, message];
 }

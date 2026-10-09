@@ -1,5 +1,9 @@
 /** Every way a use case can fail that the caller is expected to handle. */
-export type DomainError = InvalidCredentials | InvalidInput | NotFound;
+export type DomainError =
+  | InvalidCredentials
+  | InvalidInput
+  | NotFound
+  | TooManyAttempts;
 
 export type InvalidCredentials = { readonly type: 'InvalidCredentials' };
 
@@ -11,8 +15,11 @@ export type InvalidInput = {
 
 export type NotFound = {
   readonly type: 'NotFound';
-  readonly entity: 'Chat' | 'User';
+  readonly entity: 'Chat' | 'Invite' | 'User';
 };
+
+/** Someone is guessing: the same thing was tried too often, too quickly. */
+export type TooManyAttempts = { readonly type: 'TooManyAttempts' };
 
 export const invalidCredentials = (): InvalidCredentials => ({
   type: 'InvalidCredentials',
@@ -27,4 +34,8 @@ export const invalidInput = (field: string, reason: string): InvalidInput => ({
 export const notFound = (entity: NotFound['entity']): NotFound => ({
   type: 'NotFound',
   entity,
+});
+
+export const tooManyAttempts = (): TooManyAttempts => ({
+  type: 'TooManyAttempts',
 });

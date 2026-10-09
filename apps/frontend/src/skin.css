@@ -323,6 +323,12 @@ a:focus {
   color: var(--paper);
 }
 
+/* Like a Mac, only the field you're typing in shows the insertion point. */
+:root .srcl-Input__root:not(.srcl-Input__focused) .srcl-Input__block,
+:root .srcl-TextArea__root:not(.srcl-TextArea__focused) .srcl-TextArea__block {
+  visibility: hidden;
+}
+
 :root .srcl-Input__placeholder,
 :root .srcl-Input__focused .srcl-Input__placeholder,
 :root .srcl-TextArea__placeholder,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createTestApp, expectOk } from '../testing/harness.js';
+import { createTestApp, expectOk, nextEvent } from '../testing/harness.js';
 
 async function threePeople() {
   const app = createTestApp();
@@ -75,6 +75,94 @@ describe('opening a direct chat', () => {
     expect(await services().chats.openDirect(ada, 'nobody')).toEqual({
       ok: false,
       error: { type: 'NotFound', entity: 'User' },
+    });
+  });
+});
+
+describe('channels', () => {
+  it('joins a channel by name, creating it the first time', async () => {
+    const { services, ada, grace } = await threePeople();
+
+    const created = expectOk(
+      await services().chats.joinChannel(ada, '#General')
+    );
+    const joined = expectOk(
+      await services().chats.joinChannel(grace, 'general')
+    );
+
+    expect(created).toMatchObject({ kind: 'channel', name: 'general' });
+    expect(joined).toEqual({
+      ...created,
+      participantIds: [ada.id, grace.id].sort(),
+    });
+  });
+
+  it('refuses a name that cannot be a channel', async () => {
+    const { services, ada } = await threePeople();
+
+    expect(await services().chats.joinChannel(ada, 'no/slashes')).toMatchObject(
+      { ok: false, error: { type: 'InvalidInput', field: 'name' } }
+    );
+  });
+
+  it('lists every channel, including ones the viewer has not joined', async () => {
+    const { services, ada, grace } = await threePeople();
+    const books = expectOk(await services().chats.joinChannel(ada, 'books'));
+    const random = expectOk(
+      await services().chats.joinChannel(grace, 'random')
+    );
+
+    expect(await services().chats.listChannels()).toEqual([books, random]);
+  });
+
+  it('delivers channel messages live to someone who just joined', async () => {
+    const { services, ada, grace } = await threePeople();
+    const general = expectOk(
+      await services().chats.joinChannel(ada, 'general')
+    );
+    expectOk(await services().chats.joinChannel(grace, 'general'));
+    const feed = services().messages.feed(grace);
+    const next = nextEvent(feed);
+
+    await services().messages.send(ada, {
+      chatId: general.id,
+      content: 'welcome!',
+    });
+
+    expect(await next).toMatchObject({ content: 'welcome!' });
+  });
+
+  it('lets a member leave, after which the channel is hidden from them', async () => {
+    const { services, ada, grace } = await threePeople();
+    const general = expectOk(
+      await services().chats.joinChannel(ada, 'general')
+    );
+    expectOk(await services().chats.joinChannel(grace, 'general'));
+
+    expect(await services().chats.leaveChannel(grace, general.id)).toEqual({
+      ok: true,
+      value: true,
+    });
+    expect(await services().chats.find(grace, general.id)).toEqual({
+      ok: false,
+      error: { type: 'NotFound', entity: 'Chat' },
+    });
+  });
+
+  it('leaves only channels, and only ones the viewer can see', async () => {
+    const { fixtures, services, ada, grace, linus } = await threePeople();
+    const group = await fixtures.groupChat('Team', [ada, grace]);
+    const general = expectOk(
+      await services().chats.joinChannel(ada, 'general')
+    );
+
+    expect(await services().chats.leaveChannel(ada, group.id)).toMatchObject({
+      ok: false,
+      error: { type: 'InvalidInput', field: 'chatId' },
+    });
+    expect(await services().chats.leaveChannel(linus, general.id)).toEqual({
+      ok: false,
+      error: { type: 'NotFound', entity: 'Chat' },
     });
   });
 });

@@ -113,6 +113,132 @@ describe('authentication', () => {
   });
 });
 
+describe('invites', () => {
+  const SIGN_UP = `
+    mutation ($code: String!) {
+      signUp(input: {
+        inviteCode: $code
+        name: "Margaret"
+        email: "margaret@example.com"
+        password: "apollo-guidance"
+      }) { token user { name } }
+    }
+  `;
+
+  it('lets a member invite someone, who signs up into a session cookie', async () => {
+    const { app, ada } = await world();
+
+    const invite = await execute(
+      app,
+      'mutation { createInvite { code expiresAt } }',
+      { as: ada }
+    );
+    const code = (invite.data?.['createInvite'] as { code: string }).code;
+    const signUp = await execute(app, SIGN_UP, { variables: { code } });
+
+    expect(invite.data?.['createInvite']).toEqual({
+      code,
+      expiresAt: expect.any(String),
+    });
+    expect(signUp.data?.['signUp']).toMatchObject({
+      user: { name: 'Margaret' },
+    });
+    expect(signUp.cookie.set).toHaveBeenCalledWith(
+      (signUp.data?.['signUp'] as { token: string }).token
+    );
+  });
+
+  it('keeps inviting behind sign-in', async () => {
+    const { app } = await world();
+
+    expect(
+      codeOf(await execute(app, 'mutation { createInvite { code } }'))
+    ).toBe('UNAUTHENTICATED');
+  });
+
+  it('reports a spent invite as not found, without a cookie', async () => {
+    const { app, ada } = await world();
+    const { code } = await app.services().invites.create(ada);
+    await execute(app, SIGN_UP, { variables: { code } });
+
+    const again = await execute(app, SIGN_UP, { variables: { code } });
+
+    expect(codeOf(again)).toBe('NOT_FOUND');
+    expect(again.cookie.set).not.toHaveBeenCalled();
+  });
+});
+
+describe('channels', () => {
+  it('joins by name, titled with a #, and leaves again', async () => {
+    const { app, ada } = await world();
+
+    const joined = await execute(
+      app,
+      'mutation { joinChannel(name: "Book Club") { id kind title } }',
+      { as: ada }
+    );
+    const chat = joined.data?.['joinChannel'] as { id: string };
+    const left = await execute(
+      app,
+      'mutation ($id: ID!) { leaveChannel(chatId: $id) }',
+      { as: ada, variables: { id: chat.id } }
+    );
+
+    expect(joined.data?.['joinChannel']).toEqual({
+      id: chat.id,
+      kind: 'CHANNEL',
+      title: '#book-club',
+    });
+    expect(left.data).toEqual({ leaveChannel: true });
+  });
+
+  it("lists every channel without letting anyone read the ones they haven't joined", async () => {
+    const { app, ada, grace } = await world();
+    await app.services().chats.joinChannel(grace, 'general');
+    await app.services().chats.joinChannel(grace, 'books');
+    await app.services().chats.joinChannel(ada, 'books');
+
+    const result = await execute(
+      app,
+      '{ channels { name participantCount joined } }',
+      { as: ada }
+    );
+
+    expect(result.data).toEqual({
+      channels: [
+        { name: 'books', participantCount: 2, joined: true },
+        { name: 'general', participantCount: 1, joined: false },
+      ],
+    });
+  });
+
+  it('says what kind each chat is', async () => {
+    const { app, ada } = await world();
+
+    const result = await execute(app, '{ chats { kind } }', { as: ada });
+
+    expect(result.data).toEqual({
+      chats: expect.arrayContaining([{ kind: 'DIRECT' }, { kind: 'GROUP' }]),
+    });
+  });
+});
+
+describe('throttling', () => {
+  it('reports a throttled login as too many requests', async () => {
+    const app = createTestApp({ throttle: { attempt: () => false } });
+
+    const result = await execute(
+      app,
+      'mutation { login(email: "ada@example.com", password: "secret") { token } }'
+    );
+
+    expect(codeOf(result)).toBe('TOO_MANY_REQUESTS');
+    expect(result.errors?.[0]?.message).toBe(
+      'Too many attempts. Wait a few minutes and try again.'
+    );
+  });
+});
+
 describe('chats', () => {
   it('titles a direct chat after the other person, from each side', async () => {
     const { app, ada, grace, direct } = await world();

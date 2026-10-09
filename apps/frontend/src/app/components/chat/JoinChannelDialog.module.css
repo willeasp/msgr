@@ -1,0 +1,14 @@
+.error {
+  margin-top: calc(var(--line) * 0.5);
+}
+
+.list {
+  min-height: calc(var(--line) * 3);
+  max-height: calc(var(--line) * 10);
+  margin-top: var(--line);
+  overflow-y: auto;
+}
+
+.name {
+  font-family: var(--font-family-chrome);
+}

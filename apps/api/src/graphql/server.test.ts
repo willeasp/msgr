@@ -1,4 +1,7 @@
-import { createClient } from 'graphql-ws';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createClient, type Client } from 'graphql-ws';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 import type { MessageEvents } from '../application/ports.js';
@@ -12,12 +15,30 @@ import {
 import { startServer, type Server } from './server.js';
 
 const LOGIN = `mutation { login(email: "ada@example.com", password: "secret") { token } }`;
+const APP_ORIGIN = 'http://localhost:4200';
+
+/** A WebSocket that sends headers the way a browser would. */
+const socketWith = (headers: Record<string, string>) =>
+  class extends WebSocket {
+    constructor(address: string, protocols?: string | string[]) {
+      super(address, protocols, { headers });
+    }
+  };
+
+/** A built frontend: an index page and one asset. */
+function builtApp() {
+  const dir = mkdtempSync(join(tmpdir(), 'msgr-app-'));
+  writeFileSync(join(dir, 'index.html'), '<title>Msgr</title>');
+  writeFileSync(join(dir, 'app.js'), 'console.log("msgr")');
+  return dir;
+}
 
 describe('server', () => {
   const events = createPubSubMessageEvents();
-  let listening: () => void;
-  const subscribed = new Promise<void>((resolve) => (listening = resolve));
-  // Tells the test when a subscription has reached the event bus.
+  let listening = () => undefined as void;
+  /** Resolves when the next subscription reaches the event bus. */
+  const nextSubscription = () =>
+    new Promise<void>((resolve) => (listening = resolve));
   const observedEvents: MessageEvents = {
     publish: (message, recipients) => events.publish(message, recipients),
     subscribe(recipient) {
@@ -48,10 +69,11 @@ describe('server', () => {
     });
     server = await startServer(app.deps, {
       port: 0,
-      corsOrigin: 'http://localhost:4200',
+      corsOrigin: APP_ORIGIN,
       jwtSecret: TEST_JWT_SECRET,
       sessionTtlSeconds: 60,
       secureCookies: false,
+      staticDir: builtApp(),
     });
   });
 
@@ -75,6 +97,27 @@ describe('server', () => {
     );
   });
 
+  /** The next message Ada's feed delivers over `client`. */
+  async function receiveOver(client: Client) {
+    const notes = await app.fixtures.groupChat('Notes', [ada]);
+    const subscribed = nextSubscription();
+    const stream = client.iterate({
+      query: 'subscription { messageReceived { content } }',
+    });
+    const received = stream.next();
+    await subscribed;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await app
+      .services()
+      .messages.send(ada, { chatId: notes.id, content: 'over the wire' });
+    const { value } = await received;
+    await stream.return?.();
+    return value;
+  }
+
+  const sessionCookie = async () =>
+    ((await post(LOGIN)).headers.get('set-cookie') ?? '').split(';')[0] ?? '';
+
   it('authenticates subscriptions with the token from login', async () => {
     const { data } = (await (await post(LOGIN)).json()) as {
       data: { login: { token: string } };
@@ -84,25 +127,91 @@ describe('server', () => {
       webSocketImpl: WebSocket,
       connectionParams: { token: data.login.token },
     });
-    const notes = await app.fixtures.groupChat('Notes', [ada]);
+
+    try {
+      expect(await receiveOver(client)).toEqual({
+        data: { messageReceived: { content: 'over the wire' } },
+      });
+    } finally {
+      await client.dispose();
+    }
+  });
+
+  it("authenticates a browser's subscriptions with its session cookie", async () => {
+    const client = createClient({
+      url: server.url.replace(/^http/, 'ws'),
+      webSocketImpl: socketWith({
+        cookie: await sessionCookie(),
+        origin: APP_ORIGIN,
+      }),
+    });
+
+    try {
+      expect(await receiveOver(client)).toEqual({
+        data: { messageReceived: { content: 'over the wire' } },
+      });
+    } finally {
+      await client.dispose();
+    }
+  });
+
+  it('refuses WebSockets opened by any other site', async () => {
+    const client = createClient({
+      url: server.url.replace(/^http/, 'ws'),
+      retryAttempts: 0,
+      webSocketImpl: socketWith({
+        cookie: await sessionCookie(),
+        origin: 'https://evil.example',
+      }),
+    });
+    let closeCode: number | undefined;
+    const closed = new Promise<void>((resolve) => {
+      client.on('closed', (event) => {
+        closeCode = (event as { code: number }).code;
+        resolve();
+      });
+    });
 
     try {
       const stream = client.iterate({
         query: 'subscription { messageReceived { content } }',
       });
-      const received = stream.next();
-      await subscribed;
-      await new Promise((resolve) => setTimeout(resolve, 20));
-      await app
-        .services()
-        .messages.send(ada, { chatId: notes.id, content: 'over the wire' });
-
-      expect((await received).value).toEqual({
-        data: { messageReceived: { content: 'over the wire' } },
-      });
-      await stream.return?.();
+      await stream.next().catch(() => undefined);
+      await closed;
+      expect(closeCode).toBe(4403);
     } finally {
       await client.dispose();
     }
+  });
+
+  it('serves the app, and its client-side routes, from the same address', async () => {
+    const site = server.url.replace(/\/graphql$/, '');
+    const get = async (path: string) => {
+      const response = await fetch(`${site}${path}`);
+      return { status: response.status, body: await response.text() };
+    };
+
+    const page = await fetch(site);
+    expect(page.headers.get('content-security-policy')).toContain(
+      "default-src 'self'"
+    );
+    expect(page.headers.get('x-frame-options')).toBe('DENY');
+    expect(page.headers.get('x-content-type-options')).toBe('nosniff');
+
+    expect(await get('/')).toEqual({
+      status: 200,
+      body: '<title>Msgr</title>',
+    });
+    expect(await get('/cm0chat123')).toEqual({
+      status: 200,
+      body: '<title>Msgr</title>',
+    });
+    expect(await get('/app.js')).toEqual({
+      status: 200,
+      body: 'console.log("msgr")',
+    });
+    expect(await (await post('{ __typename }')).json()).toEqual({
+      data: { __typename: 'Query' },
+    });
   });
 });

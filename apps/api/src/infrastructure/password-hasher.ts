@@ -13,6 +13,7 @@ export function createBcryptPasswordHasher(): PasswordHasher {
   // as much as checking a real one, and never succeeds.
   const decoy = bcrypt.hashSync(randomUUID(), COST);
   return {
+    hash: hashPassword,
     verify: (password, hash) => bcrypt.compare(password, hash ?? decoy),
   };
 }

@@ -10,6 +10,7 @@ import { COMPUTER } from '../components/icons';
 import { DialogButtons, MacDialog } from '../components/MacDialog';
 import { MenuBar } from '../components/MenuBar';
 import { PixelIcon } from '../components/PixelIcon';
+import { Muted } from '../components/Muted';
 import { ThemeMenu } from '../components/ThemeMenu';
 import styles from './page.module.css';
 
@@ -21,7 +22,6 @@ const LOGIN_MUTATION = gql(`
         email
         name
       }
-      token
     }
   }
 `);
@@ -33,14 +33,8 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [login, { loading }] = useMutation(LOGIN_MUTATION, {
-    onCompleted: (data) => {
-      // Store token in localStorage for WebSocket authentication
-      if (data.login.token) {
-        localStorage.setItem('authToken', data.login.token);
-      }
-      // Redirect to home/chat page on successful login
-      navigate('/');
-    },
+    // The session arrives as an httpOnly cookie.
+    onCompleted: () => navigate('/'),
     onError: (error) => {
       setError(error.message);
     },
@@ -104,6 +98,7 @@ const LoginPage: React.FC = () => {
                 <Button type="submit">Sign In</Button>
               )}
             </DialogButtons>
+            <Muted>New here? Ask a friend for an invite link.</Muted>
           </form>
         </MacDialog>
       </main>

@@ -1,9 +1,12 @@
 import { useId, useRef, useState } from 'react';
 import { useMutation } from '@apollo/client/react';
+import { withMessage } from '../../../lib/chat-list';
+import { parseCommand } from '../../../lib/commands';
 import { gql } from '../../../lib/__generated__';
 import Button from '../../../sacred/components/Button';
 import TextArea from '../../../sacred/components/TextArea';
 import { GET_CHAT_MESSAGES } from './MessageList';
+import { useJoinChannel } from './use-join-channel';
 import styles from './MessageInput.module.css';
 
 const SEND_MESSAGE = gql(`
@@ -28,6 +31,8 @@ export function MessageInput({ chatId }: MessageInputProps) {
   const [messageInput, setMessageInput] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
   const inputId = useId();
+  const [commandError, setCommandError] = useState<string | null>(null);
+  const { join } = useJoinChannel();
 
   const [sendMessage, { loading: sendingMessage }] = useMutation(SEND_MESSAGE, {
     onCompleted: () => {
@@ -42,19 +47,11 @@ export function MessageInput({ chatId }: MessageInputProps) {
           query: GET_CHAT_MESSAGES,
           variables: { chatId },
         },
-        (existing) => {
-          if (!existing?.messages) return existing;
-
-          // Avoid duplicates (subscription might have already added it)
-          const isDuplicate = existing.messages.some(
-            (m) => m.id === data.sendMessage.id
-          );
-          if (isDuplicate) return existing;
-
-          return {
-            messages: [...existing.messages, data.sendMessage],
-          };
-        }
+        (existing) =>
+          existing && {
+            // The feed may have delivered it already.
+            messages: [...withMessage(existing.messages, data.sendMessage)],
+          }
       );
     },
   });
@@ -62,6 +59,15 @@ export function MessageInput({ chatId }: MessageInputProps) {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageInput.trim() || sendingMessage) return;
+
+    // "/join #general" joins a channel instead of being sent.
+    const command = parseCommand(messageInput);
+    if (command) {
+      const failure = await join(command.channel);
+      setCommandError(failure);
+      if (!failure) setMessageInput('');
+      return;
+    }
 
     await sendMessage({
       variables: {
@@ -84,11 +90,19 @@ export function MessageInput({ chatId }: MessageInputProps) {
       <label htmlFor={inputId} className={styles.label}>
         Message
       </label>
+      {commandError && (
+        <p role="alert" className={styles.error}>
+          {commandError}
+        </p>
+      )}
       <div className={styles.field}>
         <TextArea
           id={inputId}
           value={messageInput}
-          onChange={(e) => setMessageInput(e.target.value)}
+          onChange={(e) => {
+            setMessageInput(e.target.value);
+            setCommandError(null);
+          }}
           onKeyDown={handleKeyDown}
           placeholder="Write a message"
           readOnly={sendingMessage}

@@ -21,18 +21,16 @@ const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 
-const httpLink = new HttpLink({
-  uri: 'http://localhost:4000/graphql',
-  credentials: 'include', // Include cookies in requests
-});
+// The API lives at the app's own address (Vite proxies it in development),
+// so the httpOnly session cookie authenticates both requests and sockets.
+const httpLink = new HttpLink({ uri: '/graphql' });
 
-// WebSocket link for subscriptions
 const wsLink = new GraphQLWsLink(
   createClient({
-    url: 'ws://localhost:4000/graphql',
-    lazy: true, // Only connect when a subscription is active
-    // The session cookie doesn't reach the WebSocket; send the login token instead.
-    connectionParams: () => ({ token: localStorage.getItem('authToken') }),
+    url: `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${
+      window.location.host
+    }/graphql`,
+    lazy: true, // Only connect while a subscription is active
   })
 );
 

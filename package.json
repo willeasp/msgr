@@ -8,6 +8,7 @@
     "db:seed": "npm --workspace=@msgr/api exec prisma db seed",
     "db:generate": "npm --workspace=@msgr/api exec prisma generate",
     "db:setup": "npm run db:migrate && npm run db:generate && npm run db:seed",
+    "invite": "npm --workspace=@msgr/api exec tsx scripts/create-invite.ts",
     "dev": "npx nx run-many -t serve",
     "dev:api": "npx nx serve api",
     "dev:frontend": "npx nx serve frontend",

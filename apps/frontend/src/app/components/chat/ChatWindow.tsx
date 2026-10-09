@@ -1,13 +1,15 @@
 import { useQuery } from '@apollo/client/react';
 import { gql } from '../../../lib/__generated__';
+import { ChatKind } from '../../../lib/__generated__/graphql';
 import { MacWindow } from '../MacWindow';
 import { MessageInput } from './MessageInput';
 import { MessageList } from './MessageList';
 
-const GET_CHAT_DATA = gql(`
+export const GET_CHAT_DATA = gql(`
   query GetChatData($chatId: ID!) {
     chat(id: $chatId) {
       id
+      kind
       title
       participants {
         id
@@ -35,6 +37,10 @@ export function ChatWindow({
   });
   const chat = data?.chat;
   const count = chat?.participants.length ?? 0;
+  const [one, many] =
+    chat?.kind === ChatKind.Channel
+      ? ['member', 'members']
+      : ['person', 'people'];
 
   return (
     <MacWindow
@@ -44,7 +50,7 @@ export function ChatWindow({
         chat && (
           <>
             <span>
-              {count} {count === 1 ? 'person' : 'people'}
+              {count} {count === 1 ? one : many}
             </span>
             <span>{chat.participants.map(({ name }) => name).join(', ')}</span>
           </>

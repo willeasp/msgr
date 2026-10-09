@@ -14,6 +14,10 @@ const config = {
   server: {
     port: 4200,
     host: 'localhost',
+    // Same address as production: the API answers under /graphql.
+    proxy: {
+      '/graphql': { target: 'http://localhost:4000', ws: true },
+    },
   },
   preview: {
     port: 4200,
