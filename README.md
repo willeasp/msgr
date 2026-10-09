@@ -1,68 +1,44 @@
 # Msgr
 
-A real-time chat for people who know each other, dressed as a black-and-white Macintosh. Accounts are invite-only; talk one-to-one or in IRC-style `#channels`, with desktop notifications for anything you aren't looking at.
+**Chat with the people you know, on a black-and-white Macintosh.**
 
-Built with GraphQL, React and Prisma.
+[![CI](https://github.com/willeasp/msgr/actions/workflows/ci.yml/badge.svg)](https://github.com/willeasp/msgr/actions/workflows/ci.yml)
 
-## Tech Stack
+![The Chats window and an open group chat on Msgr's dithered desktop](docs/screenshots/chat.png)
 
-- **Backend**: Apollo GraphQL Server, Express, Prisma ORM, PostgreSQL, DataLoader
-- **Frontend**: React 19, Apollo Client, React Router, [Sacred Computer](https://www.sacred.computer/) components (vendored in `apps/frontend/src/sacred`)
-- **Real-time**: GraphQL Subscriptions via WebSocket
-- **Auth**: invite-only sign-up; a JWT session in an httpOnly cookie, for HTTP and WebSocket alike
-- **Build & test**: Nx monorepo, Vite, esbuild, Vitest
+## What it does
 
-## Prerequisites
+- **Invite-only.** Nobody can sign up without a link from someone already in. File → Invite a Friend… makes one; it works once and lasts a week.
+- **Direct chats, groups and `#channels`.** Start a chat with anyone, or join a channel from File → Join Channel…, or by typing `/join #name` in the message box.
+- **Live.** Messages arrive the moment they're sent, and the chat list reorders itself.
+- **Desktop notifications** and a beep for messages in chats you aren't looking at. Turn them on in the Special menu.
+- **Light, dark and seven tints** from the View menu, and a layout that works on a phone.
+- **Free to host.** One container on Render's free plan, with Neon's free Postgres.
 
-- Node.js 22+ and npm
-- No need to install PostgreSQL separately - Prisma dev provides a local database
+<p>
+  <img src="docs/screenshots/sign-in.png" width="49%" alt="The sign-in dialog: Welcome to Msgr.">
+  <img src="docs/screenshots/channels.png" width="49%" alt="Starting a new channel from the Join a Channel dialog">
+</p>
+<p>
+  <img src="docs/screenshots/dark.png" width="75%" alt="The #general channel in the dark theme">
+  <img src="docs/screenshots/phone.png" width="23%" alt="A chat on a phone, with the orange tint">
+</p>
 
-## Quick Start
+## Run it locally
 
-### 1. Install Dependencies
+You need Node.js 22 or newer. The database comes from Prisma's local dev server, so there's no Postgres to install.
 
 ```bash
 npm install
+npm run db:start          # in its own terminal; press h for its URL, and keep it running
+cp apps/api/.env.example apps/api/.env   # then set DATABASE_URL to that URL
+npm run db:setup          # migrate, generate the Prisma client, seed
+npm run dev               # API on :4000, app on http://localhost:4200
 ```
 
-### 2. Start the Database
+The app proxies `/graphql` to the API, the same single-address setup production uses. Run `npm run db:migrate` whenever you pull a new migration.
 
-In a separate terminal, start the Prisma development database:
-
-```bash
-npm run db:start
-```
-
-Press `h` to see the HTTP URL. Keep this running. Then create the API's env file:
-
-```bash
-cp apps/api/.env.example apps/api/.env
-```
-
-Set `DATABASE_URL` in `apps/api/.env` to the HTTP URL shown by the database process.
-
-### 3. Set Up the Database
-
-Run migrations, generate Prisma Client, and seed data:
-
-```bash
-npm run db:setup
-```
-
-Run `npm run db:migrate` again whenever you pull a new migration.
-
-### 4. Start Development Servers
-
-```bash
-npm run dev
-```
-
-- **Frontend**: http://localhost:4200 (it proxies `/graphql` to the API, as production serves both from one address)
-- **API / GraphQL sandbox**: http://localhost:4000/graphql
-
-### 5. Test Accounts
-
-All seeded users have the password `password123`:
+The seed creates five people, all with the password `password123`, and five chats: three direct, the "Project Team" group and `#general`.
 
 | Email               | Name          |
 | ------------------- | ------------- |
@@ -72,60 +48,20 @@ All seeded users have the password `password123`:
 | charlie@example.com | Charlie Brown |
 | diana@example.com   | Diana Prince  |
 
-The seed also creates 5 chats (3 direct, 1 group and `#general`) with 16 messages.
+## Invite people
 
-### 6. Invite Someone
-
-New accounts need an invite link. Signed in, use **File → Invite a Friend…**; with nobody signed up yet, print one from the command line:
+Signed in, use **File → Invite a Friend…** and send the link. With nobody signed up yet, print the first one from the command line:
 
 ```bash
 npm run invite
 ```
 
-## Available Scripts
-
-| Script                | What it does                                             |
-| --------------------- | -------------------------------------------------------- |
-| `npm run dev`         | API and frontend in parallel (`dev:api`, `dev:frontend`) |
-| `npm run test`        | All tests; no database needed                            |
-| `npm run typecheck`   | Type check both apps (runs codegen first)                |
-| `npm run lint`        | Lint both apps, including the API's layer rule           |
-| `npm run build`       | Build both apps                                          |
-| `npm run codegen`     | Generate GraphQL types for API and frontend              |
-| `npm run db:start`    | Start the Prisma dev database                            |
-| `npm run db:migrate`  | Apply migrations (and create one after a schema change)  |
-| `npm run db:generate` | Generate Prisma Client                                   |
-| `npm run db:seed`     | Reset chats and seed test data                           |
-| `npm run db:setup`    | migrate + generate + seed                                |
-| `npm run invite`      | Print a single-use sign-up link                          |
-
-## Project Structure
-
-```
-apps/
-├── api/
-│   ├── prisma/          # schema, migrations, seed
-│   └── src/
-│       ├── domain/          # pure types and rules (functional core)
-│       ├── application/     # use cases, ports, DataLoaders
-│       ├── infrastructure/  # Prisma, bcrypt, JWT, PubSub adapters
-│       ├── graphql/         # schema, resolvers, context, server
-│       ├── testing/         # in-memory adapters and test harness
-│       └── main.ts          # composition root
-└── frontend/
-    └── src/
-        ├── app/         # pages and components
-        └── lib/         # generated GraphQL types, utilities
-```
-
-Architecture, conventions and the TDD workflow are in [CLAUDE.md](CLAUDE.md). The domain vocabulary is in [CONTEXT.md](CONTEXT.md).
-
-## Deploy for Free
+## Deploy for free
 
 Msgr runs as one container: the API serves the built app from its own address, so one session cookie covers both. [Render](https://render.com)'s free web service runs it and [Neon](https://neon.com)'s free Postgres keeps the data (Render's own free database expires after 30 days). Free plans change, so check both pricing pages.
 
 1. **Database.** Create a Neon project and copy its _direct_ connection string (turn connection pooling off); it starts with `postgresql://`.
-2. **App.** Push the repo to GitHub, then in Render choose **New → Blueprint** and pick it; `render.yaml` describes the service. Paste the Neon string as `DATABASE_URL`. Render generates `JWT_SECRET`, and the app learns its own address from Render. Migrations run on every start.
+2. **App.** In Render, choose **New → Blueprint** and pick this repository; `render.yaml` describes the service. Paste the Neon string as `DATABASE_URL`. Render generates `JWT_SECRET`, and the app learns its own address from Render. Migrations run on every start.
 3. **First invite.** From your machine, against the production database:
 
    ```bash
@@ -134,9 +70,7 @@ Msgr runs as one container: the API serves the built app from its own address, s
 
    Open the link, sign up, and invite everyone else from **File → Invite a Friend…**.
 
-On the free plan the app sleeps after 15 minutes without visitors: the next visit takes about a minute to wake it, and open tabs reconnect by themselves.
-
-To run the production container locally:
+On the free plan the app sleeps after 15 minutes without visitors: the next visit takes about a minute to wake it, and open tabs reconnect by themselves. Any host that runs a container works the same way; to try the production image locally:
 
 ```bash
 docker build -t msgr .
@@ -144,17 +78,70 @@ docker run -p 4000:4000 -e DATABASE_URL='postgresql://…' \
   -e JWT_SECRET="$(openssl rand -base64 32)" -e CORS_ORIGIN=http://localhost:4000 msgr
 ```
 
+## How it's built
+
+- **API:** Node, Express and Apollo Server; GraphQL over HTTP and, for the live feed, over WebSocket. Prisma on PostgreSQL, DataLoader for batching. It's a functional core with an imperative shell: pure domain rules, use cases behind ports, and adapters at the edges.
+- **App:** React 19, Apollo Client and Vite, built from [Sacred Computer](https://www.sacred.computer/)'s components and dressed as a 1984 Macintosh by one skin stylesheet. Set in Chicago and Departure Mono.
+- **Security:** invite-only accounts, an httpOnly session cookie for HTTP and WebSocket alike, a strict Content-Security-Policy, and throttled logins. See [SECURITY.md](SECURITY.md).
+- **Tooling:** an Nx monorepo, Vitest, and GitHub Actions running every check, including the repository contract against real Postgres.
+
+Read more:
+
+- [docs/architecture.md](docs/architecture.md): the big picture, and how a message travels.
+- [docs/adr/](docs/adr/): why it's built this way, one decision at a time.
+- [CLAUDE.md](CLAUDE.md): conventions, the TDD workflow and gotchas, for anyone changing the code.
+- [CONTEXT.md](CONTEXT.md): the vocabulary: chat, channel, participant, invite.
+
+## Scripts
+
+| Script                | What it does                                                              |
+| --------------------- | ------------------------------------------------------------------------- |
+| `npm run dev`         | API and app in parallel (`dev:api`, `dev:frontend`)                       |
+| `npm run test`        | Every test; the Postgres contract also runs if `TEST_DATABASE_URL` is set |
+| `npm run typecheck`   | Type check both apps (runs codegen first)                                 |
+| `npm run lint`        | Lint both apps, including the API's layer rule                            |
+| `npm run build`       | Build both apps                                                           |
+| `npm run codegen`     | Generate GraphQL types for the API and the app                            |
+| `npm run db:start`    | Start the Prisma dev database                                             |
+| `npm run db:migrate`  | Apply migrations (and create one after a schema change)                   |
+| `npm run db:generate` | Generate the Prisma client                                                |
+| `npm run db:seed`     | Reset chats and seed test data                                            |
+| `npm run db:setup`    | migrate + generate + seed                                                 |
+| `npm run invite`      | Print a single-use sign-up link                                           |
+
+## Project structure
+
+```
+apps/
+├── api/
+│   ├── prisma/              # schema, migrations, seed
+│   ├── scripts/             # create-invite (npm run invite)
+│   └── src/
+│       ├── domain/          # pure types and rules (functional core)
+│       ├── application/     # use cases, ports, DataLoaders
+│       ├── infrastructure/  # Prisma, bcrypt, JWT, PubSub and throttle adapters
+│       ├── graphql/         # schema, resolvers, context, server
+│       ├── testing/         # in-memory adapters, repository contract, test harness
+│       └── main.ts          # composition root
+└── frontend/
+    ├── public/              # fonts, boot script
+    └── src/
+        ├── app/             # pages, Mac chrome, chat windows and dialogs, hooks
+        ├── lib/             # pure logic with tests, generated GraphQL types
+        ├── sacred/          # vendored Sacred Computer components
+        └── skin.css         # the Macintosh skin
+docs/                        # architecture, decision records, screenshots
+Dockerfile, render.yaml      # one container, deployed for free
+```
+
 ## Troubleshooting
 
-**Database connection issues?** Make sure `npm run db:start` is running and ports 51213-51215 are free.
+**Database connection issues?** Make sure `npm run db:start` is running and ports 51213–51215 are free.
 
-**TypeScript errors after pulling?** Run `npm run codegen` and `npm run db:generate`.
+**TypeScript errors after pulling?** Run `npm run codegen` and `npm run db:generate`, and `npm run db:migrate` if there are new migrations.
 
-**WebSocket authentication errors?** Sign out and in again (the session cookie authenticates sockets), and check the API is running.
+**Live updates not arriving?** Sign out and in again (the session cookie authenticates the WebSocket), and check the API is running.
 
-## Learn More
+## Credits
 
-- [Nx Documentation](https://nx.dev)
-- [Apollo GraphQL](https://www.apollographql.com/docs/)
-- [Prisma](https://www.prisma.io/docs/)
-- [DataLoader](https://github.com/graphql/dataloader)
+The interface is built from [Sacred Computer](https://www.sacred.computer/) by Internet Development Studio (MIT; see `apps/frontend/src/sacred/LICENSE.md`), and set in Chicago FLF and Departure Mono from Sacred's font menu. The look is a homage to the original Macintosh; Msgr has nothing to do with Apple, and its icons are its own.
