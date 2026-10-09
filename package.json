@@ -9,6 +9,7 @@
     "db:generate": "npm --workspace=@msgr/api exec prisma generate",
     "db:setup": "npm run db:migrate && npm run db:generate && npm run db:seed",
     "invite": "npm --workspace=@msgr/api exec tsx scripts/create-invite.ts",
+    "e2e": "npx nx run-many -t build --projects=@msgr/api,@msgr/frontend && npm --workspace=@msgr/e2e run e2e --",
     "dev": "npx nx run-many -t serve",
     "dev:api": "npx nx serve api",
     "dev:frontend": "npx nx serve frontend",

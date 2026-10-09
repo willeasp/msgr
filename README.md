@@ -83,7 +83,7 @@ docker run -p 4000:4000 -e DATABASE_URL='postgresql://…' \
 - **API:** Node, Express and Apollo Server; GraphQL over HTTP and, for the live feed, over WebSocket. Prisma on PostgreSQL, DataLoader for batching. It's a functional core with an imperative shell: pure domain rules, use cases behind ports, and adapters at the edges.
 - **App:** React 19, Apollo Client and Vite, built from [Sacred Computer](https://www.sacred.computer/)'s components and dressed as a 1984 Macintosh by one skin stylesheet. Set in Chicago and Departure Mono.
 - **Security:** invite-only accounts, an httpOnly session cookie for HTTP and WebSocket alike, a strict Content-Security-Policy, and throttled logins. See [SECURITY.md](SECURITY.md).
-- **Tooling:** an Nx monorepo, Vitest, and GitHub Actions running every check, including the repository contract against real Postgres.
+- **Tooling:** an Nx monorepo, Vitest, Playwright, and GitHub Actions running every check, including the repository contract against real Postgres and the browser tests against the production build.
 
 Read more:
 
@@ -99,6 +99,7 @@ Read more:
 | --------------------- | ------------------------------------------------------------------------- |
 | `npm run dev`         | API and app in parallel (`dev:api`, `dev:frontend`)                       |
 | `npm run test`        | Every test; the Postgres contract also runs if `TEST_DATABASE_URL` is set |
+| `npm run e2e`         | Build, then browser tests in a fresh `msgr_e2e` database (see CLAUDE.md)  |
 | `npm run typecheck`   | Type check both apps (runs codegen first)                                 |
 | `npm run lint`        | Lint both apps, including the API's layer rule                            |
 | `npm run build`       | Build both apps                                                           |
@@ -124,13 +125,14 @@ apps/
 │       ├── graphql/         # schema, resolvers, context, server
 │       ├── testing/         # in-memory adapters, repository contract, test harness
 │       └── main.ts          # composition root
-└── frontend/
-    ├── public/              # fonts, boot script
-    └── src/
-        ├── app/             # pages, Mac chrome, chat windows and dialogs, hooks
-        ├── lib/             # pure logic with tests, generated GraphQL types
-        ├── sacred/          # vendored Sacred Computer components
-        └── skin.css         # the Macintosh skin
+├── frontend/
+│   ├── public/              # fonts, boot script
+│   └── src/
+│       ├── app/             # pages, Mac chrome, chat windows and dialogs, hooks
+│       ├── lib/             # pure logic with tests, generated GraphQL types
+│       ├── sacred/          # vendored Sacred Computer components
+│       └── skin.css         # the Macintosh skin
+└── e2e/                     # Playwright: a real browser against the production build
 docs/                        # architecture, decision records, screenshots
 Dockerfile, render.yaml      # one container, deployed for free
 ```

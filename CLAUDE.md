@@ -1,6 +1,6 @@
 # msgr
 
-Invite-only, real-time chat dressed as a black-and-white Macintosh: a GraphQL API (`apps/api`) and a React client (`apps/frontend`) in an Nx workspace, shipped as one container. Domain terms are defined in [CONTEXT.md](CONTEXT.md); use them in code, tests and commits. The big picture is in [docs/architecture.md](docs/architecture.md), and the reasons behind it in [docs/adr/](docs/adr/).
+Invite-only, real-time chat dressed as a black-and-white Macintosh: a GraphQL API (`apps/api`) and a React client (`apps/frontend`) in an Nx workspace, shipped as one container, with browser tests in `apps/e2e`. Domain terms are defined in [CONTEXT.md](CONTEXT.md); use them in code, tests and commits. The big picture is in [docs/architecture.md](docs/architecture.md), and the reasons behind it in [docs/adr/](docs/adr/).
 
 ## Commands
 
@@ -13,6 +13,7 @@ npm run lint                # includes the API's layer rule (see below)
 npm run codegen             # after any change to apps/api/src/graphql/schema.ts
 npm run db:migrate          # after any change to apps/api/prisma/schema.prisma
 npm run invite              # print a single-use sign-up link (the first account starts here)
+npm run e2e                 # build, then Playwright against the production build (needs the test Postgres below)
 npx nx test @msgr/api -- src/domain   # one folder / file
 ```
 
@@ -24,6 +25,8 @@ export TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/msgr_tes
 DATABASE_URL=$TEST_DATABASE_URL npm --workspace=@msgr/api exec prisma migrate deploy
 npx nx test @msgr/api
 ```
+
+The e2e suite (`apps/e2e`) uses the same server but its own database: every run drops and recreates `msgr_e2e` there, migrates and seeds it, and touches nothing else. Point it at another server with `E2E_POSTGRES_URL` (any database on it). It can't use Prisma dev, which holds a single database.
 
 ## API architecture: functional core, imperative shell
 
@@ -120,6 +123,7 @@ The root `Dockerfile` builds both apps into one image that runs `prisma migrate 
 2. **Use case?** Write a failing test in `application/*.service.test.ts` with `createTestApp()` (in-memory adapters, fake hasher, ticking clock). Override any port to observe it: `createTestApp({ passwords: { ...fakePasswordHasher, verify } })`.
 3. **New repository method?** Add it to the port in `application/ports.ts`, add its behaviour to `testing/repository-contract.ts`, and make both the in-memory and the Prisma adapter pass the contract. Run the Postgres contract before merging.
 4. **New field?** Edit `graphql/schema.ts`, run `npm run codegen`, add a resolver, and cover it through `graphql/resolvers.test.ts`, which executes real operations against the schema.
+5. **Something on screen?** Add a Playwright spec to `apps/e2e/tests` and run `npm run e2e`. Find things the way a person would, by role, label and text, with the helpers in `tests/support.ts` (`signIn`, `chooseMenu`, `chatWindow`, `anotherPerson` for a second browser). The seed data is there at the start of each run; the specs share one server, so make what you need rather than relying on another spec's leftovers. Every login counts toward the throttle (10 per email per 15 minutes, successful ones too), so spread sign-ins across the seeded accounts.
 
 Test through interfaces, not internals: assert on what a service, operation or repository returns. For new relations, assert query counts with `vi.spyOn(repositories.x, 'findByIds')`, as the chat-list test does.
 
@@ -129,7 +133,7 @@ Test through interfaces, not internals: assert on what a service, operation or r
 - The frontend's codegen reads the API schema straight from `apps/api/src/graphql/schema.ts`.
 - The frontend UI is built from Sacred Computer components vendored in `apps/frontend/src/sacred` (read its README before adding one), dressed as a black-and-white Macintosh by `apps/frontend/src/skin.css`. Style with CSS Modules and the skin's `--ink` / `--paper` / `--line` tokens; inversion is the only highlight. There is no Tailwind.
 - `vitest.config.ts` aliases `graphql` to its CommonJS build. Two copies of graphql cannot share a schema.
-- Subscriptions run over one in-process `PubSub`, so a single API instance. To scale out, pass a shared `PubSubEngine` to `createPubSubMessageEvents`.
+- Subscriptions run over one in-process `PubSub`, so a single API instance. To scale out, pass a shared `PubSubEngine` to `createPubSubMessageEvents` and `createPubSubChatEvents`.
 - Subscription contexts live for many events, so their loaders batch but don't cache.
 - The login throttle is in-process memory too: it resets on restart and isn't shared between instances.
 - `prisma migrate dev` refuses to run non-interactively when it wants a confirmation (a new unique index, say). Generate the SQL instead: `prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url <empty db> --script`, then append any hand-written SQL such as CHECK constraints.

@@ -5,9 +5,9 @@ says what to do and what you should see.
 
 The rules underneath have automated tests: the API's invites, throttling,
 channels, sessions and security headers, and the app's pure logic in
-`apps/frontend/src/lib`. What happens on screen (forms, dialogs, menus,
-keyboard, notifications, layout) has no automated tests yet, so this list is
-where it gets checked.
+`apps/frontend/src/lib`. On screen, only signing in has browser tests so far
+(`apps/e2e`, run with `npm run e2e`). The rest (forms, dialogs, menus,
+keyboard, notifications, layout) is checked here.
 
 ## Setup
 

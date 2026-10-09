@@ -11,10 +11,11 @@ concurrency:
 
 jobs:
   check:
-    name: Typecheck, lint, test, build
+    name: Typecheck, lint, test, build, e2e
     runs-on: ubuntu-latest
     services:
-      # A disposable database for the repository contract, which truncates it.
+      # A disposable server: the repository contract truncates msgr_test, and
+      # the e2e run makes its own msgr_e2e beside it.
       # From the Docker Official Images mirror, which has no pull rate limit.
       postgres:
         image: public.ecr.aws/docker/library/postgres:17-alpine
@@ -45,6 +46,19 @@ jobs:
       - run: npm run lint
       - run: npm run test
       - run: npm run build
+      - name: Install Chromium for the e2e tests
+        run: npm --workspace=@msgr/e2e exec playwright install --with-deps chromium
+      - name: End-to-end tests
+        run: npm run e2e
+        env:
+          E2E_POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      - name: Keep traces of failed e2e tests
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: apps/e2e/test-results
+          retention-days: 7
 
   docker:
     name: Container builds

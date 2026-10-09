@@ -1,0 +1,13 @@
+{
+  "name": "@msgr/e2e",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "End-to-end tests: a real browser against the production build and a real database.",
+  "scripts": {
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0"
+  }
+}

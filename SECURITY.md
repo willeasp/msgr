@@ -51,6 +51,8 @@ names and participant counts, never messages or members.
   stored readable in the database. Whoever runs the server, or holds its
   database, can read them.
 - **Channel names are public** to every user, and anyone can join any channel.
+  Anyone in a channel can also add anyone else, who is notified; they can't
+  refuse, only leave.
 - **No account recovery or deletion** yet.
 
 ## Running it safely

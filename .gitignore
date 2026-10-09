@@ -51,3 +51,7 @@ apps/api/generated/prisma
 
 
 **.env
+
+# End-to-end test output
+/apps/e2e/test-results
+/apps/e2e/playwright-report
