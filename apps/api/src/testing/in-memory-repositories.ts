@@ -160,7 +160,7 @@ export function createInMemoryRepositories(): {
         const user: User = { id: UserId(nextId()), email, name };
         users.set(user.id, { user, passwordHash });
         invites.set(code, { ...record, used: true });
-        return ok(user);
+        return ok({ user, invitedBy: record.invite.invitedBy });
       },
     },
 

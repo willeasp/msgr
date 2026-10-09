@@ -51,16 +51,20 @@ export function prismaInviteRepository(db: PrismaClient): InviteRepository {
             .catch((error: unknown) => {
               throw isUniqueViolation(error) ? new Abort('EmailTaken') : error;
             });
-          await tx.invite.update({
+          const { invitedById } = await tx.invite.update({
             where: { codeHash },
             data: { usedById: user.id },
+            select: { invitedById: true },
           });
-          return user;
+          return { user, invitedById };
         });
         return ok({
-          id: UserId(row.id),
-          email: row.email as Email,
-          name: row.name,
+          user: {
+            id: UserId(row.user.id),
+            email: row.user.email as Email,
+            name: row.user.name,
+          },
+          invitedBy: row.invitedById === null ? null : UserId(row.invitedById),
         });
       } catch (error) {
         if (error instanceof Abort) return err(error.reason);

@@ -8,7 +8,9 @@ import { useHotkeys } from '../../sacred/modules/hotkeys';
 import { ME } from '../auth/protected-route';
 import { AppNavigation } from '../components/AppNavigation';
 import { ChatSidebar, GET_CHATS } from '../components/chat/ChatSidebar';
+import { AddPeopleDialog } from '../components/chat/AddPeopleDialog';
 import { ChatWindow, GET_CHAT_DATA } from '../components/chat/ChatWindow';
+import { InviteDialog } from '../components/InviteDialog';
 import { JoinChannelDialog } from '../components/chat/JoinChannelDialog';
 import { EmptyChatState } from '../components/chat/EmptyChatState';
 import { NewChatModal } from '../components/chat/NewChatModal';
@@ -35,7 +37,10 @@ export function Chat() {
   const { open } = useModals();
   const isNarrow = useMediaQuery(NARROW);
   const alerts = useAlerts(meData?.me?.id, chatId);
-  useChatFeed(alerts.alert);
+  useChatFeed({
+    onMessage: alerts.alert,
+    onChatAdded: alerts.alertChatAdded,
+  });
 
   const { data: chatData } = useQuery(GET_CHAT_DATA, {
     variables: { chatId: chatId ?? '' },
@@ -46,10 +51,15 @@ export function Chat() {
   });
 
   const startNewChat = () => open(NewChatModal, {});
+  const newChannel = () => open(JoinChannelDialog, { mode: 'new' as const });
   const joinChannel = () => open(JoinChannelDialog, {});
+  const invite = () => open(InviteDialog, {});
+  const isChannel = chatData?.chat?.kind === ChatKind.Channel;
+  const addPeople =
+    chatId && isChannel ? () => open(AddPeopleDialog, { chatId }) : undefined;
   const closeChat = () => navigate('/');
   const leaveOpenChannel =
-    chatId && chatData?.chat?.kind === ChatKind.Channel
+    chatId && isChannel
       ? async () => {
           await leaveChannel({ variables: { chatId } });
           navigate('/');
@@ -70,9 +80,14 @@ export function Chat() {
       chatId={chatId}
       currentUserId={meData?.me?.id}
       onClose={closeChat}
+      onAddPeople={addPeople}
     />
   ) : (
-    <EmptyChatState onNewChat={startNewChat} />
+    <EmptyChatState
+      onNewChat={startNewChat}
+      onNewChannel={newChannel}
+      onInvite={invite}
+    />
   );
 
   return (
@@ -89,7 +104,10 @@ export function Chat() {
           onToggleSound: () => alerts.setSound(!alerts.prefs.sound),
         }}
         onNewChat={startNewChat}
+        onNewChannel={newChannel}
         onJoinChannel={joinChannel}
+        onInvite={invite}
+        onAddPeople={addPeople}
         onCloseChat={chatId ? closeChat : undefined}
         onLeaveChannel={leaveOpenChannel}
       />

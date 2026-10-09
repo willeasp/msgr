@@ -166,3 +166,61 @@ describe('channels', () => {
     });
   });
 });
+
+describe('adding people to a channel', () => {
+  it('puts them in and tells each one who added them', async () => {
+    const { services, ada, grace, linus } = await threePeople();
+    const books = expectOk(await services().chats.joinChannel(ada, 'books'));
+    const graceHears = nextEvent(services().chats.additions(grace));
+
+    const added = expectOk(
+      await services().chats.addToChannel(ada, books.id, [grace.id, linus.id])
+    );
+
+    expect(added.participantIds).toEqual([ada.id, grace.id, linus.id].sort());
+    expect(await graceHears).toEqual({
+      chat: added,
+      by: ada.id,
+      reason: 'added-to-channel',
+    });
+  });
+
+  it('says nothing to someone who was already there', async () => {
+    const { services, ada, grace } = await threePeople();
+    const books = expectOk(await services().chats.joinChannel(ada, 'books'));
+    expectOk(await services().chats.joinChannel(grace, 'books'));
+    const graceHears = nextEvent(services().chats.additions(grace));
+
+    expectOk(await services().chats.addToChannel(ada, books.id, [grace.id]));
+
+    expect(await graceHears).toBe('nothing');
+  });
+
+  it('lets only members add people, and only to channels', async () => {
+    const { fixtures, services, ada, grace, linus } = await threePeople();
+    const books = expectOk(await services().chats.joinChannel(ada, 'books'));
+    const group = await fixtures.groupChat('Team', [ada, grace]);
+
+    expect(
+      await services().chats.addToChannel(linus, books.id, [linus.id])
+    ).toEqual({ ok: false, error: { type: 'NotFound', entity: 'Chat' } });
+    expect(
+      await services().chats.addToChannel(ada, group.id, [linus.id])
+    ).toMatchObject({
+      ok: false,
+      error: { type: 'InvalidInput', field: 'chatId' },
+    });
+  });
+
+  it('refuses someone who does not exist, adding nobody', async () => {
+    const { services, ada, grace } = await threePeople();
+    const books = expectOk(await services().chats.joinChannel(ada, 'books'));
+
+    expect(
+      await services().chats.addToChannel(ada, books.id, [grace.id, 'nobody'])
+    ).toEqual({ ok: false, error: { type: 'NotFound', entity: 'User' } });
+    expect(await services().chats.find(grace, books.id)).toMatchObject({
+      ok: false,
+    });
+  });
+});

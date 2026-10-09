@@ -2,6 +2,7 @@ import type {
   ChannelChat,
   ChannelName,
   Chat,
+  ChatAdded,
   ChatId,
   DirectChat,
   DirectPair,
@@ -78,7 +79,12 @@ export interface InviteRepository {
     code: InviteCode,
     user: NewUser,
     at: Date
-  ): Promise<Result<User, 'InviteUnavailable' | 'EmailTaken'>>;
+  ): Promise<
+    Result<
+      { readonly user: User; readonly invitedBy: UserId | null },
+      'InviteUnavailable' | 'EmailTaken'
+    >
+  >;
 }
 
 export interface Repositories {
@@ -108,6 +114,12 @@ export interface MessageEvents {
   subscribe(recipient: UserId): AsyncIterableIterator<Message>;
 }
 
+/** Tells someone a chat now includes them, live. */
+export interface ChatEvents {
+  publish(event: ChatAdded, recipient: UserId): Promise<void>;
+  subscribe(recipient: UserId): AsyncIterableIterator<ChatAdded>;
+}
+
 export type Clock = () => Date;
 
 /** A fresh, unguessable invite code. */
@@ -125,6 +137,7 @@ export interface Dependencies {
   readonly passwords: PasswordHasher;
   readonly tokens: TokenService;
   readonly events: MessageEvents;
+  readonly chatEvents: ChatEvents;
   readonly clock: Clock;
   readonly inviteCodes: InviteCodes;
   readonly throttle: Throttle;

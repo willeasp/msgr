@@ -1,9 +1,11 @@
 import { useQuery } from '@apollo/client/react';
 import { gql } from '../../../lib/__generated__';
 import { ChatKind } from '../../../lib/__generated__/graphql';
+import ActionButton from '../../../sacred/components/ActionButton';
 import { MacWindow } from '../MacWindow';
 import { MessageInput } from './MessageInput';
 import { MessageList } from './MessageList';
+import styles from './ChatWindow.module.css';
 
 export const GET_CHAT_DATA = gql(`
   query GetChatData($chatId: ID!) {
@@ -24,6 +26,8 @@ interface ChatWindowProps {
   chatId: string;
   currentUserId: string | undefined;
   onClose: () => void;
+  /** Given for channels, which can take more people. */
+  onAddPeople?: () => void;
 }
 
 /** An open chat: its people up top, the conversation, and the composer. */
@@ -31,6 +35,7 @@ export function ChatWindow({
   chatId,
   currentUserId,
   onClose,
+  onAddPeople,
 }: ChatWindowProps) {
   const { data, loading } = useQuery(GET_CHAT_DATA, {
     variables: { chatId },
@@ -52,7 +57,12 @@ export function ChatWindow({
             <span>
               {count} {count === 1 ? one : many}
             </span>
-            <span>{chat.participants.map(({ name }) => name).join(', ')}</span>
+            <span className={styles.names}>
+              {chat.participants.map(({ name }) => name).join(', ')}
+            </span>
+            {onAddPeople && (
+              <ActionButton onClick={onAddPeople}>Add People…</ActionButton>
+            )}
           </>
         )
       }

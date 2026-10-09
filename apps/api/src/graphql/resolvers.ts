@@ -2,8 +2,13 @@ import { loadExisting } from '../application/loaders.js';
 import { counterpart } from '../domain/chat.js';
 import type { Message } from '../domain/message.js';
 import { Page } from '../domain/page.js';
-import type { ChatKind, Resolvers } from './__generated__/resolvers.js';
-import { requireViewer } from './context.js';
+import type { ChatAdded } from '../domain/chat.js';
+import type {
+  ChatAddedReason,
+  ChatKind,
+  Resolvers,
+} from './__generated__/resolvers.js';
+import { requireViewer, startSession } from './context.js';
 import { unwrap } from './errors.js';
 import { DateTime } from './scalars.js';
 
@@ -35,7 +40,7 @@ export const resolvers: Resolvers = {
   Mutation: {
     login: async (_, credentials, ctx) => {
       const session = unwrap(await ctx.services.auth.login(credentials));
-      ctx.cookie.set(session.token);
+      startSession(ctx, session);
       return session;
     },
     logout: (_, __, ctx) => {
@@ -43,9 +48,9 @@ export const resolvers: Resolvers = {
       return true;
     },
     signUp: async (_, { input }, ctx) => {
-      const session = unwrap(await ctx.services.auth.signUp(input));
-      ctx.cookie.set(session.token);
-      return session;
+      const welcome = unwrap(await ctx.services.auth.signUp(input));
+      startSession(ctx, welcome);
+      return welcome;
     },
     createInvite: (_, __, ctx) =>
       ctx.services.invites.create(requireViewer(ctx)),
@@ -59,6 +64,14 @@ export const resolvers: Resolvers = {
       unwrap(await ctx.services.chats.joinChannel(requireViewer(ctx), name)),
     leaveChannel: async (_, { chatId }, ctx) =>
       unwrap(await ctx.services.chats.leaveChannel(requireViewer(ctx), chatId)),
+    addToChannel: async (_, { chatId, userIds }, ctx) =>
+      unwrap(
+        await ctx.services.chats.addToChannel(
+          requireViewer(ctx),
+          chatId,
+          userIds
+        )
+      ),
   },
 
   Subscription: {
@@ -66,6 +79,19 @@ export const resolvers: Resolvers = {
       subscribe: (_, __, ctx) => ctx.services.messages.feed(requireViewer(ctx)),
       resolve: (message: Message) => message,
     },
+    chatAdded: {
+      subscribe: (_, __, ctx) =>
+        ctx.services.chats.additions(requireViewer(ctx)),
+      resolve: (event: ChatAdded) => event,
+    },
+  },
+
+  ChatAdded: {
+    by: (event, _, { loaders }) => loadExisting(loaders.user, event.by),
+    reason: (event) =>
+      (event.reason === 'invite-accepted'
+        ? 'INVITE_ACCEPTED'
+        : 'ADDED_TO_CHANNEL') as ChatAddedReason,
   },
 
   Chat: {

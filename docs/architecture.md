@@ -38,6 +38,11 @@ transport. `main.ts` is the only file that picks adapters.
    `useAlerts`, which beeps and shows a desktop notification if it's someone
    else's message in a chat you aren't looking at.
 
+The page's second subscription, `chatAdded`, tells the viewer about chats that
+now include them without them opening one: the direct chat a newcomer started by
+signing up with their invite, or a channel someone added them to. The chat goes
+to the top of the list, and `useAlerts` rings for it.
+
 Because `PubSub` and the login throttle live in process memory, Msgr runs as a
 single instance (see [ADR 0005](adr/0005-free-single-instance-hosting.md)).
 

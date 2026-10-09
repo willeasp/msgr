@@ -1,4 +1,4 @@
-import { ChatKind } from './__generated__/graphql';
+import { ChatAddedReason, ChatKind } from './__generated__/graphql';
 
 /** How Msgr gets your attention when a message arrives. */
 export interface AlertPreferences {
@@ -28,6 +28,23 @@ export function notificationTitle(
   chat: { kind: ChatKind; title: string }
 ): string {
   return chat.kind === ChatKind.Direct ? sender : `${sender} in ${chat.title}`;
+}
+
+/** What to say when a chat comes to include you: someone joined, or added you. */
+export function chatAddedNotice(event: {
+  reason: ChatAddedReason;
+  by: { name: string };
+  chat: { title: string };
+}): { title: string; body: string } {
+  return event.reason === ChatAddedReason.InviteAccepted
+    ? {
+        title: `${event.by.name} joined Msgr`,
+        body: 'They used your invite. Say hello!',
+      }
+    : {
+        title: `${event.by.name} added you to ${event.chat.title}`,
+        body: 'It’s in your Chats now.',
+      };
 }
 
 export function serializeAlertPreferences(prefs: AlertPreferences): string {

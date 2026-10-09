@@ -121,7 +121,7 @@ describe('invites', () => {
         name: "Margaret"
         email: "margaret@example.com"
         password: "apollo-guidance"
-      }) { token user { name } }
+      }) { token user { name } chat { title } }
     }
   `;
 
@@ -142,10 +142,35 @@ describe('invites', () => {
     });
     expect(signUp.data?.['signUp']).toMatchObject({
       user: { name: 'Margaret' },
+      chat: { title: 'Ada' },
     });
     expect(signUp.cookie.set).toHaveBeenCalledWith(
       (signUp.data?.['signUp'] as { token: string }).token
     );
+  });
+
+  it('tells the inviter, live, who joined', async () => {
+    const { app, ada } = await world();
+    const { code } = await app.services().invites.create(ada);
+    const toAda = nextEvent(
+      await feed(
+        app,
+        ada,
+        'subscription { chatAdded { reason by { name } chat { title } } }'
+      )
+    );
+
+    await execute(app, SIGN_UP, { variables: { code } });
+
+    expect(await toAda).toEqual({
+      data: {
+        chatAdded: {
+          reason: 'INVITE_ACCEPTED',
+          by: { name: 'Margaret' },
+          chat: { title: 'Margaret' },
+        },
+      },
+    });
   });
 
   it('keeps inviting behind sign-in', async () => {
@@ -190,6 +215,38 @@ describe('channels', () => {
       title: '#book-club',
     });
     expect(left.data).toEqual({ leaveChannel: true });
+  });
+
+  it('adds people to a channel, and tells them who did', async () => {
+    const { app, ada, grace } = await world();
+    const books = await app.services().chats.joinChannel(ada, 'books');
+    if (!books.ok) throw new Error('setup');
+    const toGrace = nextEvent(
+      await feed(
+        app,
+        grace,
+        'subscription { chatAdded { reason by { name } chat { title } } }'
+      )
+    );
+
+    const added = await execute(
+      app,
+      'mutation ($id: ID!, $people: [ID!]!) { addToChannel(chatId: $id, userIds: $people) { participants { name } } }',
+      { as: ada, variables: { id: books.value.id, people: [grace.id] } }
+    );
+
+    expect(added.data).toEqual({
+      addToChannel: { participants: [{ name: 'Ada' }, { name: 'Grace' }] },
+    });
+    expect(await toGrace).toEqual({
+      data: {
+        chatAdded: {
+          reason: 'ADDED_TO_CHANNEL',
+          by: { name: 'Ada' },
+          chat: { title: '#books' },
+        },
+      },
+    });
   });
 
   it("lists every channel without letting anyone read the ones they haven't joined", async () => {

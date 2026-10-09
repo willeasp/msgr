@@ -2,8 +2,6 @@ import { useMutation, useQuery } from '@apollo/client/react';
 import { gql } from '../../lib/__generated__';
 import { ME } from '../auth/protected-route';
 import { useSessionChange } from '../auth/use-session-change';
-import { useModals } from '../../sacred/components/page/ModalContext';
-import { InviteDialog } from './InviteDialog';
 import { Menu, MenuBar } from './MenuBar';
 import { ThemeMenu } from './ThemeMenu';
 
@@ -22,7 +20,11 @@ interface AppNavigationProps {
     onToggleSound: () => void;
   };
   onNewChat: () => void;
+  onNewChannel: () => void;
   onJoinChannel: () => void;
+  onInvite: () => void;
+  /** Present while a channel is open. */
+  onAddPeople?: () => void;
   /** Present while a chat is open. */
   onCloseChat?: () => void;
   /** Present while a channel is open. */
@@ -33,12 +35,14 @@ interface AppNavigationProps {
 export function AppNavigation({
   alerts,
   onNewChat,
+  onNewChannel,
   onJoinChannel,
+  onInvite,
+  onAddPeople,
   onCloseChat,
   onLeaveChannel,
 }: AppNavigationProps) {
   const changeSession = useSessionChange();
-  const { open } = useModals();
   const { data } = useQuery(ME);
   const [logout] = useMutation(LOGOUT_MUTATION, {
     onCompleted: () => changeSession('/login'),
@@ -52,11 +56,12 @@ export function AppNavigation({
             title="File"
             items={[
               { label: 'New Chat…', shortcut: '⌃K', onClick: onNewChat },
+              { label: 'New Channel…', onClick: onNewChannel },
               { label: 'Join Channel…', onClick: onJoinChannel },
-              {
-                label: 'Invite a Friend…',
-                onClick: () => open(InviteDialog, {}),
-              },
+              { label: 'Invite a Friend…', onClick: onInvite },
+              ...(onAddPeople
+                ? [{ label: 'Add People to Channel…', onClick: onAddPeople }]
+                : []),
               ...(onCloseChat
                 ? [{ label: 'Close Chat', onClick: onCloseChat }]
                 : []),

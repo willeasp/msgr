@@ -23,6 +23,9 @@ const SIGN_UP = gql(`
         id
         name
       }
+      chat {
+        id
+      }
     }
   }
 `);
@@ -47,7 +50,9 @@ export function SignUpPage() {
 
   // The session arrives as an httpOnly cookie.
   const [signUp, { loading }] = useMutation(SIGN_UP, {
-    onCompleted: () => changeSession('/'),
+    // Straight into the chat with whoever sent the invite.
+    onCompleted: ({ signUp }) =>
+      changeSession(signUp.chat ? `/${signUp.chat.id}` : '/'),
     onError: (failure) => setError(explain(failure)),
   });
 

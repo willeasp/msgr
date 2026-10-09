@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  chatAddedNotice,
   notificationTitle,
   parseAlertPreferences,
   serializeAlertPreferences,
@@ -8,7 +9,10 @@ import {
   type AlertPreferences,
 } from '../../lib/alerts';
 import { beep } from '../../lib/beep';
-import type { ChatKind } from '../../lib/__generated__/graphql';
+import type {
+  ChatAddedReason,
+  ChatKind,
+} from '../../lib/__generated__/graphql';
 
 const STORAGE_KEY = 'alerts';
 const TITLE = document.title;
@@ -49,36 +53,64 @@ export function useAlerts(viewerId: string | undefined, openChatId?: string) {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
 
-  const alert = useCallback(
-    ({ content, sender, chat }: ArrivedMessage) => {
-      const pageVisible = document.visibilityState === 'visible';
-      if (
-        !shouldAlert(
-          { senderId: sender.id, chatId: chat.id },
-          { viewerId, openChatId, pageVisible }
-        )
-      ) {
-        return;
+  /** A beep, a count in the tab while it's hidden, and a notification that opens `chatId`. */
+  const ring = useCallback(
+    ({
+      title,
+      body,
+      chatId,
+    }: {
+      title: string;
+      body: string;
+      chatId: string;
+    }) => {
+      if (document.visibilityState !== 'visible') {
+        document.title = `(${++unread.current}) ${TITLE}`;
       }
-      if (!pageVisible) document.title = `(${++unread.current}) ${TITLE}`;
       if (prefs.sound) beep();
       if (
         prefs.notify &&
         notificationsSupported &&
         Notification.permission === 'granted'
       ) {
-        const notification = new Notification(
-          notificationTitle(sender.name, chat),
-          { body: content, tag: chat.id }
-        );
+        const notification = new Notification(title, { body, tag: chatId });
         notification.onclick = () => {
           window.focus();
-          navigate(`/${chat.id}`);
+          navigate(`/${chatId}`);
           notification.close();
         };
       }
     },
-    [prefs, viewerId, openChatId, navigate]
+    [prefs, navigate]
+  );
+
+  const alert = useCallback(
+    ({ content, sender, chat }: ArrivedMessage) => {
+      const pageVisible = document.visibilityState === 'visible';
+      if (
+        shouldAlert(
+          { senderId: sender.id, chatId: chat.id },
+          { viewerId, openChatId, pageVisible }
+        )
+      ) {
+        ring({
+          title: notificationTitle(sender.name, chat),
+          body: content,
+          chatId: chat.id,
+        });
+      }
+    },
+    [ring, viewerId, openChatId]
+  );
+
+  /** Always worth telling: someone joined with your invite, or added you somewhere. */
+  const alertChatAdded = useCallback(
+    (event: {
+      reason: ChatAddedReason;
+      by: { name: string };
+      chat: { id: string; title: string };
+    }) => ring({ ...chatAddedNotice(event), chatId: event.chat.id }),
+    [ring]
   );
 
   /**
@@ -102,5 +134,5 @@ export function useAlerts(viewerId: string | undefined, openChatId?: string) {
     if (sound) beep();
   };
 
-  return { prefs, alert, setNotify, setSound };
+  return { prefs, alert, alertChatAdded, setNotify, setSound };
 }

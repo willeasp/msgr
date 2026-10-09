@@ -19,7 +19,7 @@ Proof, as a signed and expiring token, that the bearer is a given user. It is is
 _Avoid_: Auth, JWT (that's the encoding)
 
 **Invite**:
-A single-use way in for someone new: a secret code, shared as a link, that lasts a week. Users make them; the very first comes from the `npm run invite` command. Used, expired and unknown invites are indistinguishable.
+A single-use way in for someone new: a secret code, shared as a link, that lasts a week. Users make them; the very first comes from the `npm run invite` command. Signing up with one starts a direct chat between the newcomer and whoever made it. Used, expired and unknown invites are indistinguishable.
 _Avoid_: Invitation code, referral, token
 
 ### Conversations
@@ -36,7 +36,7 @@ _Avoid_: 1-on-1, DM, private chat
 A chat with its own title and any number of participants. Two people can share a group chat as well as their direct chat.
 
 **Channel**:
-A chat with a name like `#general` that any user can find, join and leave; it is created by its first join. Names are lower-case letters, digits and dashes.
+A chat with a name like `#general` that any user can find, join and leave; it is created by its first join. Its participants can also add other users to it. Names are lower-case letters, digits and dashes.
 _Avoid_: Room, public chat
 
 **Participant**:
@@ -57,3 +57,6 @@ A window into a chat's history, counted back from the newest message and returne
 
 **Feed**:
 The live stream of every message posted to any chat the viewer participates in, including the viewer's own messages.
+
+**Chat added**:
+The live notice that a chat now includes the viewer without them opening it: someone they invited signed up, or someone added them to a channel. It says who did it.

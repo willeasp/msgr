@@ -15,7 +15,7 @@ import { Muted } from '../Muted';
 import { GET_CHATS } from './ChatSidebar';
 import styles from './NewChatModal.module.css';
 
-const SEARCH_USERS = gql(`
+export const SEARCH_USERS = gql(`
   query SearchUsers($query: String!) {
     users(query: $query) {
       id

@@ -5,7 +5,7 @@
 }
 
 .window {
-  width: min(44ch, 100%);
+  width: min(58ch, 100%);
 }
 
 .body {
@@ -14,6 +14,8 @@
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
+  gap: 2ch;
   justify-content: flex-end;
   margin-top: var(--line);
   padding: 4px;

@@ -42,7 +42,7 @@ apps/api/src/
 
 ### How a request flows
 
-1. `graphql/context.ts` authenticates the session token into a `viewer: User | null` and builds a fresh **scope**: services plus DataLoaders sharing one cache.
+1. `graphql/context.ts` authenticates the session token into a `viewer: User | null` and builds a fresh **scope**: services plus DataLoaders sharing one cache. `login` and `signUp` call `startSession(ctx, session)`, which sets the cookie and makes the new user the viewer for the rest of that operation, so their payload's nested fields resolve.
 2. **Root fields** authorize with `requireViewer(ctx)` and delegate to a service. Services return `Result<T, DomainError>`; `unwrap` turns errors into GraphQL errors (`graphql/errors.ts` is the only mapping).
 3. **Nested fields** (`Chat.participants`, `Message.sender`, …) only walk relations of something already authorized, always through `ctx.loaders`. One batch per relation per query, never N+1.
 
@@ -87,13 +87,13 @@ sendMessage: async (_, { input }, ctx) =>
 apps/frontend/src/
   app/pages/       routes: chat (the desktop), login, sign-up (/invite/:code), not-found
   app/components/  Mac chrome (MenuBar, MacWindow, MacDialog, PixelIcon), chat/ windows and dialogs
-  app/hooks/       useChatFeed (the one live subscription), useAlerts, useClock, useMediaQuery
+  app/hooks/       useChatFeed (the live subscriptions), useAlerts, useClock, useMediaQuery
   lib/             pure logic, each with a test: theme, alerts, commands, chat-list, pixels
   sacred/          vendored Sacred Computer components (read its README first)
   skin.css         the Macintosh skin over them
 ```
 
-- **One live feed.** The chat page owns the only `messageReceived` subscription (`useChatFeed`). It updates the chat list and each chat's cached history, open or not, and hands every message to `useAlerts`. Windows only query. Opening a chat also refetches its history (`cache-and-network`), so anything missed while offline appears.
+- **One live feed.** The chat page owns the only subscriptions (`useChatFeed`): `messageReceived` updates the chat list and each chat's cached history, open or not, and hands every message to `useAlerts`; `chatAdded` puts a chat that now includes the viewer (an invitee signed up, or someone added them to a channel) on the list and rings for it. Windows only query. Opening a chat also refetches its history (`cache-and-network`), so anything missed while offline appears.
 - **Session changes** (sign in, sign up, log out) go through `useSessionChange`, which clears Apollo's cache before navigating. Everything cached, down to `me: null`, belongs to the previous viewer; without the reset, signing in after being redirected to `/login` bounces straight back there.
 - **Dialogs** go through Sacred's modal stack: `useModals().open(Component, props)`.
 - **Logic out of components.** Anything decidable without the DOM goes in `lib/*.ts` with a test (`shouldAlert`, `parseCommand`, `withReceivedMessage`, `identicon`); components wire it up.

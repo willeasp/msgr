@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  withChat,
   withMessage,
   withReceivedMessage,
   type ChatRow,
@@ -79,5 +80,20 @@ describe('withMessage', () => {
     const history = [message('1'), message('2')];
 
     expect(withMessage(history, message('2'))).toBe(history);
+  });
+});
+
+describe('withChat', () => {
+  it('puts a chat the list has never seen on top', () => {
+    const existing = row('a', 'earlier');
+    const added = { ...row('new', 'hello'), messages: [] };
+
+    expect(withChat([existing], added)).toEqual([added, existing]);
+  });
+
+  it('leaves the list alone when the chat is already in it', () => {
+    const chats = [row('a', 'x'), row('b', 'y')];
+
+    expect(withChat(chats, row('b', 'y'))).toBe(chats);
   });
 });

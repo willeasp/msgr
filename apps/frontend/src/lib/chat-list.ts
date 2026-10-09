@@ -31,3 +31,11 @@ export function withMessage<M extends { readonly id: string }>(
     ? history
     : [...history, message];
 }
+
+/** The chat list with a chat that has just come to include the viewer, on top. */
+export function withChat(
+  chats: readonly ChatRow[],
+  chat: ChatRow
+): readonly ChatRow[] {
+  return chats.some(({ id }) => id === chat.id) ? chats : [chat, ...chats];
+}

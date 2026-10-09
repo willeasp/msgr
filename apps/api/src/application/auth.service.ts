@@ -8,6 +8,7 @@ import {
   type NotFound,
   type TooManyAttempts,
 } from '../domain/errors.js';
+import { directPair, type DirectChat } from '../domain/chat.js';
 import { InviteCode } from '../domain/invite.js';
 import { err, ok, type Result } from '../domain/result.js';
 import {
@@ -22,8 +23,21 @@ import type { Dependencies } from './ports.js';
 
 export type AuthService = ReturnType<typeof createAuthService>;
 
+/** A new account's session, and its direct chat with whoever invited it. */
+export interface Welcome extends Session {
+  /** `null` for an account nobody invited: the first, from the command line. */
+  readonly chat: DirectChat | null;
+}
+
 export function createAuthService(
-  { repositories, passwords, tokens, throttle, clock }: Dependencies,
+  {
+    repositories,
+    passwords,
+    tokens,
+    throttle,
+    clock,
+    chatEvents,
+  }: Dependencies,
   loaders: Loaders
 ) {
   return {
@@ -55,7 +69,7 @@ export function createAuthService(
       readonly name: string;
       readonly email: string;
       readonly password: string;
-    }): Promise<Result<Session, InvalidInput | NotFound>> {
+    }): Promise<Result<Welcome, InvalidInput | NotFound>> {
       const code = InviteCode.parse(input.inviteCode);
       if (!code.ok) return code;
       const name = DisplayName.parse(input.name);
@@ -71,7 +85,7 @@ export function createAuthService(
         return err(notFound('Invite'));
       }
 
-      const user = await repositories.invites.redeem(
+      const redeemed = await repositories.invites.redeem(
         code.value,
         {
           email: email.value,
@@ -80,14 +94,27 @@ export function createAuthService(
         },
         now
       );
-      if (!user.ok) {
+      if (!redeemed.ok) {
         return err(
-          user.error === 'EmailTaken'
+          redeemed.error === 'EmailTaken'
             ? invalidInput('email', 'Someone already signed up with this email')
             : notFound('Invite')
         );
       }
-      return ok({ user: user.value, token: await tokens.issue(user.value.id) });
+
+      const { user, invitedBy } = redeemed.value;
+      // They know each other: start their chat, and tell whoever sent the invite.
+      let chat: DirectChat | null = null;
+      if (invitedBy) {
+        const pair = directPair(invitedBy, user.id);
+        if (!pair.ok) throw new Error(`${user.id} cannot have invited itself`);
+        chat = await repositories.chats.saveDirect(pair.value);
+        await chatEvents.publish(
+          { chat, by: user.id, reason: 'invite-accepted' },
+          invitedBy
+        );
+      }
+      return ok({ user, token: await tokens.issue(user.id), chat });
     },
 
     /** The user behind a session token, or `null` for an anonymous viewer. */

@@ -307,13 +307,16 @@ export function repositoryContract(
 
       if (!grace.ok) throw new Error(grace.error);
       expect(grace.value).toEqual({
-        id: grace.value.id,
-        email: 'grace@example.com',
-        name: 'Grace',
+        user: {
+          id: grace.value.user.id,
+          email: 'grace@example.com',
+          name: 'Grace',
+        },
+        invitedBy: ada.id,
       });
       expect(
         await repositories.users.findCredentials(email('grace@example.com'))
-      ).toEqual({ user: grace.value, passwordHash: 'hash-of-Grace' });
+      ).toEqual({ user: grace.value.user, passwordHash: 'hash-of-Grace' });
       expect(again).toEqual({ ok: false, error: 'InviteUnavailable' });
       expect(
         await repositories.users.findCredentials(email('linus@example.com'))
@@ -321,6 +324,18 @@ export function repositoryContract(
       expect(await repositories.invites.isRedeemable(code(1), later(1))).toBe(
         false
       );
+    });
+
+    it('says nobody sent an invite made from the command line', async () => {
+      await repositories.invites.create(newInvite(code(5), null, now));
+
+      const first = await repositories.invites.redeem(
+        code(5),
+        newcomer('Ada'),
+        later(1)
+      );
+
+      expect(first).toMatchObject({ ok: true, value: { invitedBy: null } });
     });
 
     it('refuses an expired or unknown invite', async () => {

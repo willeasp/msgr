@@ -58,7 +58,10 @@ where it gets checked.
       a week out. Copy Link changes to "Copied".
 - [ ] **Sign up:** open the link in a fresh private window and you see "You're
       invited." Sign up with a new name, email and password, pressing Return.
-      You land on the desktop, signed in as that person.
+      You land in a chat with whoever invited you, signed in as the new person.
+- [ ] **The inviter hears about it:** in the inviter's window, the newcomer's
+      chat appears at the top of the list, with a beep and a desktop
+      notification: "<name> joined Msgr".
 - [ ] **Spent link:** open the same link again and submit. "This invite has been
       used or has expired. Ask for a new one."
 - [ ] **Made-up link:** go to `localhost:4200/invite/whatever` and submit. Same
@@ -97,6 +100,14 @@ where it gets checked.
 
 ## 6. Channels
 
+- [ ] **New channel:** File → New Channel… (or New Channel… on the empty
+      desktop). Type `Book Club` and you see "Return starts #book-club." Press
+      Return and the channel opens.
+- [ ] **Add people:** in the channel, File → Add People to Channel… or the Add
+      People… button in its info line. Search for Alice and click her: she gets
+      a ✓ "In the channel" and the member count goes up. In Alice's window the
+      channel appears at the top of her list, with a notification "Test User
+      added you to #book-club". Add People… only shows in channels.
 - [ ] **Browse:** File → Join Channel… lists channels with member counts and a ✓
       on the ones you've joined. Typing filters the list.
 - [ ] **Create:** type `Book Club` and you see "Return starts #book-club." Press

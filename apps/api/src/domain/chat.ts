@@ -40,6 +40,17 @@ export interface ChannelChat {
 export type Chat = DirectChat | GroupChat | ChannelChat;
 
 /**
+ * A chat now includes someone who didn't open it themselves: the person they
+ * invited signed up (and their direct chat began), or someone added them to a
+ * channel. `by` is whoever caused it.
+ */
+export interface ChatAdded {
+  readonly chat: Chat;
+  readonly by: UserId;
+  readonly reason: 'invite-accepted' | 'added-to-channel';
+}
+
+/**
  * A channel's name without its "#": lower-case letters, digits and dashes,
  * starting with a letter or digit. Spaces become dashes, as people type them.
  */

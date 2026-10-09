@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { parseConfig } from './config.js';
 import { startServer } from './graphql/server.js';
 import { createPubSubMessageEvents } from './infrastructure/message-events.js';
+import { createPubSubChatEvents } from './infrastructure/chat-events.js';
 import { randomInviteCodes } from './infrastructure/invite-codes.js';
 import { createBcryptPasswordHasher } from './infrastructure/password-hasher.js';
 import { PrismaClient } from './infrastructure/prisma/client.js';
@@ -31,6 +32,7 @@ const server = await startServer(
       ttlSeconds: config.value.sessionTtlSeconds,
     }),
     events: createPubSubMessageEvents(),
+    chatEvents: createPubSubChatEvents(),
     clock,
     inviteCodes: randomInviteCodes,
     // Ten tries per email every fifteen minutes is plenty for a person and

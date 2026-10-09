@@ -24,8 +24,13 @@ const CHANNELS = gql(`
   }
 `);
 
-/** Browse channels, or name a new one. From File → Join Channel…. */
-export function JoinChannelDialog() {
+interface JoinChannelDialogProps {
+  /** `new` is File → New Channel…: just a name, no directory. */
+  mode?: 'join' | 'new';
+}
+
+/** Browse channels and join one, or name a new one. From File → Join or New Channel…. */
+export function JoinChannelDialog({ mode = 'join' }: JoinChannelDialogProps) {
   const { close } = useModals();
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -33,11 +38,17 @@ export function JoinChannelDialog() {
   const { join, joining } = useJoinChannel();
   useHotkeys('Escape', () => close(), { enableOnFormTags: true });
 
-  const typed = name.trim().replace(/^#/, '').toLowerCase();
+  // As the server will read it: no "#", lower case, dashes for spaces.
+  const typed = name
+    .trim()
+    .replace(/^#/, '')
+    .toLowerCase()
+    .replace(/\s+/g, '-');
   const channels = (data?.channels ?? []).filter((channel) =>
     channel.name.includes(typed)
   );
-  const isNew = typed !== '' && !channels.some((c) => c.name === typed);
+  const exists = channels.some((c) => c.name === typed);
+  const creating = mode === 'new';
 
   const joinAndClose = async (channel: string) => {
     setError(null);
@@ -48,7 +59,7 @@ export function JoinChannelDialog() {
 
   return (
     <OutsideElementEvent onOutsideEvent={() => close()}>
-      <MacDialog title="Join a Channel" modal>
+      <MacDialog title={creating ? 'New Channel' : 'Join a Channel'} modal>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -56,9 +67,9 @@ export function JoinChannelDialog() {
           }}
         >
           <Input
-            label="Channel"
+            label={creating ? 'Name' : 'Channel'}
             name="channel"
-            placeholder="#general"
+            placeholder={creating ? 'book-club' : '#general'}
             autoComplete="off"
             autoFocus
             value={name}
@@ -70,34 +81,46 @@ export function JoinChannelDialog() {
             </div>
           )}
           <div className={styles.list}>
-            {channels.map((channel) => (
-              <ActionListItem
-                key={channel.name}
-                icon={channel.joined ? '✓' : ''}
-                onClick={() => joinAndClose(channel.name)}
-              >
-                <RowSpaceBetween style={{ width: '100%', gap: '2ch' }}>
-                  <span className={styles.name}>#{channel.name}</span>
-                  <Muted>
-                    {channel.participantCount}{' '}
-                    {channel.participantCount === 1 ? 'member' : 'members'}
-                  </Muted>
-                </RowSpaceBetween>
-              </ActionListItem>
-            ))}
-            {data && channels.length === 0 && !isNew && (
+            {!creating &&
+              channels.map((channel) => (
+                <ActionListItem
+                  key={channel.name}
+                  icon={channel.joined ? '✓' : ''}
+                  onClick={() => joinAndClose(channel.name)}
+                >
+                  <RowSpaceBetween style={{ width: '100%', gap: '2ch' }}>
+                    <span className={styles.name}>#{channel.name}</span>
+                    <Muted>
+                      {channel.participantCount}{' '}
+                      {channel.participantCount === 1 ? 'member' : 'members'}
+                    </Muted>
+                  </RowSpaceBetween>
+                </ActionListItem>
+              ))}
+            {!creating && data && channels.length === 0 && !typed && (
               <Muted>No channels yet. Type a name to start one.</Muted>
             )}
-            {isNew && <Muted>Return starts #{typed}.</Muted>}
+            {typed && !exists && <Muted>Return starts #{typed}.</Muted>}
+            {creating && exists && (
+              <Muted>#{typed} already exists. Return joins it.</Muted>
+            )}
+            {creating && !typed && (
+              <Muted>
+                Letters, numbers and dashes. Then add people from File → Add
+                People….
+              </Muted>
+            )}
           </div>
           <DialogButtons>
             <Button theme="SECONDARY" type="button" onClick={() => close()}>
               Cancel
             </Button>
             {joining ? (
-              <Button isDisabled>Joining</Button>
+              <Button isDisabled>{creating ? 'Creating' : 'Joining'}</Button>
             ) : (
-              <Button type="submit">Join</Button>
+              <Button type="submit">
+                {creating && !exists ? 'Create' : 'Join'}
+              </Button>
             )}
           </DialogButtons>
         </form>

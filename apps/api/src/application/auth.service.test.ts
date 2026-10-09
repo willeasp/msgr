@@ -2,11 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Clock } from './ports.js';
 import { UserId } from '../domain/user.js';
 import { createJwtTokenService } from '../infrastructure/token-service.js';
+import { newInvite, type InviteCode } from '../domain/invite.js';
 import {
   createTestApp,
   expectOk,
   fakeHash,
   fakePasswordHasher,
+  nextEvent,
 } from '../testing/harness.js';
 
 async function appWithAda() {
@@ -105,8 +107,45 @@ describe('signUp', () => {
         password: 'cobol-forever',
         ...input,
       });
-    return { ...app, invite, signUp };
+    return { ...app, ada, invite, signUp };
   }
+
+  it('starts a direct chat with whoever sent the invite, and tells them', async () => {
+    const { services, ada, signUp } = await invited();
+    const adaHears = nextEvent(services().chats.additions(ada));
+
+    const welcome = expectOk(await signUp());
+
+    expect(welcome.chat).toEqual({
+      kind: 'direct',
+      id: welcome.chat?.id,
+      participantIds: [ada.id, welcome.user.id].sort(),
+    });
+    expect(await adaHears).toEqual({
+      chat: welcome.chat,
+      by: welcome.user.id,
+      reason: 'invite-accepted',
+    });
+  });
+
+  it('starts no chat for the very first account, which nobody invited', async () => {
+    const app = createTestApp();
+    const code = 'first0000000000000000x' as InviteCode;
+    await app.deps.repositories.invites.create(
+      newInvite(code, null, app.deps.clock())
+    );
+
+    const welcome = expectOk(
+      await app.services().auth.signUp({
+        inviteCode: code,
+        name: 'Ada',
+        email: 'ada@example.com',
+        password: 'difference-engine',
+      })
+    );
+
+    expect(welcome.chat).toBeNull();
+  });
 
   it('creates the account and signs it in', async () => {
     const { services, signUp } = await invited();

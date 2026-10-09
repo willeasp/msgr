@@ -14,6 +14,14 @@ export const typeDefs = /* GraphQL */ `
     token: String!
   }
 
+  type SignUpPayload {
+    user: User!
+    "Also set as an httpOnly cookie, like login's."
+    token: String!
+    "The direct chat with whoever invited you, already started; null for an account nobody invited."
+    chat: Chat
+  }
+
   "A single-use way in for someone new. Share it as <app address>/invite/<code>."
   type Invite {
     code: String!
@@ -41,6 +49,21 @@ export const typeDefs = /* GraphQL */ `
     participants: [User!]!
     "Paged back from the newest message (offset 0); each page is returned oldest first."
     messages(limit: Int, offset: Int): [Message!]!
+  }
+
+  enum ChatAddedReason {
+    "Someone you invited signed up; this is your new direct chat with them."
+    INVITE_ACCEPTED
+    "Someone added you to this channel."
+    ADDED_TO_CHANNEL
+  }
+
+  "A chat that now includes you without you opening it."
+  type ChatAdded {
+    chat: Chat!
+    "Who did it: the person who used your invite, or who added you."
+    by: User!
+    reason: ChatAddedReason!
   }
 
   "A channel as the directory lists it: no messages, no members."
@@ -85,8 +108,8 @@ export const typeDefs = /* GraphQL */ `
   type Mutation {
     login(email: String!, password: String!): AuthPayload!
     logout: Boolean!
-    "Creates an account from an invite and signs it in, like login."
-    signUp(input: SignUpInput!): AuthPayload!
+    "Creates an account from an invite, signs it in like login, and starts its chat with whoever invited it."
+    signUp(input: SignUpInput!): SignUpPayload!
     "A single-use invite from the viewer, valid for a week."
     createInvite: Invite!
     "The viewer's direct chat with a user, created on first contact."
@@ -96,10 +119,14 @@ export const typeDefs = /* GraphQL */ `
     joinChannel(name: String!): Chat!
     "Leaves a channel. Direct and group chats cannot be left."
     leaveChannel(chatId: ID!): Boolean!
+    "Adds people to a channel the viewer is in; each newcomer is told who added them."
+    addToChannel(chatId: ID!, userIds: [ID!]!): Chat!
   }
 
   type Subscription {
     "Every message sent to a chat the viewer is in, including their own."
     messageReceived: Message!
+    "Every chat that comes to include the viewer without them opening it."
+    chatAdded: ChatAdded!
   }
 `;
