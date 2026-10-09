@@ -15,8 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     services:
       # A disposable database for the repository contract, which truncates it.
+      # From the Docker Official Images mirror, which has no pull rate limit.
       postgres:
-        image: postgres:17-alpine
+        image: public.ecr.aws/docker/library/postgres:17-alpine
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: msgr_test
