@@ -1,0 +1,7 @@
+/* Greys out the desktop behind a dialog with a sparse 1-bit dot screen. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-index-page-modals) - 1);
+  background: var(--dither-sparse);
+}

@@ -1,0 +1,17 @@
+.inline {
+  padding: 0 1ch;
+}
+
+.fill {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  background: var(--dither);
+}
+
+.box {
+  padding: calc(var(--line) * 0.5) 2ch;
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--ink), 3px 3px 0 1px var(--ink);
+  font-family: var(--font-family-chrome);
+}

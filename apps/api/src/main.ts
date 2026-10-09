@@ -1,82 +1,43 @@
-import { ApolloServer } from '@apollo/server';
-import { expressMiddleware } from '@as-integrations/express5';
-import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
-import { createServer } from 'http';
-import { WebSocketServer } from 'ws';
-import { useServer } from 'graphql-ws/use/ws';
-import { makeExecutableSchema } from '@graphql-tools/schema';
-import express from 'express';
-import cors from 'cors';
-import cookieParser from 'cookie-parser';
-import { typeDefs } from './lib/schemas/schema.js';
-import { resolvers } from './lib/resolvers/index.js';
-import { Context } from './lib/context/types.js';
-import { httpContextFunction, wsContextFunction } from './lib/context/context.js';
+import { existsSync } from 'node:fs';
+import { parseConfig } from './config.js';
+import { startServer } from './graphql/server.js';
+import { createPubSubMessageEvents } from './infrastructure/message-events.js';
+import { createBcryptPasswordHasher } from './infrastructure/password-hasher.js';
+import { PrismaClient } from './infrastructure/prisma/client.js';
+import { prismaRepositories } from './infrastructure/prisma/repositories.js';
+import { createJwtTokenService } from './infrastructure/token-service.js';
 
-// Create executable schema
-const schema = makeExecutableSchema({ typeDefs, resolvers });
+// The composition root: the only place that knows which adapter fills which port.
 
-// Create Express app and HTTP server
-const app = express();
-const httpServer = createServer(app);
+const envFile = new URL('../.env', import.meta.url);
+if (existsSync(envFile)) process.loadEnvFile(envFile);
 
-// Create WebSocket server
-const wsServer = new WebSocketServer({
-  server: httpServer,
-  path: '/graphql',
-});
+const config = parseConfig(process.env);
+if (!config.ok) {
+  console.error(`Invalid configuration:\n  - ${config.error.join('\n  - ')}`);
+  process.exit(1);
+}
 
-// Set up WebSocket server for subscriptions
-const serverCleanup = useServer(
+const db = new PrismaClient();
+const server = await startServer(
   {
-    schema,
-    context: wsContextFunction,
+    repositories: prismaRepositories(db),
+    passwords: createBcryptPasswordHasher(),
+    tokens: createJwtTokenService({
+      secret: config.value.jwtSecret,
+      ttlSeconds: config.value.sessionTtlSeconds,
+    }),
+    events: createPubSubMessageEvents(),
+    clock: () => new Date(),
   },
-  wsServer
+  config.value
 );
+console.log(`🚀 GraphQL (HTTP + WebSocket) ready at ${server.url}`);
 
-// Create Apollo Server
-const server = new ApolloServer<Context>({
-  schema,
-  plugins: [
-    ApolloServerPluginDrainHttpServer({ httpServer }),
-    {
-      async serverWillStart() {
-        return {
-          async drainServer() {
-            await serverCleanup.dispose();
-          },
-        };
-      },
-    },
-  ],
-});
-
-// Start the server
-await server.start();
-
-// Configure CORS
-app.use(
-  cors({
-    origin: 'http://localhost:4200',
-    credentials: true,
-  })
-);
-
-// Middleware
-app.use(express.json());
-app.use(cookieParser());
-
-// Apply Apollo GraphQL middleware
-app.use(
-  '/graphql',
-  expressMiddleware(server, {
-    context: httpContextFunction,
-  })
-);
-
-const PORT = 4000;
-httpServer.listen(PORT, () => {
-  console.log(`🚀  Server ready at: http://localhost:${PORT}/graphql`);
-  console.log(`🚀  Subscriptions ready at: ws://localhost:${PORT}/graphql`);
-});
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, async () => {
+    await server.stop();
+    await db.$disconnect();
+    process.exit(0);
+  });
+}

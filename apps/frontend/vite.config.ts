@@ -19,6 +19,23 @@ const config = {
     port: 4200,
     host: 'localhost',
   },
+  css: {
+    modules: {
+      // Readable, stable class names: `srcl-Button__root` for the vendored
+      // Sacred components, which src/skin.css restyles, `ChatListItem__item`
+      // for the app's own.
+      generateScopedName: (local: string, filename: string) => {
+        const file = filename.split('?')[0] ?? filename;
+        const name = (file.split('/').pop() ?? '').replace(
+          /\.module\.css$/,
+          ''
+        );
+        return file.includes('/src/sacred/')
+          ? `srcl-${name}__${local}`
+          : `${name}__${local}`;
+      },
+    },
+  },
   // Keep plugins empty so the file stays a synchronous plain object.
   // If you need plugin-react features (fast refresh, automatic runtime),
   // load the plugin dynamically when running Vite (outside of project-graph checks).
@@ -30,6 +47,12 @@ const config = {
     commonjsOptions: {
       transformMixedEsModules: true,
     },
+  },
+  test: {
+    include: ['src/**/*.test.ts'],
+    environment: 'node',
+    // Run once by default; opt into watching with `--watch`.
+    watch: false,
   },
 };
 

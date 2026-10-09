@@ -1,4 +1,10 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-/* You can add global styles to this file, and also import other style files */
+@import './sacred/fonts.css';
+@import './sacred/global.css';
+@import './skin.css';
+
+/* The app fills the viewport; its windows scroll inside it. */
+html,
+body,
+#root {
+  height: 100%;
+}

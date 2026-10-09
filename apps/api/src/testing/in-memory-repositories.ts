@@ -1,0 +1,158 @@
+import type { Repositories } from '../application/ports.js';
+import {
+  ChatId,
+  isParticipant,
+  type Chat,
+  type DirectChat,
+  type DirectChatKey,
+  type GroupChat,
+} from '../domain/chat.js';
+import { MessageId, type Message } from '../domain/message.js';
+import {
+  Email,
+  UserId,
+  type Credentials,
+  type PasswordHash,
+  type User,
+} from '../domain/user.js';
+import { fixtureEmail, type Fixtures } from './repository-contract.js';
+
+interface ChatRecord {
+  readonly chat: Chat;
+  readonly directKey: DirectChatKey | null;
+  activeAt: Date;
+}
+
+/**
+ * Repositories over plain maps that honour the same contract as the Prisma
+ * adapters (see `repository-contract.ts`), so services can be tested without
+ * a database.
+ */
+export function createInMemoryRepositories(): {
+  repositories: Repositories;
+  fixtures: Fixtures;
+} {
+  const users = new Map<UserId, Credentials>();
+  const chats = new Map<ChatId, ChatRecord>();
+  const messages: Message[] = [];
+  let lastId = 0;
+  const nextId = () => `id-${String(++lastId).padStart(6, '0')}`;
+
+  const requireUser = (id: UserId) => {
+    if (!users.has(id)) throw new Error(`Unknown user ${id}`);
+  };
+
+  const repositories: Repositories = {
+    users: {
+      findByIds: async (ids) =>
+        distinct(ids).flatMap((id) => users.get(id)?.user ?? []),
+
+      findCredentials: async (email) =>
+        [...users.values()].find(({ user }) => user.email === email) ?? null,
+
+      search: async (term, { excluding, limit }) => {
+        const needle = term.toLowerCase();
+        return [...users.values()]
+          .map(({ user }) => user)
+          .filter(
+            (user) =>
+              user.id !== excluding &&
+              (user.name.toLowerCase().includes(needle) ||
+                user.email.toLowerCase().includes(needle))
+          )
+          .sort((a, b) => compare(a.name, b.name) || compare(a.id, b.id))
+          .slice(0, limit);
+      },
+    },
+
+    chats: {
+      findByIds: async (ids) =>
+        distinct(ids).flatMap((id) => chats.get(id)?.chat ?? []),
+
+      findByParticipant: async (userId) =>
+        [...chats.values()]
+          .filter(({ chat }) => isParticipant(chat, userId))
+          .sort(
+            (a, b) =>
+              b.activeAt.getTime() - a.activeAt.getTime() ||
+              compare(a.chat.id, b.chat.id)
+          )
+          .map(({ chat }) => chat),
+
+      saveDirect: async ({ key, participantIds }) => {
+        const existing = [...chats.values()].find((r) => r.directKey === key);
+        if (existing?.chat.kind === 'direct') return existing.chat;
+        participantIds.forEach(requireUser);
+        const chat: DirectChat = {
+          kind: 'direct',
+          id: ChatId(nextId()),
+          participantIds,
+        };
+        chats.set(chat.id, { chat, directKey: key, activeAt: new Date() });
+        return chat;
+      },
+    },
+
+    messages: {
+      findPages: async (chatIds, { limit, offset }) =>
+        distinct(chatIds).flatMap((chatId) =>
+          messages
+            .filter((message) => message.chatId === chatId)
+            .sort(
+              (a, b) =>
+                b.createdAt.getTime() - a.createdAt.getTime() ||
+                compare(b.id, a.id)
+            )
+            .slice(offset, offset + limit)
+            .reverse()
+        ),
+
+      append: async (input) => {
+        const record = chats.get(input.chatId);
+        if (!record) throw new Error(`Unknown chat ${input.chatId}`);
+        requireUser(input.senderId);
+        const message: Message = { id: MessageId(nextId()), ...input };
+        messages.push(message);
+        record.activeAt = input.createdAt;
+        return message;
+      },
+    },
+  };
+
+  const fixtures: Fixtures = {
+    async user({ name, email, passwordHash = 'unusable' as PasswordHash }) {
+      const user: User = {
+        id: UserId(nextId()),
+        email: parseEmail(email ?? fixtureEmail(name)),
+        name,
+      };
+      users.set(user.id, { user, passwordHash });
+      return user;
+    },
+
+    async groupChat(title, members) {
+      members.forEach(({ id }) => requireUser(id));
+      const chat: GroupChat = {
+        kind: 'group',
+        id: ChatId(nextId()),
+        title,
+        participantIds: members.map(({ id }) => id).sort(),
+      };
+      chats.set(chat.id, { chat, directKey: null, activeAt: new Date() });
+      return chat;
+    },
+  };
+
+  return { repositories, fixtures };
+}
+
+const distinct = <T>(values: readonly T[]): T[] => [...new Set(values)];
+
+/** Code-point order, matching Postgres' "C" collation. */
+const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
+function parseEmail(raw: string): Email {
+  const email = Email.parse(raw);
+  if (!email.ok) throw new Error(`Invalid fixture email: ${raw}`);
+  return email.value;
+}

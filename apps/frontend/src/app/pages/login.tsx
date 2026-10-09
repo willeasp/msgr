@@ -2,6 +2,16 @@ import React, { useState } from 'react';
 import { useMutation } from '@apollo/client/react';
 import { useNavigate } from 'react-router-dom';
 import { gql } from '../../lib/__generated__';
+import AlertBanner from '../../sacred/components/AlertBanner';
+import Button from '../../sacred/components/Button';
+import Divider from '../../sacred/components/Divider';
+import Input from '../../sacred/components/Input';
+import { COMPUTER } from '../components/icons';
+import { DialogButtons, MacDialog } from '../components/MacDialog';
+import { MenuBar } from '../components/MenuBar';
+import { PixelIcon } from '../components/PixelIcon';
+import { ThemeMenu } from '../components/ThemeMenu';
+import styles from './page.module.css';
 
 const LOGIN_MUTATION = gql(`
   mutation Login($email: String!, $password: String!) {
@@ -47,54 +57,56 @@ const LoginPage: React.FC = () => {
           password,
         },
       });
-    } catch (err) {
-      // Error handled by onError callback
+    } catch {
+      // Shown by onError.
     }
   };
 
   return (
-    <div className="max-w-md mx-auto mt-[100px] p-5">
-      <h2 className="text-center mb-8">Login</h2>
-      {error && (
-        <div className="p-2.5 mb-5 bg-red-100 text-red-800 border border-red-200 rounded">
-          {error}
-        </div>
-      )}
-      <form onSubmit={handleSubmit}>
-        <div className="mb-5">
-          <label htmlFor="email" className="block mb-1">
-            Email
-          </label>
-          <input
-            type="email"
-            id="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full p-2.5 text-base border border-gray-300 rounded"
-          />
-        </div>
-        <div className="mb-5">
-          <label htmlFor="password" className="block mb-1">
-            Password
-          </label>
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="w-full p-2.5 text-base border border-gray-300 rounded"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full p-3 text-base bg-blue-600 text-white border-none rounded cursor-pointer hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed disabled:hover:bg-gray-500"
-        >
-          {loading ? 'Logging in...' : 'Login'}
-        </button>
-      </form>
+    <div className={styles.screen}>
+      <MenuBar menus={<ThemeMenu />} />
+      <main className={styles.desktop}>
+        <MacDialog title="Sign In">
+          <div className={styles.welcome}>
+            <PixelIcon bitmap={COMPUTER} scale={3} />
+            <h1 className={styles.headline}>Welcome to Msgr.</h1>
+          </div>
+          <Divider />
+          <form onSubmit={handleSubmit} className={styles.form}>
+            {error && (
+              <div role="alert">
+                <AlertBanner>{error}</AlertBanner>
+              </div>
+            )}
+            <Input
+              label="Email"
+              type="email"
+              name="email"
+              autoComplete="email"
+              autoFocus
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <Input
+              label="Password"
+              type="password"
+              name="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <DialogButtons>
+              {loading ? (
+                <Button isDisabled>Signing In</Button>
+              ) : (
+                <Button type="submit">Sign In</Button>
+              )}
+            </DialogButtons>
+          </form>
+        </MacDialog>
+      </main>
     </div>
   );
 };

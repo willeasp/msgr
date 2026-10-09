@@ -4,5 +4,33 @@
   "private": true,
   "dependencies": {
     "graphql-ws": "^6.0.6"
+  },
+  "nx": {
+    "targets": {
+      "codegen": {
+        "command": "npx graphql-codegen --config {projectRoot}/codegen.ts"
+      },
+      "build": {
+        "dependsOn": [
+          "codegen"
+        ]
+      },
+      "serve": {
+        "dependsOn": [
+          "codegen"
+        ]
+      },
+      "typecheck": {
+        "dependsOn": [
+          "codegen",
+          "^typecheck"
+        ]
+      },
+      "test": {
+        "dependsOn": [
+          "codegen"
+        ]
+      }
+    }
   }
 }

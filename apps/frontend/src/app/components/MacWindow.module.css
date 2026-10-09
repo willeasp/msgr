@@ -1,0 +1,76 @@
+.titleBar {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  height: var(--line);
+  border-bottom: 1px solid var(--ink);
+
+  /* Six pinstripes across the bar, broken by the title and close box. */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 4px 2px;
+    background: var(--pinstripes);
+  }
+}
+
+.title {
+  position: relative;
+  max-width: calc(100% - 8ch);
+  overflow: hidden;
+  padding: 0 1ch;
+  background: var(--paper);
+  font-family: var(--font-family-chrome);
+  font-size: var(--font-size);
+  font-weight: 400;
+  line-height: var(--line);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.closeBox {
+  position: absolute;
+  top: 3px;
+  left: 1ch;
+  width: 13px;
+  height: 13px;
+  padding: 0;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+  box-shadow: 0 0 0 2px var(--paper);
+  cursor: pointer;
+
+  &:active {
+    background: var(--ink);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 3px;
+  }
+}
+
+.info {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2ch;
+  justify-content: space-between;
+  padding: 0 1ch;
+  border-bottom: 3px double var(--ink);
+  white-space: nowrap;
+
+  & > :last-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}

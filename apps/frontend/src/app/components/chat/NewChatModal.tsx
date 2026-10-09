@@ -1,7 +1,19 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
+import { useNavigate } from 'react-router-dom';
 import { gql } from '../../../lib/__generated__';
-import { UserSearchResult } from './UserSearchResult';
+import ActionListItem from '../../../sacred/components/ActionListItem';
+import Button from '../../../sacred/components/Button';
+import Input from '../../../sacred/components/Input';
+import RowSpaceBetween from '../../../sacred/components/RowSpaceBetween';
+import OutsideElementEvent from '../../../sacred/components/detectors/OutsideElementEvent';
+import { useModals } from '../../../sacred/components/page/ModalContext';
+import { useHotkeys } from '../../../sacred/modules/hotkeys';
+import { LoadingState } from '../LoadingState';
+import { DialogButtons, MacDialog } from '../MacDialog';
+import { Muted } from '../Muted';
+import { GET_CHATS } from './ChatSidebar';
+import styles from './NewChatModal.module.css';
 
 const SEARCH_USERS = gql(`
   query SearchUsers($query: String!) {
@@ -9,24 +21,6 @@ const SEARCH_USERS = gql(`
       id
       name
       email
-    }
-  }
-`);
-
-const GET_CHATS = gql(`
-  query GetChats {
-    chats {
-      id
-      title
-      participants {
-        id
-        name
-      }
-      messages(limit: 1) {
-        id
-        content
-        createdAt
-      }
     }
   }
 `);
@@ -44,82 +38,75 @@ const FIND_OR_CREATE_CHAT = gql(`
   }
 `);
 
-interface NewChatModalProps {
-  show: boolean;
-  onClose: () => void;
-  onChatCreated: (chatId: string) => void;
-}
+const MIN_QUERY_LENGTH = 2;
 
-export function NewChatModal({ show, onClose, onChatCreated }: NewChatModalProps) {
+/** Opened through Sacred's modal stack: `useModals().open(NewChatModal, {})`. */
+export function NewChatModal() {
+  const { close } = useModals();
+  const navigate = useNavigate();
   const [userSearchQuery, setUserSearchQuery] = useState('');
+  const isSearching = userSearchQuery.length >= MIN_QUERY_LENGTH;
 
-  const { data: searchData } = useQuery(SEARCH_USERS, {
+  const { data: searchData, loading: searching } = useQuery(SEARCH_USERS, {
     variables: { query: userSearchQuery },
-    skip: !userSearchQuery || userSearchQuery.length < 2,
+    skip: !isSearching,
   });
 
   const [findOrCreateChat] = useMutation(FIND_OR_CREATE_CHAT, {
     refetchQueries: [{ query: GET_CHATS }],
     onCompleted: (data) => {
-      onChatCreated(data.findOrCreateChat.id);
-      setUserSearchQuery('');
+      close();
+      navigate(`/${data.findOrCreateChat.id}`);
     },
   });
 
-  const handleStartChat = (userId: string) => {
-    findOrCreateChat({ variables: { participantId: userId } });
-  };
+  useHotkeys('Escape', () => close(), { enableOnFormTags: true });
 
-  const handleClose = () => {
-    setUserSearchQuery('');
-    onClose();
-  };
-
-  if (!show) return null;
+  const users = searchData?.users ?? [];
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]"
-      onClick={handleClose}
-    >
-      <div
-        className="bg-white rounded-lg p-6 w-[90%] max-w-[500px] max-h-[80vh] overflow-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="m-0 mb-5 text-[22px]">Start New Chat</h2>
-        <input
-          type="text"
+    <OutsideElementEvent onOutsideEvent={() => close()}>
+      <MacDialog title="New Chat" modal>
+        <Input
+          label="Find someone to message"
+          name="user_search"
+          placeholder="Name or email"
+          autoComplete="off"
+          autoFocus
           value={userSearchQuery}
           onChange={(e) => setUserSearchQuery(e.target.value)}
-          placeholder="Search users by name or email..."
-          autoFocus
-          className="w-full p-3 text-[15px] border border-gray-300 rounded mb-4 box-border"
         />
-        {userSearchQuery.length >= 2 && (
-          <div>
-            {searchData?.users && searchData.users.length > 0 ? (
-              <div>
-                {searchData.users.map((user) => (
-                  <UserSearchResult
-                    key={user.id}
-                    user={user}
-                    onSelect={() => handleStartChat(user.id)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="p-5 text-center text-gray-600">
-                No users found
-              </div>
-            )}
-          </div>
-        )}
-        {userSearchQuery.length < 2 && (
-          <div className="p-5 text-center text-gray-600">
-            Type at least 2 characters to search
-          </div>
-        )}
-      </div>
-    </div>
+        <div className={styles.results}>
+          {!isSearching ? (
+            <Muted>
+              Type at least {MIN_QUERY_LENGTH} letters, then press ↓ to choose.
+            </Muted>
+          ) : searching && !searchData ? (
+            <LoadingState label="Searching" />
+          ) : users.length > 0 ? (
+            users.map((user) => (
+              <ActionListItem
+                key={user.id}
+                onClick={() =>
+                  findOrCreateChat({ variables: { participantId: user.id } })
+                }
+              >
+                <RowSpaceBetween style={{ width: '100%', gap: '2ch' }}>
+                  <span className={styles.name}>{user.name}</span>
+                  <Muted>{user.email}</Muted>
+                </RowSpaceBetween>
+              </ActionListItem>
+            ))
+          ) : (
+            <Muted>No one matches “{userSearchQuery}”.</Muted>
+          )}
+        </div>
+        <DialogButtons>
+          <Button theme="SECONDARY" onClick={() => close()}>
+            Cancel
+          </Button>
+        </DialogButtons>
+      </MacDialog>
+    </OutsideElementEvent>
   );
 }

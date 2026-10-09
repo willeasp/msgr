@@ -1,0 +1,31 @@
+.meta,
+.metaOwn {
+  display: flex;
+  gap: 1ch;
+}
+
+/* Inset by the 1ch speech-bubble tail, so labels line up with bubbles. */
+.meta {
+  padding-left: 1ch;
+}
+
+.metaOwn {
+  justify-content: flex-end;
+  padding-right: 1ch;
+}
+
+.sender {
+  font-family: var(--font-family-chrome);
+}
+
+.time {
+  opacity: 0.6;
+}
+
+.content {
+  display: block;
+  max-width: 60ch;
+  overflow-wrap: anywhere;
+  text-align: left;
+  white-space: pre-wrap;
+}

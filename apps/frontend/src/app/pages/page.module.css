@@ -1,0 +1,42 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* One dialog in the middle of the dithered desktop: sign-in, not found. */
+.desktop {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  overflow-y: auto;
+  padding: var(--line) 1ch calc(var(--line) * 2);
+  background: var(--dither);
+}
+
+.welcome {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--line) * 0.5);
+  align-items: center;
+  margin: calc(var(--line) * 0.5) 0 var(--line);
+  text-align: center;
+}
+
+.headline {
+  font-family: var(--font-family-chrome);
+  font-size: calc(var(--font-size) * 2);
+  font-weight: 400;
+  line-height: calc(var(--line) * 2);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--line) * 0.5);
+  margin-top: var(--line);
+}
+
+.title {
+  font-family: var(--font-family-chrome);
+}

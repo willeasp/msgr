@@ -1,62 +1,74 @@
 import { useQuery } from '@apollo/client/react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { gql } from '../../lib/__generated__';
+import SidebarLayout from '../../sacred/components/SidebarLayout';
+import { useModals } from '../../sacred/components/page/ModalContext';
+import { useHotkeys } from '../../sacred/modules/hotkeys';
+import { ME } from '../auth/protected-route';
+import { AppNavigation } from '../components/AppNavigation';
 import { ChatSidebar } from '../components/chat/ChatSidebar';
-import { ChatHeader } from '../components/chat/ChatHeader';
-import { MessageList } from '../components/chat/MessageList';
-import { MessageInput } from '../components/chat/MessageInput';
+import { ChatWindow } from '../components/chat/ChatWindow';
 import { EmptyChatState } from '../components/chat/EmptyChatState';
+import { NewChatModal } from '../components/chat/NewChatModal';
+import { useMediaQuery } from '../hooks/use-media-query';
+import styles from './chat.module.css';
 
-const GET_ME = gql(`
-  query GetMeForChat {
-    me {
-      id
-      name
-      email
-    }
-  }
-`);
+// Below this the Chats window and the open chat take turns on the desktop.
+const NARROW = '(max-width: 760px)';
 
 export function Chat() {
-  // Read chatId from the route: "/:chatId"
+  // The route is the source of truth for the open chat: "/:chatId".
   const { chatId } = useParams<{ chatId: string }>();
-
   const navigate = useNavigate();
+  const { data: meData } = useQuery(ME);
+  const { open } = useModals();
+  const isNarrow = useMediaQuery(NARROW);
 
-  const { data: meData } = useQuery(GET_ME);
+  const startNewChat = () => open(NewChatModal, {});
+  const closeChat = () => navigate('/');
+  useHotkeys('ctrl+k', startNewChat, {
+    enableOnFormTags: true,
+    preventDefault: true,
+  });
 
-  const selectedChatId = chatId ?? undefined;
+  const chats = (
+    <ChatSidebar selectedChatId={chatId} onNewChat={startNewChat} />
+  );
 
-  // Use router as source of truth. When a chat is selected in the sidebar,
-  // update the URL to "/<id>" which will set selectedChatId via useParams.
-  const handleSelectChat = (id: string) => {
-    navigate(`/${id}`);
-  };
+  const conversation = chatId ? (
+    <ChatWindow
+      key={chatId}
+      chatId={chatId}
+      currentUserId={meData?.me?.id}
+      onClose={closeChat}
+    />
+  ) : (
+    <EmptyChatState onNewChat={startNewChat} />
+  );
 
-  // Find the selected chat from the chats data
   return (
-    <div className="flex h-screen font-sans">
-      {/* Left Sidebar */}
-      <ChatSidebar
-        selectedChatId={selectedChatId}
-        onSelectChat={handleSelectChat}
+    <div className={styles.screen}>
+      <AppNavigation
+        onNewChat={startNewChat}
+        onCloseChat={chatId ? closeChat : undefined}
       />
-
-      {/* Right Side - Chat Area */}
-      <div className="flex-1 flex flex-col">
-        {selectedChatId ? (
-          <>
-            <ChatHeader chatId={selectedChatId} />
-            <MessageList
-              chatId={selectedChatId}
-              currentUserId={meData?.me?.id}
-            />
-            <MessageInput chatId={selectedChatId} />
-          </>
+      <main className={styles.desktop}>
+        {isNarrow ? (
+          chatId ? (
+            conversation
+          ) : (
+            chats
+          )
         ) : (
-          <EmptyChatState />
+          <SidebarLayout
+            defaultSidebarWidth={32}
+            isShowingHandle
+            sidebar={chats}
+            style={{ height: '100%', alignItems: 'stretch' }}
+          >
+            {conversation}
+          </SidebarLayout>
         )}
-      </div>
+      </main>
     </div>
   );
 }

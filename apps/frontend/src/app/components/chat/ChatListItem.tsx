@@ -1,4 +1,12 @@
+import { Link } from 'react-router-dom';
+import { identicon } from '../../../lib/pixels';
 import { formatTime } from '../../../lib/utils/time';
+import Avatar from '../../../sacred/components/Avatar';
+import Indent from '../../../sacred/components/Indent';
+import RowEllipsis from '../../../sacred/components/RowEllipsis';
+import RowSpaceBetween from '../../../sacred/components/RowSpaceBetween';
+import { Muted } from '../Muted';
+import styles from './ChatListItem.module.css';
 
 interface ChatListItemProps {
   chat: {
@@ -11,36 +19,34 @@ interface ChatListItemProps {
     }>;
   };
   isSelected: boolean;
-  onSelect: () => void;
 }
 
-export function ChatListItem({
-  chat,
-  isSelected,
-  onSelect,
-}: ChatListItemProps) {
+export function ChatListItem({ chat, isSelected }: ChatListItemProps) {
   const latestMessage = chat.messages[0];
 
   return (
-    <div
-      onClick={onSelect}
-      className={`p-4 border-b border-gray-200 cursor-pointer transition-colors ${
-        isSelected ? 'bg-blue-50' : 'bg-white hover:bg-gray-50'
-      }`}
+    <Link
+      to={`/${chat.id}`}
+      className={isSelected ? `${styles.item} ${styles.selected}` : styles.item}
+      aria-current={isSelected ? 'page' : undefined}
     >
-      <div className="font-bold text-base mb-1 text-gray-800">
-        {chat.title}
-      </div>
-      {latestMessage && (
-        <>
-          <div className="text-sm text-gray-600 overflow-hidden text-ellipsis whitespace-nowrap mb-1">
-            {latestMessage.content}
-          </div>
-          <div className="text-xs text-gray-400">
-            {formatTime(latestMessage.createdAt)}
-          </div>
-        </>
-      )}
-    </div>
+      <Avatar src={identicon(chat.id)}>
+        <Indent>
+          <RowSpaceBetween>
+            <RowEllipsis>
+              <span className={styles.title}>{chat.title}</span>
+            </RowEllipsis>
+            {latestMessage && (
+              <time className={styles.time} dateTime={latestMessage.createdAt}>
+                {formatTime(latestMessage.createdAt)}
+              </time>
+            )}
+          </RowSpaceBetween>
+          <RowEllipsis>
+            <Muted>{latestMessage?.content ?? 'No messages yet'}</Muted>
+          </RowEllipsis>
+        </Indent>
+      </Avatar>
+    </Link>
   );
 }

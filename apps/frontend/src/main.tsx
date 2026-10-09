@@ -12,6 +12,10 @@ import { ApolloProvider } from '@apollo/client/react';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { createClient } from 'graphql-ws';
+import { ModalProvider } from './sacred/components/page/ModalContext';
+import { applyTheme, loadTheme } from './lib/theme';
+
+applyTheme(loadTheme());
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
@@ -27,15 +31,8 @@ const wsLink = new GraphQLWsLink(
   createClient({
     url: 'ws://localhost:4000/graphql',
     lazy: true, // Only connect when a subscription is active
-    connectionParams: () => {
-      // Get token from localStorage for WebSocket authentication
-      const token = localStorage.getItem('authToken');
-      console.log(
-        'WebSocket connectionParams - token:',
-        token ? 'present' : 'missing'
-      );
-      return { token };
-    },
+    // The session cookie doesn't reach the WebSocket; send the login token instead.
+    connectionParams: () => ({ token: localStorage.getItem('authToken') }),
   })
 );
 
@@ -61,7 +58,9 @@ root.render(
   <StrictMode>
     <ApolloProvider client={client}>
       <BrowserRouter>
-        <App />
+        <ModalProvider>
+          <App />
+        </ModalProvider>
       </BrowserRouter>
     </ApolloProvider>
   </StrictMode>

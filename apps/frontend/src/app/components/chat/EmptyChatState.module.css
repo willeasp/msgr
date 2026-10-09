@@ -1,0 +1,20 @@
+.root {
+  display: grid;
+  place-items: center;
+  height: 100%;
+}
+
+.window {
+  width: min(44ch, 100%);
+}
+
+.body {
+  padding: var(--line) 2ch;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--line);
+  padding: 4px;
+}

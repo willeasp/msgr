@@ -2,8 +2,9 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { gql } from '../../lib/__generated__';
 import { useQuery } from '@apollo/client/react';
+import { LoadingState } from '../components/LoadingState';
 
-const ME = gql(`
+export const ME = gql(`
   query GetMe {
     me {
       id
@@ -19,8 +20,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({
   const { data, loading, error } = useQuery(ME);
   const location = useLocation();
 
-  // Optionally show a loader while auth state resolves
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <LoadingState label="Connecting" fill />;
 
   if (error || !data?.me) {
     // Redirect to /login and keep the attempted path in state

@@ -1,0 +1,15 @@
+/*
+Typefaces from Sacred's font menu, self-hosted, with the licences Sacred lists:
+Chicago FLF [MIT] for the system chrome, Departure Mono [MIT] for everything people write.
+*/
+@font-face {
+  font-family: 'ChicagoFLF';
+  src: url('/fonts/ChicagoFLF.woff') format('woff');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DepartureMono-Regular';
+  src: url('/fonts/DepartureMono-Regular.woff') format('woff');
+  font-display: swap;
+}

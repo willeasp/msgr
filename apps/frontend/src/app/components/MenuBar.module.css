@@ -1,0 +1,16 @@
+.root {
+  flex-shrink: 0;
+}
+
+.status {
+  display: flex;
+  gap: 2ch;
+  padding: 0 1ch;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .who {
+    display: none;
+  }
+}

@@ -1,0 +1,13 @@
+.root {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* Room on the right for the bubbles' drop shadow. */
+  padding: var(--line) 2ch var(--line) 1ch;
+}
+
+.empty {
+  display: grid;
+  place-items: center;
+  height: 100%;
+}

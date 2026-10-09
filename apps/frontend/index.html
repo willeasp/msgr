@@ -2,14 +2,45 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Frontend</title>
+    <title>Msgr</title>
     <base href="/" />
 
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link
+      rel="preload"
+      href="/fonts/ChicagoFLF.woff"
+      as="font"
+      type="font/woff"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/DepartureMono-Regular.woff"
+      as="font"
+      type="font/woff"
+      crossorigin
+    />
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
+    <script>
+      // Theme the first paint. Mirrors loadTheme() in src/lib/theme.ts, which
+      // validates and re-applies it once the app boots.
+      (function () {
+        var theme = {};
+        try {
+          theme = JSON.parse(localStorage.getItem('theme')) || {};
+        } catch (e) {}
+        var dark = theme.mode
+          ? theme.mode === 'dark'
+          : matchMedia('(prefers-color-scheme: dark)').matches;
+        document.body.className =
+          'theme-' +
+          (dark ? 'dark' : 'light') +
+          (theme.tint ? ' tint-' + theme.tint : '');
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -1,0 +1,35 @@
+/* Rows highlight whole, by inversion, over Sacred's own link highlight. */
+.item {
+  display: block;
+  padding: calc(var(--line) * 0.5) 2ch calc(var(--line) * 0.5) 1ch;
+  background: transparent;
+  color: var(--ink);
+  text-decoration: none;
+  outline: 0;
+
+  &:hover,
+  &:focus,
+  &:active {
+    background: transparent;
+    color: var(--ink);
+    box-shadow: inset 0 0 0 1px var(--ink);
+  }
+}
+
+.selected,
+.selected:hover,
+.selected:focus,
+.selected:active {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.title {
+  font-family: var(--font-family-chrome);
+}
+
+.time {
+  flex-shrink: 0;
+  padding-left: 1ch;
+  opacity: 0.6;
+}

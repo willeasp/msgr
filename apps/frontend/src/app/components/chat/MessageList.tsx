@@ -1,9 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { useQuery, useSubscription } from '@apollo/client/react';
 import { gql } from '../../../lib/__generated__';
+import { LoadingState } from '../LoadingState';
+import { Muted } from '../Muted';
 import { MessageBubble } from './MessageBubble';
+import styles from './MessageList.module.css';
 
-const GET_CHAT_MESSAGES = gql(`
+export const GET_CHAT_MESSAGES = gql(`
   query GetChatMessages($chatId: ID!) {
     messages(chatId: $chatId, limit: 50) {
       id
@@ -65,7 +68,9 @@ export function MessageList({ chatId, currentUserId }: MessageListProps) {
           if (!existing?.messages) return existing;
 
           // Avoid duplicates
-          const isDuplicate = existing.messages.some(m => m.id === newMessage.id);
+          const isDuplicate = existing.messages.some(
+            (m) => m.id === newMessage.id
+          );
           if (isDuplicate) return existing;
 
           return {
@@ -83,35 +88,34 @@ export function MessageList({ chatId, currentUserId }: MessageListProps) {
 
   if (messagesLoading) {
     return (
-      <div className="flex-1 overflow-y-auto p-5 bg-gray-100 text-center text-gray-600">
-        Loading messages...
+      <div className={styles.root}>
+        <LoadingState label="Loading messages" />
       </div>
     );
   }
 
-  if (!messagesData?.messages || messagesData.messages.length === 0) {
+  const messages = messagesData?.messages ?? [];
+
+  if (messages.length === 0) {
     return (
-      <div className="flex-1 overflow-y-auto p-5 bg-gray-100">
-        <div className="text-center text-gray-600 mt-10">
-          No messages yet. Start the conversation!
+      <div className={styles.root}>
+        <div className={styles.empty}>
+          <Muted>No messages yet. Say hello.</Muted>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-5 bg-gray-100">
-      {messagesData.messages.map((message) => {
-        const isCurrentUser = message.sender.id === currentUserId;
-
-        return (
-          <MessageBubble
-            key={message.id}
-            message={message}
-            isCurrentUser={isCurrentUser}
-          />
-        );
-      })}
+    <div className={styles.root} role="log" aria-label="Messages">
+      {messages.map((message, index) => (
+        <MessageBubble
+          key={message.id}
+          message={message}
+          isCurrentUser={message.sender.id === currentUserId}
+          showMeta={messages[index - 1]?.sender.id !== message.sender.id}
+        />
+      ))}
       <div ref={messagesEndRef} />
     </div>
   );

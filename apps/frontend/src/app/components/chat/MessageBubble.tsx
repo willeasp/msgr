@@ -1,4 +1,7 @@
 import { formatTime } from '../../../lib/utils/time';
+import Message from '../../../sacred/components/Message';
+import MessageViewer from '../../../sacred/components/MessageViewer';
+import styles from './MessageBubble.module.css';
 
 interface MessageBubbleProps {
   message: {
@@ -11,30 +14,38 @@ interface MessageBubbleProps {
     createdAt: string;
   };
   isCurrentUser: boolean;
+  /** Label the bubble with its sender and time; off for follow-ups in a run. */
+  showMeta: boolean;
 }
 
-export function MessageBubble({ message, isCurrentUser }: MessageBubbleProps) {
+/** The viewer's own messages sit right in the accent colour, others' left. */
+export function MessageBubble({
+  message,
+  isCurrentUser,
+  showMeta,
+}: MessageBubbleProps) {
+  const Bubble = isCurrentUser ? MessageViewer : Message;
+
   return (
-    <div
-      className={`flex mb-4 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
-    >
-      <div
-        className={`max-w-[70%] px-4 py-3 rounded-xl shadow-sm ${
-          isCurrentUser
-            ? 'bg-blue-500 text-white'
-            : 'bg-white text-gray-800'
-        }`}
-      >
-        {!isCurrentUser && (
-          <div className="text-xs font-bold mb-1 opacity-80">
-            {message.sender.name}
-          </div>
-        )}
-        <div className="text-[15px] break-words">{message.content}</div>
-        <div className="text-[11px] mt-1 opacity-70 text-right">
-          {formatTime(message.createdAt)}
+    <>
+      {showMeta && (
+        <div className={isCurrentUser ? styles.metaOwn : styles.meta}>
+          <span className={styles.sender}>
+            {isCurrentUser ? 'You' : message.sender.name}
+          </span>
+          <time className={styles.time} dateTime={message.createdAt}>
+            {formatTime(message.createdAt)}
+          </time>
         </div>
-      </div>
-    </div>
+      )}
+      <Bubble>
+        <span
+          className={styles.content}
+          title={new Date(message.createdAt).toLocaleString()}
+        >
+          {message.content}
+        </span>
+      </Bubble>
+    </>
   );
 }

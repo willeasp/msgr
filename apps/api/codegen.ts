@@ -1,20 +1,24 @@
 import type { CodegenConfig } from '@graphql-codegen/cli';
 
+// Paths are relative to the workspace root, where Nx runs codegen.
 const config: CodegenConfig = {
-  // Use workspace-root relative paths so the codegen CLI (run from the repo root)
-  // can resolve the schema and output locations correctly.
-  schema: 'apps/api/src/lib/schemas/schema.ts',
+  schema: 'apps/api/src/graphql/schema.ts',
   generates: {
-    'apps/api/src/lib/__generated__/models.ts': {
-      plugins: ['typescript'],
-      config: {
-        avoidOptionals: true,
-      },
-    },
-    'apps/api/src/lib/__generated__/resolvers.ts': {
+    'apps/api/src/graphql/__generated__/resolvers.ts': {
       plugins: ['typescript', 'typescript-resolvers'],
       config: {
-        useIndexSignature: true,
+        contextType: '../context.js#Context',
+        // Resolvers take and return domain entities; field resolvers walk relations.
+        mappers: {
+          AuthPayload: '../../domain/user.js#Session',
+          Chat: '../../domain/chat.js#Chat',
+          Message: '../../domain/message.js#Message',
+          User: '../../domain/user.js#User',
+        },
+        mapperTypeSuffix: 'Model',
+        scalars: { DateTime: 'Date' },
+        strictScalars: true,
+        useTypeImports: true,
       },
     },
   },

@@ -1,0 +1,374 @@
+/*
+The classic Macintosh skin for the vendored Sacred components: 1-bit ink on
+paper, dither patterns where a grey would be, inversion as the only highlight,
+Chicago for the system's words and Departure Mono for people's.
+
+It reads only Sacred's --theme-text and --theme-background, so every Sacred
+theme still applies: Dark is the inverted screen, the tints are duotones.
+
+Selectors use the stable `srcl-<Component>__<class>` names from vite.config.ts.
+Each starts with :root so it outranks the component's own rule of the same shape.
+*/
+
+body {
+  --ink: var(--theme-text);
+  --paper: var(--theme-background);
+  --line: calc(var(--theme-line-height-base) * 1rem);
+
+  /* 50% grey, the desktop. */
+  --dither: conic-gradient(
+      var(--ink) 25%,
+      var(--paper) 0 50%,
+      var(--ink) 0 75%,
+      var(--paper) 0
+    )
+    0 0 / 2px 2px;
+  /* 25% grey, a screen laid over things that are out of reach. */
+  --dither-sparse: conic-gradient(var(--ink) 25%, transparent 0) 0 0 / 2px 2px;
+  --pinstripes: repeating-linear-gradient(
+    var(--ink) 0 1px,
+    transparent 1px 2px
+  );
+
+  --font-family-mono: 'DepartureMono-Regular', Monaco, Consolas, monospace;
+  --font-family-chrome: 'ChicagoFLF', Chicago, var(--font-family-mono);
+}
+
+/*
+Sacred highlights with its accent colour; on a 1-bit screen a highlight is ink.
+As specific as Sacred's `body.theme-dark.tint-green`, and later, so it wins.
+*/
+body.theme-light[class],
+body.theme-dark[class] {
+  --theme-focused-foreground: var(--ink);
+  --theme-focused-foreground-subdued: var(--ink);
+}
+
+/* The CRT bezel: rounded black corners on the screen. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  border-radius: 10px;
+  box-shadow: 0 0 0 16px #000;
+  pointer-events: none;
+}
+
+::selection {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* Plain links invert; deliberately no :root, so a row's own hover still wins. */
+a:hover,
+a:focus {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* Scroll bars: a dithered track and a plain white thumb. */
+* {
+  &::-webkit-scrollbar {
+    width: 16px;
+    height: 16px;
+    background: var(--paper);
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--dither);
+    box-shadow: inset 1px 0 0 var(--ink);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--paper);
+    box-shadow: inset 0 0 0 1px var(--ink);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root .srcl-Input__blink,
+  :root .srcl-TextArea__blink {
+    animation: none;
+  }
+}
+
+/* Menu bar --------------------------------------------------------------- */
+
+:root .srcl-Navigation__root {
+  position: relative;
+  z-index: 2;
+  height: var(--line);
+  background: var(--paper);
+  box-shadow: inset 0 -1px 0 var(--ink);
+  font-family: var(--font-family-chrome);
+}
+
+:root .srcl-Navigation__logo,
+:root .srcl-Navigation__logo:focus {
+  align-items: center;
+  height: var(--line);
+  padding: 0 1.5ch;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+:root .srcl-Navigation__logo:hover,
+:root .srcl-Navigation__logo:focus-visible,
+:root .srcl-Navigation__logo:active {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+:root .srcl-Navigation__left {
+  display: flex;
+}
+
+/* Menu titles: plain words that invert while pointed at or pressed. */
+:root .srcl-ActionButton__root,
+:root .srcl-ActionButton__root:focus {
+  height: var(--line);
+  background: transparent;
+  color: var(--ink);
+}
+
+:root .srcl-ActionButton__content,
+:root .srcl-ActionButton__root:hover .srcl-ActionButton__content,
+:root .srcl-ActionButton__root:focus .srcl-ActionButton__content,
+:root .srcl-ActionButton__root:active .srcl-ActionButton__content {
+  padding: 0 1ch;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  text-transform: none;
+}
+
+:root .srcl-ActionButton__root:hover,
+:root .srcl-ActionButton__root:focus-visible,
+:root .srcl-ActionButton__root:active {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* Pull-down menus ------------------------------------------------------- */
+
+:root .srcl-DropdownMenu__root {
+  padding: 2px 0;
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--ink), 2px 2px 0 1px var(--ink);
+  font-family: var(--font-family-chrome);
+}
+
+:root .srcl-DropdownMenu__footer {
+  display: none;
+}
+
+/* List rows: menu items and search results. */
+:root .srcl-ActionListItem__item {
+  color: var(--ink);
+}
+
+:root .srcl-ActionListItem__icon,
+:root .srcl-ActionListItem__item:hover .srcl-ActionListItem__icon,
+:root .srcl-ActionListItem__item:focus .srcl-ActionListItem__icon,
+:root .srcl-ActionListItem__item:active .srcl-ActionListItem__icon {
+  width: 2.5ch;
+  background: transparent;
+}
+
+:root .srcl-ActionListItem__text {
+  padding: 0 1ch 0 0;
+  background: transparent;
+}
+
+:root .srcl-ActionListItem__item:hover,
+:root .srcl-ActionListItem__item:focus,
+:root .srcl-ActionListItem__item:active {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* Windows ---------------------------------------------------------------- */
+
+:root .srcl-Window__window {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0;
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--ink), 2px 2px 0 1px var(--ink);
+}
+
+:root .srcl-SidebarLayout__root {
+  white-space: normal;
+}
+
+/* The gap between windows is the resize handle; its grip shows on approach. */
+:root .srcl-SidebarLayout__line {
+  background: transparent;
+}
+
+:root .srcl-SidebarLayout__handle:hover .srcl-SidebarLayout__line,
+:root .srcl-SidebarLayout__handle:focus .srcl-SidebarLayout__line,
+:root .srcl-SidebarLayout__handle:active .srcl-SidebarLayout__line {
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--ink);
+}
+
+:root .srcl-CardDouble__title {
+  font-family: var(--font-family-chrome);
+}
+
+:root .srcl-Divider__line {
+  height: 1px;
+  background: var(--ink);
+}
+
+/* Push buttons ------------------------------------------------------------ */
+
+:root .srcl-Button__root {
+  width: auto;
+  min-width: 10ch;
+  min-height: 0;
+  height: calc(var(--line) + 6px);
+  padding: 0 2ch;
+  border-radius: 9px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+  font-family: var(--font-family-chrome);
+  letter-spacing: 0;
+  line-height: calc(var(--line) + 6px);
+  text-transform: none;
+  transition: none;
+}
+
+/* The default button, the one Return presses, wears a heavy ring. */
+:root .srcl-Button__primary,
+:root .srcl-Button__primary:hover,
+:root .srcl-Button__primary:focus {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink), 0 0 0 1px var(--paper),
+    0 0 0 4px var(--ink);
+}
+
+:root .srcl-Button__secondary:hover,
+:root .srcl-Button__secondary:focus {
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+:root .srcl-Button__root:active {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+:root .srcl-Button__root:focus-visible {
+  outline: 1px dashed var(--ink);
+  outline-offset: 7px;
+}
+
+:root .srcl-Button__disabled {
+  background: var(--paper);
+  color: var(--ink);
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Text fields --------------------------------------------------------------- */
+
+:root .srcl-Input__label {
+  margin-bottom: 2px;
+  background: transparent;
+  font-family: var(--font-family-chrome);
+}
+
+:root .srcl-Input__displayed {
+  padding: 3px 1ch;
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+:root .srcl-Input__focused .srcl-Input__displayed {
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+/* The real input sits over the drawn one; keep their text in step. */
+:root .srcl-Input__hidden {
+  box-sizing: border-box;
+  height: 100%;
+  padding: 3px 1ch;
+
+  &:-webkit-autofill {
+    -webkit-box-shadow: none;
+    -webkit-text-fill-color: transparent;
+    transition: background-color 600000s 0s;
+  }
+}
+
+/* TextArea measures lines in an invisible copy; pin it to the top so it never
+   makes a scrolling field taller than the text. */
+:root .srcl-TextArea__hidden {
+  top: 0;
+  left: 0;
+}
+
+:root .srcl-Input__block,
+:root .srcl-Input__focused .srcl-Input__block,
+:root .srcl-TextArea__block,
+:root .srcl-TextArea__focused .srcl-TextArea__block {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+:root .srcl-Input__placeholder,
+:root .srcl-Input__focused .srcl-Input__placeholder,
+:root .srcl-TextArea__placeholder,
+:root .srcl-TextArea__focused .srcl-TextArea__placeholder {
+  background: transparent;
+  color: var(--ink);
+  font-style: normal;
+  opacity: 0.45;
+}
+
+/* Speech bubbles: theirs outlined on the left, yours inverted on the right. */
+:root .srcl-Message__bubble {
+  padding: 4px 1ch;
+  border-radius: 8px 8px 8px 0;
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--ink), 2px 2px 0 var(--ink);
+}
+
+:root .srcl-Message__triangle {
+  border-right-color: var(--ink);
+}
+
+:root .srcl-MessageViewer__bubble {
+  padding: 4px 1ch;
+  border-radius: 8px 8px 0 8px;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* Identicons are drawn black on white; the dark screen inverts them to match. */
+:root .srcl-Avatar__root {
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+
+  &:hover::before,
+  &:active::before {
+    display: none;
+  }
+}
+
+body.theme-dark .srcl-Avatar__root {
+  filter: invert(1);
+}
+
+:root .srcl-AlertBanner__root {
+  padding: calc(var(--line) * 0.5) 2ch;
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--ink), 2px 2px 0 var(--ink);
+}

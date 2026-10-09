@@ -1,0 +1,6 @@
+.name {
+  font-family: var(--font-family-chrome);
+  font-size: calc(var(--font-size) * 1.5);
+  font-weight: 400;
+  line-height: calc(var(--line) * 1.5);
+}

@@ -1,0 +1,48 @@
+/* Mac windows and dialogs opened with a quick stepped zoom from the centre. */
+@keyframes zoom-open {
+  from {
+    clip-path: inset(40% 40%);
+  }
+  to {
+    clip-path: inset(-8px);
+  }
+}
+
+.dialog {
+  width: min(56ch, calc(100vw - 4ch));
+  max-height: calc(100dvh - 4 * var(--line));
+  overflow-y: auto;
+  padding: 6px;
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--ink), 3px 3px 0 1px var(--ink);
+  animation: zoom-open 160ms steps(4, end);
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+.message {
+  display: flex;
+  gap: 2ch;
+  align-items: flex-start;
+  margin-top: calc(var(--line) * 0.5);
+
+  & > svg {
+    flex-shrink: 0;
+  }
+}
+
+.text {
+  min-width: 0;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2ch;
+  justify-content: flex-end;
+  margin-top: var(--line);
+  /* Room for the default button's ring. */
+  padding: 4px;
+}

@@ -1,0 +1,10 @@
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: calc(var(--line) * 0.5) 0;
+}
+
+.empty {
+  padding: calc(var(--line) * 0.5) 2ch;
+}

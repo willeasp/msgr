@@ -1,0 +1,18 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* The dithered desktop the windows sit on. */
+.desktop {
+  flex: 1;
+  min-height: 0;
+  padding: var(--line) 2ch calc(var(--line) * 1.5);
+  background: var(--dither);
+
+  @media (max-width: 760px) {
+    padding: calc(var(--line) * 0.5) 1ch var(--line);
+  }
+}

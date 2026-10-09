@@ -1,20 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useMutation } from '@apollo/client/react';
 import { gql } from '../../../lib/__generated__';
-
-const GET_CHAT_MESSAGES = gql(`
-  query GetChatMessages($chatId: ID!) {
-    messages(chatId: $chatId, limit: 50) {
-      id
-      content
-      sender {
-        id
-        name
-      }
-      createdAt
-    }
-  }
-`);
+import Button from '../../../sacred/components/Button';
+import TextArea from '../../../sacred/components/TextArea';
+import { GET_CHAT_MESSAGES } from './MessageList';
+import styles from './MessageInput.module.css';
 
 const SEND_MESSAGE = gql(`
   mutation SendMessage($chatId: ID!, $content: String!) {
@@ -36,7 +26,8 @@ interface MessageInputProps {
 
 export function MessageInput({ chatId }: MessageInputProps) {
   const [messageInput, setMessageInput] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const inputId = useId();
 
   const [sendMessage, { loading: sendingMessage }] = useMutation(SEND_MESSAGE, {
     onCompleted: () => {
@@ -68,49 +59,49 @@ export function MessageInput({ chatId }: MessageInputProps) {
     },
   });
 
-  useEffect(() => {
-    if (!sendingMessage) {
-      inputRef.current?.focus();
-    }
-  }, [sendingMessage]);
-
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageInput.trim() || sendingMessage) return;
 
-    try {
-      await sendMessage({
-        variables: {
-          chatId,
-          content: messageInput,
-        },
-      });
-    } finally {
-      inputRef.current?.focus();
+    await sendMessage({
+      variables: {
+        chatId,
+        content: messageInput,
+      },
+    });
+  };
+
+  // Enter sends; Shift+Enter (or an IME composition) adds a line.
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      formRef.current?.requestSubmit();
     }
   };
 
   return (
-    <form
-      onSubmit={handleSendMessage}
-      className="p-4 border-t border-gray-200 bg-white flex gap-3"
-    >
-      <input
-        ref={inputRef}
-        type="text"
-        value={messageInput}
-        onChange={(e) => setMessageInput(e.target.value)}
-        placeholder="Type a message..."
-        disabled={sendingMessage}
-        className="flex-1 p-3 text-[15px] border border-gray-300 rounded-full outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-      />
-      <button
-        type="submit"
-        disabled={!messageInput.trim() || sendingMessage}
-        className="px-6 py-3 text-[15px] bg-blue-600 text-white border-none rounded-full cursor-pointer font-bold hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed disabled:hover:bg-gray-300"
-      >
-        {sendingMessage ? 'Sending...' : 'Send'}
-      </button>
+    <form ref={formRef} onSubmit={handleSendMessage} className={styles.root}>
+      <label htmlFor={inputId} className={styles.label}>
+        Message
+      </label>
+      <div className={styles.field}>
+        <TextArea
+          id={inputId}
+          value={messageInput}
+          onChange={(e) => setMessageInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Write a message"
+          readOnly={sendingMessage}
+          rows={1}
+          isBlink
+          autoFocus
+        />
+      </div>
+      {sendingMessage ? (
+        <Button isDisabled>Sending</Button>
+      ) : (
+        <Button type="submit">Send</Button>
+      )}
     </form>
   );
 }
