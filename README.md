@@ -1,28 +1,62 @@
+<div align="center">
+
+<img src="docs/logo.svg" width="88" height="88" alt="">
+
 # Msgr
 
 **Chat with the people you know, on a black-and-white Macintosh.**
 
 [![CI](https://github.com/willeasp/msgr/actions/workflows/ci.yml/badge.svg)](https://github.com/willeasp/msgr/actions/workflows/ci.yml)
+![Node.js 22+](https://img.shields.io/badge/Node.js-22%2B-000?logo=nodedotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-000?logo=typescript&logoColor=white)
+![React 19](https://img.shields.io/badge/React-19-000?logo=react&logoColor=white)
+![GraphQL](https://img.shields.io/badge/GraphQL-000?logo=graphql&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-000?logo=postgresql&logoColor=white)
 
-![The Chats window and an open group chat on Msgr's dithered desktop](docs/screenshots/chat.png)
+</div>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/desktop-dark.png">
+  <img src="docs/screenshots/desktop-light.png" alt="The Chats window and the Project Team group chat on Msgr's dithered desktop">
+</picture>
 
 ## What it does
 
-- **Invite-only.** Nobody can sign up without a link from someone already in. File → Invite a Friend… makes one; it works once and lasts a week. Whoever signs up with it lands in a chat with you, and you get told they joined.
-- **Direct chats, groups and `#channels`.** Start a chat with anyone. Make a channel with File → New Channel…, bring people in with Add People…, or join one from File → Join Channel… or by typing `/join #name` in the message box.
+- **Invite-only.** Nobody can sign up without a link from someone already in. **File → Invite a Friend…** makes one; it works once and lasts a week. Whoever signs up with it lands in a chat with you, and you get told they joined.
+- **Direct chats, groups and `#channels`.** Start a chat with anyone from **File → New Chat…** or <kbd>Ctrl</kbd>&nbsp;<kbd>K</kbd>. Make a channel with **File → New Channel…** and bring people in with **Add People…**, or join one from **File → Join Channel…** or by typing `/join #name` in the message box.
 - **Live.** Messages arrive the moment they're sent, and the chat list reorders itself.
-- **Desktop notifications** and a beep for messages in chats you aren't looking at. Turn them on in the Special menu.
-- **Light, dark and seven tints** from the View menu, and a layout that works on a phone.
+- **Desktop notifications** and a beep for messages in chats you aren't looking at. Turn them on in the **Special** menu.
+- **Light, dark and seven tints** from the **View** menu, and a layout that works on a phone.
 - **Free to host.** One container on Render's free plan, with Neon's free Postgres.
 
-<p>
-  <img src="docs/screenshots/sign-in.png" width="49%" alt="The sign-in dialog: Welcome to Msgr.">
-  <img src="docs/screenshots/channels.png" width="49%" alt="Starting a new channel from the Join a Channel dialog">
+<p align="center">
+  <img src="docs/screenshots/live.png" width="824" alt="Test User and Alice Johnson side by side: each message appears on the other's screen as soon as it is sent">
 </p>
-<p>
-  <img src="docs/screenshots/dark.png" width="75%" alt="The #general channel in the dark theme">
-  <img src="docs/screenshots/phone.png" width="23%" alt="A chat on a phone, with the orange tint">
-</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="docs/screenshots/sign-in.png" alt="The sign-in dialog: Welcome to Msgr.">
+      <br><sub>Signing in</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="docs/screenshots/channel.png" alt="Adding Alice Johnson to the new #book-club channel">
+      <br><sub>Adding people to a new channel</sub>
+    </td>
+  </tr>
+</table>
+<table>
+  <tr>
+    <td width="76%" align="center">
+      <img src="docs/screenshots/themes.png" alt="The View menu open over #general, with the blue tint chosen">
+      <br><sub>Themes, from the View menu</sub>
+    </td>
+    <td width="24%" align="center">
+      <img src="docs/screenshots/phone.png" alt="A chat on a phone, in the dark theme with the orange tint">
+      <br><sub>On a phone</sub>
+    </td>
+  </tr>
+</table>
 
 ## Run it locally
 
@@ -58,6 +92,8 @@ npm run invite
 
 ## Deploy for free
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/willeasp/msgr)
+
 Msgr runs as one container: the API serves the built app from its own address, so one session cookie covers both. [Render](https://render.com)'s free web service runs it and [Neon](https://neon.com)'s free Postgres keeps the data (Render's own free database expires after 30 days). Free plans change, so check both pricing pages.
 
 1. **Database.** Create a Neon project and copy its _direct_ connection string (turn connection pooling off); it starts with `postgresql://`.
@@ -70,7 +106,10 @@ Msgr runs as one container: the API serves the built app from its own address, s
 
    Open the link, sign up, and invite everyone else from **File → Invite a Friend…**.
 
-On the free plan the app sleeps after 15 minutes without visitors: the next visit takes about a minute to wake it, and open tabs reconnect by themselves. Any host that runs a container works the same way; to try the production image locally:
+> [!NOTE]
+> On the free plan the app sleeps after 15 minutes without visitors: the next visit takes about a minute to wake it, and open tabs reconnect by themselves.
+
+Any host that runs a container works the same way. To try the production image locally:
 
 ```bash
 docker build -t msgr .
@@ -79,6 +118,16 @@ docker run -p 4000:4000 -e DATABASE_URL='postgresql://…' \
 ```
 
 ## How it's built
+
+```mermaid
+flowchart LR
+  browser["Browser<br>React, Apollo Client"]
+  api["API<br>Node, Express, Apollo Server"]
+  db[("PostgreSQL")]
+  browser -- "HTTP: the app, queries, mutations" --> api
+  api -. "WebSocket: new messages, added chats" .-> browser
+  api -- Prisma --> db
+```
 
 - **API:** Node, Express and Apollo Server; GraphQL over HTTP and, for the live feed, over WebSocket. Prisma on PostgreSQL, DataLoader for batching. It's a functional core with an imperative shell: pure domain rules, use cases behind ports, and adapters at the edges.
 - **App:** React 19, Apollo Client and Vite, built from [Sacred Computer](https://www.sacred.computer/)'s components and dressed as a 1984 Macintosh by one skin stylesheet. Set in Chicago and Departure Mono.
@@ -93,13 +142,15 @@ Read more:
 - [CONTEXT.md](CONTEXT.md): the vocabulary: chat, channel, participant, invite.
 - [docs/manual-testing.md](docs/manual-testing.md): a checklist for trying every feature by hand.
 
-## Scripts
+<details>
+<summary><b>Scripts</b></summary>
 
 | Script                | What it does                                                              |
 | --------------------- | ------------------------------------------------------------------------- |
 | `npm run dev`         | API and app in parallel (`dev:api`, `dev:frontend`)                       |
 | `npm run test`        | Every test; the Postgres contract also runs if `TEST_DATABASE_URL` is set |
 | `npm run e2e`         | Build, then browser tests in a fresh `msgr_e2e` database (see CLAUDE.md)  |
+| `npm run screenshots` | Build, then remake this README's pictures in `docs/screenshots`           |
 | `npm run typecheck`   | Type check both apps (runs codegen first)                                 |
 | `npm run lint`        | Lint both apps, including the API's layer rule                            |
 | `npm run build`       | Build both apps                                                           |
@@ -111,7 +162,10 @@ Read more:
 | `npm run db:setup`    | migrate + generate + seed                                                 |
 | `npm run invite`      | Print a single-use sign-up link                                           |
 
-## Project structure
+</details>
+
+<details>
+<summary><b>Project structure</b></summary>
 
 ```
 apps/
@@ -132,10 +186,12 @@ apps/
 │       ├── lib/             # pure logic with tests, generated GraphQL types
 │       ├── sacred/          # vendored Sacred Computer components
 │       └── skin.css         # the Macintosh skin
-└── e2e/                     # Playwright: a real browser against the production build
+└── e2e/                     # Playwright: browser tests and the README's screenshots
 docs/                        # architecture, decision records, screenshots
 Dockerfile, render.yaml      # one container, deployed for free
 ```
+
+</details>
 
 ## Troubleshooting
 

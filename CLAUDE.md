@@ -14,6 +14,7 @@ npm run codegen             # after any change to apps/api/src/graphql/schema.ts
 npm run db:migrate          # after any change to apps/api/prisma/schema.prisma
 npm run invite              # print a single-use sign-up link (the first account starts here)
 npm run e2e                 # build, then Playwright against the production build (needs the test Postgres below)
+npm run screenshots         # the same, remaking the README's pictures in docs/screenshots
 npx nx test @msgr/api -- src/domain   # one folder / file
 ```
 
@@ -123,7 +124,7 @@ The root `Dockerfile` builds both apps into one image that runs `prisma migrate 
 2. **Use case?** Write a failing test in `application/*.service.test.ts` with `createTestApp()` (in-memory adapters, fake hasher, ticking clock). Override any port to observe it: `createTestApp({ passwords: { ...fakePasswordHasher, verify } })`.
 3. **New repository method?** Add it to the port in `application/ports.ts`, add its behaviour to `testing/repository-contract.ts`, and make both the in-memory and the Prisma adapter pass the contract. Run the Postgres contract before merging.
 4. **New field?** Edit `graphql/schema.ts`, run `npm run codegen`, add a resolver, and cover it through `graphql/resolvers.test.ts`, which executes real operations against the schema.
-5. **Something on screen?** Add a Playwright spec to `apps/e2e/tests` and run `npm run e2e`. Find things the way a person would, by role, label and text, with the helpers in `tests/support.ts` (`signIn`, `chooseMenu`, `chatWindow`, `anotherPerson` for a second browser). The seed data is there at the start of each run; the specs share one server, so make what you need rather than relying on another spec's leftovers. Every login counts toward the throttle (10 per email per 15 minutes, successful ones too), so spread sign-ins across the seeded accounts.
+5. **Something on screen?** Add a Playwright spec to `apps/e2e/tests` and run `npm run e2e`. Find things the way a person would, by role, label and text, with the helpers in `tests/support.ts` (`signIn`, `chooseMenu`, `chatWindow`, `anotherPerson` for a second browser). The seed data is there at the start of each run; the specs share one server, so make what you need rather than relying on another spec's leftovers. Every login counts toward the throttle (10 per email per 15 minutes, successful ones too), so spread sign-ins across the seeded accounts. If the change shows in the README's pictures, run `npm run screenshots`, look at the results and commit them; `apps/e2e/screenshots/readme.spec.ts` takes them with the clock fixed just after the seed's last messages.
 
 Test through interfaces, not internals: assert on what a service, operation or repository returns. For new relations, assert query counts with `vi.spyOn(repositories.x, 'findByIds')`, as the chat-list test does.
 

@@ -13,7 +13,11 @@ const repo = (path: string) =>
  * makes afresh (prepare-database.ts). `npm run e2e` builds first.
  */
 export default defineConfig({
-  testDir: './tests',
+  projects: [
+    { name: 'e2e', testDir: './tests' },
+    // The README's pictures, remade with `npm run screenshots`.
+    { name: 'screenshots', testDir: './screenshots' },
+  ],
   // One server and one database, shared: run the tests one at a time.
   workers: 1,
   forbidOnly: !!process.env['CI'],
