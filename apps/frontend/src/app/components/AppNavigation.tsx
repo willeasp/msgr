@@ -1,7 +1,7 @@
-import { useApolloClient, useMutation, useQuery } from '@apollo/client/react';
-import { useNavigate } from 'react-router-dom';
+import { useMutation, useQuery } from '@apollo/client/react';
 import { gql } from '../../lib/__generated__';
 import { ME } from '../auth/protected-route';
+import { useSessionChange } from '../auth/use-session-change';
 import { useModals } from '../../sacred/components/page/ModalContext';
 import { InviteDialog } from './InviteDialog';
 import { Menu, MenuBar } from './MenuBar';
@@ -37,16 +37,11 @@ export function AppNavigation({
   onCloseChat,
   onLeaveChannel,
 }: AppNavigationProps) {
-  const navigate = useNavigate();
-  const client = useApolloClient();
+  const changeSession = useSessionChange();
   const { open } = useModals();
   const { data } = useQuery(ME);
   const [logout] = useMutation(LOGOUT_MUTATION, {
-    // Forget everything cached for this user before anyone else signs in.
-    onCompleted: async () => {
-      await client.clearStore();
-      navigate('/login');
-    },
+    onCompleted: () => changeSession('/login'),
   });
 
   return (

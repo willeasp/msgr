@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useMutation } from '@apollo/client/react';
 import { CombinedGraphQLErrors } from '@apollo/client';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { gql } from '../../lib/__generated__';
+import { useSessionChange } from '../auth/use-session-change';
 import AlertBanner from '../../sacred/components/AlertBanner';
 import Button from '../../sacred/components/Button';
 import Divider from '../../sacred/components/Divider';
@@ -38,7 +39,7 @@ function explain(error: unknown): string {
 /** Where an invite link lands: "/invite/:code". */
 export function SignUpPage() {
   const { code = '' } = useParams<{ code: string }>();
-  const navigate = useNavigate();
+  const changeSession = useSessionChange();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,7 +47,7 @@ export function SignUpPage() {
 
   // The session arrives as an httpOnly cookie.
   const [signUp, { loading }] = useMutation(SIGN_UP, {
-    onCompleted: () => navigate('/'),
+    onCompleted: () => changeSession('/'),
     onError: (failure) => setError(explain(failure)),
   });
 

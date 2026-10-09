@@ -49,7 +49,7 @@ export function MenuBar({ menus, status }: MenuBarProps) {
   const now = useClock();
 
   return (
-    <div className={styles.root}>
+    <header className={styles.root}>
       <Navigation
         logo={<PixelIcon bitmap={MARK} scale={1} label="About Msgr" />}
         onClickLogo={() => open(AboutDialog, {})}
@@ -66,6 +66,6 @@ export function MenuBar({ menus, status }: MenuBarProps) {
           </span>
         }
       />
-    </div>
+    </header>
   );
 }

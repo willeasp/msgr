@@ -94,6 +94,7 @@ apps/frontend/src/
 ```
 
 - **One live feed.** The chat page owns the only `messageReceived` subscription (`useChatFeed`). It updates the chat list and each chat's cached history, open or not, and hands every message to `useAlerts`. Windows only query. Opening a chat also refetches its history (`cache-and-network`), so anything missed while offline appears.
+- **Session changes** (sign in, sign up, log out) go through `useSessionChange`, which clears Apollo's cache before navigating. Everything cached, down to `me: null`, belongs to the previous viewer; without the reset, signing in after being redirected to `/login` bounces straight back there.
 - **Dialogs** go through Sacred's modal stack: `useModals().open(Component, props)`.
 - **Logic out of components.** Anything decidable without the DOM goes in `lib/*.ts` with a test (`shouldAlert`, `parseCommand`, `withReceivedMessage`, `identicon`); components wire it up.
 - **Styling.** CSS Modules plus the skin's tokens: `--ink`, `--paper`, `--line` (one text line), `--dither`, `--font-family-chrome` (Chicago, for the system's words), `--font-family-mono` (Departure Mono, for people's). Inversion is the only highlight. Vendored Sacred components are restyled only from `skin.css`, by their stable `srcl-<Component>__<class>` names.

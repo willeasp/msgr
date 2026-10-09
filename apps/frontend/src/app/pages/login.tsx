@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation } from '@apollo/client/react';
-import { useNavigate } from 'react-router-dom';
 import { gql } from '../../lib/__generated__';
+import { useSessionChange } from '../auth/use-session-change';
 import AlertBanner from '../../sacred/components/AlertBanner';
 import Button from '../../sacred/components/Button';
 import Divider from '../../sacred/components/Divider';
@@ -30,11 +30,11 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
+  const changeSession = useSessionChange();
 
   const [login, { loading }] = useMutation(LOGIN_MUTATION, {
     // The session arrives as an httpOnly cookie.
-    onCompleted: () => navigate('/'),
+    onCompleted: () => changeSession('/'),
     onError: (error) => {
       setError(error.message);
     },

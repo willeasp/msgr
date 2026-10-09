@@ -91,6 +91,7 @@ Read more:
 - [docs/adr/](docs/adr/): why it's built this way, one decision at a time.
 - [CLAUDE.md](CLAUDE.md): conventions, the TDD workflow and gotchas, for anyone changing the code.
 - [CONTEXT.md](CONTEXT.md): the vocabulary: chat, channel, participant, invite.
+- [docs/manual-testing.md](docs/manual-testing.md): a checklist for trying every feature by hand.
 
 ## Scripts
 
