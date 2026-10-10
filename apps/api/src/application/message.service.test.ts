@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Drawing } from '../domain/drawing.js';
 import type { Message } from '../domain/message.js';
 import { Page } from '../domain/page.js';
 import { createTestApp, expectOk, nextEvent } from '../testing/harness.js';
@@ -82,6 +83,65 @@ describe('sending a message', () => {
 
     expect(
       await services().messages.send(linus, { chatId: chat.id, content: 'hi' })
+    ).toEqual({ ok: false, error: { type: 'NotFound', entity: 'Chat' } });
+  });
+});
+
+const encode = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
+const drawing = (() => {
+  const bytes = new Uint8Array(Drawing.BYTES);
+  bytes[42] = 0b0011_1100;
+  return encode(bytes);
+})();
+
+describe('sending a drawing', () => {
+  it('stores it, stamped by the clock, and delivers it live', async () => {
+    const { services, ada, grace, linus, chat } = await team();
+    const toGrace = nextEvent(services().messages.feed(grace));
+    const toLinus = nextEvent(services().messages.feed(linus));
+
+    const message = expectOk(
+      await services().messages.sendDrawing(ada, { chatId: chat.id, drawing })
+    );
+
+    expect(message).toEqual({
+      id: message.id,
+      kind: 'drawing',
+      chatId: chat.id,
+      senderId: ada.id,
+      drawing,
+      createdAt: expect.any(Date),
+    });
+    expect(await toGrace).toEqual(message);
+    expect(await toLinus).toBe('nothing');
+  });
+
+  it('rejects a bad drawing before looking at the chat, storing nothing', async () => {
+    const { services, ada, chat } = await team();
+    const blank = encode(new Uint8Array(Drawing.BYTES));
+
+    expect(
+      await services().messages.sendDrawing(ada, {
+        chatId: 'missing',
+        drawing: blank,
+      })
+    ).toMatchObject({
+      ok: false,
+      error: { type: 'InvalidInput', field: 'drawing' },
+    });
+    expect(
+      expectOk(await services().messages.list(ada, { chatId: chat.id }))
+    ).toEqual([]);
+  });
+
+  it("refuses to post into someone else's chat", async () => {
+    const { services, linus, chat } = await team();
+
+    expect(
+      await services().messages.sendDrawing(linus, {
+        chatId: chat.id,
+        drawing,
+      })
     ).toEqual({ ok: false, error: { type: 'NotFound', entity: 'Chat' } });
   });
 });
