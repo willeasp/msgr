@@ -97,6 +97,10 @@ keyboard, notifications, layout) is checked here.
 - [ ] **Closed chats stay current:** with a chat _closed_, have the other person
       write in it. Opening it shows the new message.
 - [ ] **New chat:** a brand-new chat says "No messages yet. Say hello."
+- [ ] **Pixel emoji:** emoji in messages, the chat list, names and window
+      titles are black-and-white pixel art in the text's colour, white in your
+      own bubbles and in the theme's ink in Dark and the tints. A message of one
+      to three emoji shows them big. Copying a message gives the real emoji.
 - [ ] **Drawing:** Draw… opens "Drawing for _chat_". Try each tool: the pencil
       (starting on black, it draws white), the brush and the paint bucket in a
       few patterns, and the eraser. Undo (⌘Z or Ctrl+Z) steps back through

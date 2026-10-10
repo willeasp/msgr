@@ -25,6 +25,7 @@
 - **Invite-only.** Nobody can sign up without a link from someone already in. **File → Invite a Friend…** makes one; it works once and lasts a week. Whoever signs up with it lands in a chat with you, and you get told they joined.
 - **Direct chats, groups and `#channels`.** Start a chat with anyone from **File → New Chat…** or <kbd>Ctrl</kbd>&nbsp;<kbd>K</kbd>. Make a channel with **File → New Channel…** and bring people in with **Add People…**, or join one from **File → Join Channel…** or by typing `/join #name` in the message box.
 - **Live.** Messages arrive the moment they're sent, and the chat list reorders itself.
+- **Pixel emoji.** Every emoji is redrawn as black-and-white pixel art in the theme's ink, and a message of just emoji shows them big.
 - **MacPaint drawings.** **Draw…** opens a paint window with a pencil, brush, paint bucket, eraser and eight patterns, and sends the picture to the chat. **Draw on It** sends one back with your additions.
 - **Desktop notifications** and a beep for messages in chats you aren't looking at. Turn them on in the **Special** menu.
 - **Light, dark and seven tints** from the **View** menu, and a layout that works on a phone.

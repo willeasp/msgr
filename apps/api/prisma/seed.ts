@@ -28,7 +28,7 @@ const conversations: Conversation[] = [
     channel: 'general',
     members: ['test', 'alice', 'bob', 'charlie', 'diana'],
     lines: [
-      ['alice', '2024-01-17T09:00:00Z', 'Morning, everyone!'],
+      ['alice', '2024-01-17T09:00:00Z', 'Morning, everyone! 😀'],
       ['charlie', '2024-01-17T09:02:00Z', 'Who is up for lunch later?'],
       ['diana', '2024-01-17T09:05:00Z', 'Count me in.'],
     ],
