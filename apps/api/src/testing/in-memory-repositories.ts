@@ -165,6 +165,9 @@ export function createInMemoryRepositories(): {
     },
 
     messages: {
+      findByIds: async (ids) =>
+        messages.filter((message) => ids.includes(message.id)),
+
       findPages: async (chatIds, { limit, offset }) =>
         distinct(chatIds).flatMap((chatId) =>
           messages

@@ -22,6 +22,14 @@ type MessageRow = Prisma.MessageGetPayload<{ select: typeof messageFields }>;
 
 export function prismaMessageRepository(db: PrismaClient): MessageRepository {
   return {
+    async findByIds(ids) {
+      const rows = await db.message.findMany({
+        where: { id: { in: [...ids] } },
+        select: messageFields,
+      });
+      return rows.map(toMessage);
+    },
+
     async findPages(chatIds, { limit, offset }) {
       if (chatIds.length === 0) return [];
       // One query for every chat: rank each chat's messages newest-first and

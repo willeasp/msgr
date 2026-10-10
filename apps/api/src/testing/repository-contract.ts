@@ -9,7 +9,11 @@ import {
 } from '../domain/chat.js';
 import { newInvite, type InviteCode } from '../domain/invite.js';
 import { Drawing } from '../domain/drawing.js';
-import type { Message, MessageContent } from '../domain/message.js';
+import {
+  MessageId,
+  type Message,
+  type MessageContent,
+} from '../domain/message.js';
 import {
   Email,
   SearchTerm,
@@ -418,6 +422,31 @@ export function repositoryContract(
           offset: 0,
         })
       ).toEqual([text, drawing]);
+    });
+
+    it('finds messages by id, text and drawings alike, and skips unknown ids', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const chat = await repositories.chats.saveDirect(pairOf(ada, grace));
+      const text = await send(chat, ada, 'hi', '2030-01-01T00:00:00Z');
+      const bytes = new Uint8Array(Drawing.BYTES);
+      bytes[1] = 0x0f;
+      const drawing = await repositories.messages.append({
+        kind: 'drawing',
+        chatId: chat.id,
+        senderId: grace.id,
+        drawing: btoa(String.fromCharCode(...bytes)) as Drawing,
+        createdAt: new Date('2030-01-01T00:01:00Z'),
+      });
+
+      const found = await repositories.messages.findByIds([
+        drawing.id,
+        text.id,
+        MessageId('missing'),
+      ]);
+
+      expect(sortById(found)).toEqual(sortById([text, drawing]));
+      expect(await repositories.messages.findByIds([])).toEqual([]);
     });
 
     it('pages many chats in one call', async () => {

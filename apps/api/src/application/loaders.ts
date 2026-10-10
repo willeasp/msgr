@@ -1,6 +1,6 @@
 import DataLoader from 'dataloader';
 import type { Chat, ChatId } from '../domain/chat.js';
-import type { Message } from '../domain/message.js';
+import type { Message, MessageId } from '../domain/message.js';
 import type { Page } from '../domain/page.js';
 import type { User, UserId } from '../domain/user.js';
 import type { Repositories } from './ports.js';
@@ -12,6 +12,7 @@ import type { Repositories } from './ports.js';
 export interface Loaders {
   readonly user: DataLoader<UserId, User | null>;
   readonly chat: DataLoader<ChatId, Chat | null>;
+  readonly message: DataLoader<MessageId, Message | null>;
   messages(page: Page): DataLoader<ChatId, Message[]>;
 }
 
@@ -32,6 +33,7 @@ export function createLoaders(
   return {
     user: byId((ids) => users.findByIds(ids), cache),
     chat: byId((ids) => chats.findByIds(ids), cache),
+    message: byId((ids) => messages.findByIds(ids), cache),
     messages(page) {
       const key = `${page.limit}:${page.offset}`;
       let loader = pages.get(key);

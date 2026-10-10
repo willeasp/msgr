@@ -8,7 +8,7 @@ import type {
   DirectPair,
 } from '../domain/chat.js';
 import type { Invite, InviteCode } from '../domain/invite.js';
-import type { Message, NewMessage } from '../domain/message.js';
+import type { Message, MessageId, NewMessage } from '../domain/message.js';
 import type { Page } from '../domain/page.js';
 import type { Result } from '../domain/result.js';
 import type {
@@ -58,6 +58,7 @@ export interface ChatRepository {
 }
 
 export interface MessageRepository {
+  findByIds(ids: readonly MessageId[]): Promise<Message[]>;
   /**
    * For each chat, `page` counted from its newest message, returned oldest
    * first. Ties on `createdAt` are broken by id.
