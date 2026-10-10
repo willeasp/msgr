@@ -77,9 +77,13 @@ export const typeDefs = /* GraphQL */ `
     chatId: ID!
   }
 
+  "Text or a drawing: exactly one of content and drawing is set."
   type Message {
     id: ID!
-    content: String!
+    "The text; null for a drawing."
+    content: String
+    "A 256×160 black-and-white picture: rows top to bottom, 8 pixels a byte with the leftmost in the high bit, 1 for ink, in base64. Null for text."
+    drawing: String
     sender: User!
     chat: Chat!
     createdAt: DateTime!
@@ -88,6 +92,11 @@ export const typeDefs = /* GraphQL */ `
   input SendMessageInput {
     chatId: ID!
     content: String!
+  }
+
+  input SendDrawingInput {
+    chatId: ID!
+    drawing: String!
   }
 
   type Query {
@@ -115,6 +124,8 @@ export const typeDefs = /* GraphQL */ `
     "The viewer's direct chat with a user, created on first contact."
     findOrCreateChat(participantId: ID!): Chat!
     sendMessage(input: SendMessageInput!): Message!
+    "Sends a drawing, made in the paint window, as a message."
+    sendDrawing(input: SendDrawingInput!): Message!
     "Joins the channel called name, creating it if nobody has yet."
     joinChannel(name: String!): Chat!
     "Leaves a channel. Direct and group chats cannot be left."

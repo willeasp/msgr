@@ -52,14 +52,9 @@ Every existing row has `content`, so it stays valid. The Prisma adapter maps a r
 ### GraphQL (`graphql/schema.ts`)
 
 ```graphql
-enum MessageKind {
-  TEXT
-  DRAWING
-}
-
+"Text or a drawing: exactly one of content and drawing is set."
 type Message {
   id: ID!
-  kind: MessageKind!
   "The text; null for a drawing."
   content: String
   "A 256×160 black-and-white picture: rows top to bottom, 8 pixels a byte with the leftmost in the high bit, 1 for ink, in base64. Null for text."
@@ -78,7 +73,7 @@ input SendDrawingInput {
 sendDrawing(input: SendDrawingInput!): Message!
 ```
 
-One `Message` type with a `kind`, as `Chat` has. Making `content` nullable breaks the schema for other clients; the app is the only one. Resolvers stay one-liners: `kind` maps the domain's lower-case kind, and `content`/`drawing` read the field or return null.
+One `Message` type, without a `kind` field: which of `content` and `drawing` is set already says it, and the client narrows on `drawing != null`. Making `content` nullable breaks the schema for other clients; the app is the only one. No new resolvers beyond `sendDrawing`: the default ones read `content` and `drawing`, and the kind without one resolves to null.
 
 ## The paint window (`PaintDialog`)
 
@@ -132,7 +127,7 @@ The canvas shows at 2× on the desktop and 1× when narrow (the chat page's `NAR
 - `MessageBubble` shows a drawing inside the usual bubble as a framed picture: `--ink` on `--paper` with a 1-pixel frame, 2× on the desktop and 1× when narrow, so dark mode and the tints apply. It is `role="img"` with the label "Drawing"; the sender and time are already above it.
 - A small **Draw on It** button under every drawing, the viewer's own included, opens the paint window with it. Sending makes a new message; the original is unchanged.
 - The chat list's preview of a drawing reads "Drawing". A desktop notification for one reads "Sent a drawing." and beeps like any other.
-- History (`GET_CHAT_MESSAGES`), the live feed (`useChatFeed`) and `sendDrawing` select `kind`, `content` and `drawing`. The chat list selects `kind` and `content` for its latest message, never the bitmap. `withReceivedMessage` and `ReceivedMessage` carry the new fields.
+- History (`GET_CHAT_MESSAGES`), the live feed (`useChatFeed`), `sendMessage` and `sendDrawing` select `content` and `drawing`. The chat list selects only `content` for its latest message, never the bitmap.
 
 ## Errors
 
@@ -145,7 +140,7 @@ The canvas shows at 2× on the desktop and 1× when narrow (the chat page's `NAR
 - **Domain** (`domain/drawing.test.ts`): `Drawing.parse` rejects the wrong length, non-canonical base64 and a blank picture, and accepts a real one.
 - **Service** (`application/message.service.test.ts`): `sendDrawing` stores the drawing and publishes it; a chat the viewer isn't in answers like a missing one; a bad drawing stores nothing.
 - **Repository contract** (`testing/repository-contract.ts`): a drawing message reads back unchanged, in pages and by id, from the in-memory and Prisma adapters. Run the Postgres contract before merging.
-- **GraphQL** (`graphql/resolvers.test.ts`): `sendDrawing` end to end; `messages` returns `kind: DRAWING`, the drawing and `content: null`.
+- **GraphQL** (`graphql/resolvers.test.ts`): `sendDrawing` end to end; `messages` returns the drawing and `content: null`; a blank drawing is bad input.
 - **`lib/paint.test.ts`**: a fast stroke has no gaps; the pencil draws paper when it starts on ink; patterns are anchored to the canvas; the bucket stops at a one-pixel diagonal gap and fills patterned areas without looping; base64 round-trips; a blank bitmap is blank.
 - **Browser** (`apps/e2e/tests/drawing.spec.ts`): Test User draws with the mouse and sends; Alice, in a second browser, sees it arrive live, uses **Draw on It**, adds a stroke and sends it back; Cancel on a canvas with something on it asks before discarding.
 - **README**: a "What it does" bullet, and one new screenshot of the paint window (`paint.png`), drawn with the mouse by `apps/e2e/screenshots/readme.spec.ts`. The seed stays as it is, so the existing pictures don't change.

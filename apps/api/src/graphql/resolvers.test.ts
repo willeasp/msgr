@@ -400,6 +400,47 @@ describe('messages', () => {
     sendMessage(input: { chatId: $chatId, content: $content }) { content }
   }`;
 
+  const sendDrawing = `mutation ($chatId: ID!, $drawing: String!) {
+    sendDrawing(input: { chatId: $chatId, drawing: $drawing }) { content drawing }
+  }`;
+  const picture = (ink: boolean) => {
+    const bytes = new Uint8Array(256 * 20);
+    if (ink) bytes[7] = 1;
+    return btoa(String.fromCharCode(...bytes));
+  };
+
+  it('sends a drawing, read back with no text', async () => {
+    const { app, ada, team } = await world();
+    const drawing = picture(true);
+
+    const sent = await execute(app, sendDrawing, {
+      as: ada,
+      variables: { chatId: team.id, drawing },
+    });
+    const read = await execute(
+      app,
+      'query ($id: ID!) { messages(chatId: $id) { content drawing sender { name } } }',
+      { as: ada, variables: { id: team.id } }
+    );
+
+    expect(sent.data).toEqual({ sendDrawing: { content: null, drawing } });
+    expect(read.data).toEqual({
+      messages: [{ content: null, drawing, sender: { name: 'Ada' } }],
+    });
+  });
+
+  it('rejects a blank drawing as bad input', async () => {
+    const { app, ada, team } = await world();
+
+    const result = await execute(app, sendDrawing, {
+      as: ada,
+      variables: { chatId: team.id, drawing: picture(false) },
+    });
+
+    expect(codeOf(result)).toBe('BAD_USER_INPUT');
+    expect(result.errors?.[0]?.extensions['field']).toBe('drawing');
+  });
+
   it('rejects blank text as bad input', async () => {
     const { app, ada, team } = await world();
 
