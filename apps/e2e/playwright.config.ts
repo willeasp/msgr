@@ -27,6 +27,17 @@ export default defineConfig({
     ...devices['Desktop Chrome'],
     baseURL: SITE,
     trace: 'retain-on-failure',
+    // Every browser starts with the notifications offer dismissed, so it stays
+    // out of the way; notifications.spec.ts makes browsers without it.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: SITE,
+          localStorage: [{ name: 'notifications-dismissed', value: 'true' }],
+        },
+      ],
+    },
   },
   webServer: {
     // Here, not in globalSetup: Playwright starts the server before globalSetup runs.
@@ -43,6 +54,10 @@ export default defineConfig({
       JWT_SECRET: 'e2e-only-secret-that-is-at-least-32-characters',
       CORS_ORIGIN: SITE,
       STATIC_DIR: repo('apps/frontend/dist'),
+      // Development's pair (apps/api/src/config.ts), so push is on.
+      VAPID_PUBLIC_KEY:
+        'BHdgRT9dGCZv-REtiHJtRv-vcQMexFE3rhRYq5_8EIqBR2zDLtUJ2SVOz2LBEq8Lone3iCmqO_W-uHT5C6eDLJ8',
+      VAPID_PRIVATE_KEY: 'Sy7TpkdTQnDIi_pqCnRTZegtIR265nJb2gFLqGF16kw',
     },
   },
 });

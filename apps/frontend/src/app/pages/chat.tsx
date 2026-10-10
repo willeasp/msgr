@@ -1,6 +1,8 @@
+import { useEffect, useRef } from 'react';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { gql } from '../../lib/__generated__';
 import { ChatKind } from '../../lib/__generated__/graphql';
+import { shouldOffer } from '../../lib/push';
 import { useParams, useNavigate } from 'react-router-dom';
 import SidebarLayout from '../../sacred/components/SidebarLayout';
 import { useModals } from '../../sacred/components/page/ModalContext';
@@ -15,11 +17,17 @@ import { JoinChannelDialog } from '../components/chat/JoinChannelDialog';
 import { EmptyChatState } from '../components/chat/EmptyChatState';
 import { NewChatModal } from '../components/chat/NewChatModal';
 import { NotificationsBlockedDialog } from '../components/NotificationsBlockedDialog';
+import { NotificationsDialog } from '../components/NotificationsDialog';
 import { useAlerts } from '../hooks/use-alerts';
 import { useChatFeed } from '../hooks/use-chat-feed';
 import { useMediaQuery } from '../hooks/use-media-query';
 import { useInstallPrompt } from '../hooks/use-install-prompt';
-import { setup, useNotifications } from '../hooks/use-notifications';
+import {
+  dismissOffer,
+  offerDismissed,
+  setup,
+  useNotifications,
+} from '../hooks/use-notifications';
 import { useOpenChatFromNotifications } from '../hooks/use-service-worker';
 import { useWatching } from '../hooks/use-watching';
 import styles from './chat.module.css';
@@ -48,6 +56,8 @@ export function Chat() {
 
   const turnOnNotifications = async () => {
     const outcome = await notifications.turnOn();
+    // A browser that can't subscribe isn't asked again on every visit.
+    if (outcome === 'failed') dismissOffer();
     if (outcome !== 'on') open(NotificationsBlockedDialog, { reason: outcome });
   };
   const notificationsItem = !notifications.pushKey
@@ -61,7 +71,34 @@ export function Chat() {
               ? notifications.turnOff()
               : turnOnNotifications()),
         }
-      : undefined;
+      : setup === 'install-first'
+        ? {
+            label: 'Notifications…',
+            onClick: () =>
+              open(NotificationsDialog, {
+                setup: 'install-first' as const,
+                onTurnOn: turnOnNotifications,
+              }),
+          }
+        : undefined;
+
+  // Offered once the browser has said whether it's subscribed and the push
+  // key is in; `offered` keeps it to once per visit.
+  const offered = useRef(false);
+  useEffect(() => {
+    if (offered.current || notifications.subscribed === null) return;
+    if (setup === 'unsupported') return;
+    const offer = shouldOffer({
+      setup,
+      pushKey: notifications.pushKey,
+      permission: 'Notification' in window ? Notification.permission : null,
+      subscribed: notifications.subscribed,
+      dismissed: offerDismissed(),
+    });
+    if (!offer) return;
+    offered.current = true;
+    open(NotificationsDialog, { setup, onTurnOn: turnOnNotifications });
+  });
   useChatFeed({
     onMessage: alerts.alert,
     onChatAdded: alerts.alertChatAdded,
