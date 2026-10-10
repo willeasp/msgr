@@ -1,0 +1,81 @@
+/* A small framed card under the bubble: inverted while pointed at, like a button. */
+.card {
+  display: flex;
+  gap: 1ch;
+  align-items: flex-start;
+  max-width: 340px;
+  margin: 4px 0 8px;
+  padding: 6px;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--ink);
+    outline-offset: 3px;
+  }
+
+  @media (max-width: 760px) {
+    max-width: 100%;
+  }
+}
+
+.thumbnail,
+.icon {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+}
+
+/* The page's picture, dithered by the server, in the card's ink. */
+.thumbnail {
+  background: currentColor;
+  -webkit-mask: var(--thumbnail) center / 100% 100% no-repeat;
+  mask: var(--thumbnail) center / 100% 100% no-repeat;
+
+  @media (forced-colors: active) {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.site {
+  font-family: var(--font-family-chrome);
+  font-size: 13px;
+  line-height: 16px;
+}
+
+.title {
+  font-family: var(--font-family-chrome);
+  font-size: 15px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.description {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 16px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}

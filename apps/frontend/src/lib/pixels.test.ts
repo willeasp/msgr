@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { identicon, identiconCells, pixelPath } from './pixels';
+import {
+  bitmapOf,
+  identicon,
+  identiconCells,
+  pixelPath,
+  svgMask,
+} from './pixels';
 
 describe('pixelPath', () => {
   it('draws one rectangle per horizontal run of ink', () => {
@@ -39,5 +45,25 @@ describe('identicon', () => {
 
   it('survives an unquoted CSS url(), as Avatar uses it', () => {
     expect(identicon('chat-1')).not.toMatch(/[\s()'"]/);
+  });
+});
+
+describe('bitmapOf', () => {
+  it('turns packed bits, leftmost in the high bit, into rows', () => {
+    expect(bitmapOf(new Uint8Array([0b1000_0001, 0xff]), 8)).toEqual([
+      '#......#',
+      '########',
+    ]);
+  });
+});
+
+describe('svgMask', () => {
+  it('draws a bitmap as an SVG mask for CSS, crisp at any size', () => {
+    const mask = svgMask(['#.', '.#']);
+    expect(mask.startsWith('url("data:image/svg+xml,')).toBe(true);
+    const svg = decodeURIComponent(mask.slice(24, -2));
+    expect(svg).toContain('viewBox="0 0 2 2"');
+    expect(svg).toContain('shape-rendering="crispEdges"');
+    expect(svg).toContain('M0 0h1v1h-1z');
   });
 });

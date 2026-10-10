@@ -2,10 +2,12 @@ import { formatTime } from '../../../lib/utils/time';
 import ActionButton from '../../../sacred/components/ActionButton';
 import Message from '../../../sacred/components/Message';
 import MessageViewer from '../../../sacred/components/MessageViewer';
-import { DrawingPicture } from './DrawingPicture';
-import styles from './MessageBubble.module.css';
 import { isOnlyEmoji } from '../../../lib/emoji';
+import { firstLink, splitLinks } from '../../../lib/links';
 import { PixelText } from '../PixelText';
+import { DrawingPicture } from './DrawingPicture';
+import { LinkPreviewCard } from './LinkPreviewCard';
+import styles from './MessageBubble.module.css';
 
 interface MessageBubbleProps {
   message: {
@@ -56,10 +58,33 @@ export function MessageBubble({
             className={styles.content}
             title={new Date(message.createdAt).toLocaleString()}
           >
-            <PixelText text={content} size={isOnlyEmoji(content) ? 32 : 16} />
+            {isOnlyEmoji(content) ? (
+              <PixelText text={content} size={32} />
+            ) : (
+              splitLinks(content).map((piece, i) =>
+                'link' in piece ? (
+                  <a
+                    key={i}
+                    className={styles.link}
+                    href={piece.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {piece.link}
+                  </a>
+                ) : (
+                  <PixelText key={i} text={piece.text} />
+                )
+              )
+            )}
           </span>
         )}
       </Bubble>
+      {drawing == null && firstLink(content) && (
+        <div className={isCurrentUser ? styles.metaOwn : styles.meta}>
+          <LinkPreviewCard messageId={message.id} />
+        </div>
+      )}
       {/* Under the bubble, not in it: the viewer's bubbles are inverted. */}
       {drawing != null && onDrawOnIt && (
         <div className={isCurrentUser ? styles.metaOwn : styles.meta}>

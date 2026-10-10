@@ -29,3 +29,17 @@
   text-align: left;
   white-space: pre-wrap;
 }
+
+/* Underlined in the bubble's own colour, inverted ones included; Sacred's
+   grey link background would show on either. */
+.link,
+.link:hover {
+  background: none;
+  color: inherit;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
+.link:hover {
+  text-decoration-thickness: 2px;
+}

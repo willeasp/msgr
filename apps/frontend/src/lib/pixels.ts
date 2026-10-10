@@ -63,3 +63,24 @@ export function identicon(seed: string): string {
   );
   return `data:image/svg+xml,${encoded}`;
 }
+
+/** Packed bits, rows top to bottom and the leftmost pixel in a byte's high bit, as a Bitmap. */
+export function bitmapOf(bits: Uint8Array, width: number): Bitmap {
+  const rowBytes = width / 8;
+  return Array.from({ length: bits.length / rowBytes }, (_, y) =>
+    Array.from({ length: width }, (_, x) =>
+      ((bits[y * rowBytes + (x >> 3)] ?? 0) & (0x80 >> (x & 7))) !== 0
+        ? '#'
+        : '.'
+    ).join('')
+  );
+}
+
+/** A square bitmap as a CSS mask image: paint through it with currentColor. */
+export function svgMask(bitmap: Bitmap): string {
+  const size = bitmap.length;
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges">` +
+    `<path d="${pixelPath(bitmap)}"/></svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}

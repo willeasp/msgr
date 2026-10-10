@@ -7,7 +7,7 @@ import {
   splitEmoji,
   type Sample,
 } from '../../lib/emoji';
-import { pixelPath, type Bitmap } from '../../lib/pixels';
+import { svgMask } from '../../lib/pixels';
 import styles from './PixelText.module.css';
 
 const FONT =
@@ -46,13 +46,6 @@ function sample(emoji: string): Sample[] | null {
   });
 }
 
-const maskOf = (bitmap: Bitmap) =>
-  `url("data:image/svg+xml,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${bitmap.length} ${
-      bitmap.length
-    }" shape-rendering="crispEdges"><path d="${pixelPath(bitmap)}"/></svg>`
-  )}")`;
-
 // Each emoji's mask, made once a page; null where this device can't draw it.
 const masks = new Map<string, string | null>();
 function maskFor(emoji: string): string | null {
@@ -60,7 +53,7 @@ function maskFor(emoji: string): string | null {
   if (known !== undefined) return known;
   const samples = drawnEmoji(emoji) ? null : sample(emoji);
   const bitmap = drawnEmoji(emoji) ?? (samples && pixelEmoji(samples));
-  const mask = bitmap && !isBlankBitmap(bitmap) ? maskOf(bitmap) : null;
+  const mask = bitmap && !isBlankBitmap(bitmap) ? svgMask(bitmap) : null;
   masks.set(emoji, mask);
   return mask;
 }
