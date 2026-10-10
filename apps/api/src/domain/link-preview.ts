@@ -25,9 +25,13 @@ export interface LinkPreview {
   readonly thumbnail: Thumbnail | null;
 }
 
-const META = /<meta\b[^>]*>/gi;
-const ATTRIBUTE = /([a-z:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
-const TITLE = /<title\b[^>]*>([\s\S]*?)<\/title>/i;
+// Pages are parsed with plain scans, never patterns that can backtrack: a
+// hostile page must not stall the server. Only a page's head matters.
+const HEAD_BYTES = 64 * 1024;
+const MAX_TAG = 4096;
+// Attribute names start after whitespace, a quote or a slash, so a long run of
+// letters is read once rather than from every position.
+const ATTRIBUTE = /(?<=[\s"'/])([a-z:-]{1,64})\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
 const NAMED: Record<string, string> = {
   amp: '&',
   lt: '<',
@@ -37,12 +41,37 @@ const NAMED: Record<string, string> = {
   nbsp: ' ',
 };
 
+/** The part of a page worth reading: up to </head>, at most HEAD_BYTES. */
+function headOf(html: string): {
+  readonly html: string;
+  readonly lower: string;
+} {
+  const start = html.slice(0, HEAD_BYTES);
+  const lower = start.toLowerCase();
+  const end = lower.indexOf('</head');
+  return end < 0
+    ? { html: start, lower }
+    : { html: start.slice(0, end), lower: lower.slice(0, end) };
+}
+
 /** Each <meta> tag's content by its property or name, the first one winning. */
-function metaTags(html: string): Map<string, string> {
+function metaTags({
+  html,
+  lower,
+}: ReturnType<typeof headOf>): Map<string, string> {
   const tags = new Map<string, string>();
-  for (const [tag] of html.matchAll(META)) {
+  for (
+    let at = lower.indexOf('<meta');
+    at >= 0;
+    at = lower.indexOf('<meta', at + 1)
+  ) {
+    const close = lower.indexOf('>', at);
+    if (close < 0) break;
+    if (close - at > MAX_TAG) continue;
     const attributes = new Map<string, string>();
-    for (const [, name = '', double, single] of tag.matchAll(ATTRIBUTE)) {
+    for (const [, name = '', double, single] of html
+      .slice(at, close)
+      .matchAll(ATTRIBUTE)) {
       attributes.set(name.toLowerCase(), double ?? single ?? '');
     }
     const key = (
@@ -54,16 +83,33 @@ function metaTags(html: string): Map<string, string> {
   return tags;
 }
 
+/** The text of the first <title>, if it closes. */
+function titleOf({ html, lower }: ReturnType<typeof headOf>): string {
+  const open = lower.indexOf('<title');
+  const start = open < 0 ? -1 : lower.indexOf('>', open);
+  const end = start < 0 ? -1 : lower.indexOf('</title', start);
+  return end < 0
+    ? ''
+    : html.slice(start + 1, Math.min(end, start + 1 + MAX_TAG));
+}
+
+/** A character by its code, or a replacement mark for a code that isn't one. */
+const character = (code: number) =>
+  Number.isInteger(code) &&
+  code >= 0 &&
+  code <= 0x10ffff &&
+  (code < 0xd800 || code > 0xdfff)
+    ? String.fromCodePoint(code)
+    : '\uFFFD';
+
 function decode(text: string): string {
   return text
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) =>
-      String.fromCodePoint(parseInt(hex, 16))
+    .replace(/&#x([0-9a-f]{1,8});/gi, (_, hex: string) =>
+      character(parseInt(hex, 16))
     )
-    .replace(/&#(\d+);/g, (_, digits: string) =>
-      String.fromCodePoint(Number(digits))
-    )
+    .replace(/&#(\d{1,10});/g, (_, digits: string) => character(Number(digits)))
     .replace(
-      /&([a-z]+);/gi,
+      /&([a-z]{1,10});/gi,
       (entity, name: string) => NAMED[name.toLowerCase()] ?? entity
     )
     .replace(/\s+/g, ' ')
@@ -75,12 +121,13 @@ const cut = (text: string, max: number) =>
 
 /** A page's title, site, description and picture from its HTML; null without a title. */
 export function readPreview(html: string, page: Url): PagePreview | null {
-  const tags = metaTags(html);
+  const head = headOf(html);
+  const tags = metaTags(head);
   const text = (key: string) => {
     const value = tags.get(key);
     return value === undefined ? '' : decode(value);
   };
-  const title = text('og:title') || decode(TITLE.exec(html)?.[1] ?? '');
+  const title = text('og:title') || decode(titleOf(head));
   if (!title) return null;
   const description = text('og:description') || text('description');
   const image = tags.get('og:image');

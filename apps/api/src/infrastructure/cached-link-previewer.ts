@@ -31,7 +31,8 @@ export function cachedLinkPreviewer(
         if (now - entry.at < (result ? KEPT : FAILURE_KEPT)) return result;
         entries.delete(url);
       }
-      const result = inner.preview(url);
+      // A previewer that throws counts as a failed link, kept an hour.
+      const result = inner.preview(url).catch(() => null);
       entries.set(url, { at: now, result });
       for (const oldest of entries.keys()) {
         if (entries.size <= maxEntries) break;

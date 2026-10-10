@@ -34,6 +34,12 @@ const PAGE = { accept: 'text/html', type: 'text/html', maxBytes: 512 * 1024 };
 const IMAGE = { accept: 'image/*', type: 'image/', maxBytes: 5 * 1024 * 1024 };
 const MAX_REDIRECTS = 3;
 const AT_ONCE = 2;
+// Decoding is where pictures cost memory: a tiny AVIF can claim 5000×5000. Only
+// these formats, and only up to 4 megapixels (social cards are about 0.8).
+const FORMATS = new Set(['jpeg', 'png', 'webp', 'gif']);
+const MAX_PIXELS = 4_000_000;
+sharp.cache(false);
+sharp.concurrency(1);
 
 class Refused extends Error {}
 
@@ -127,10 +133,21 @@ export function createLinkPreviewer({
   async function thumbnail(image: Url): Promise<Thumbnail | null> {
     try {
       const { body } = await get(image, IMAGE);
-      const grey = await sharp(body, {
-        limitInputPixels: 25_000_000,
+      const picture = sharp(body, {
+        limitInputPixels: MAX_PIXELS,
         failOn: 'error',
-      })
+      });
+      // Read from the header alone, before anything is decoded.
+      const {
+        format,
+        compression,
+        width = 0,
+        height = 0,
+      } = await picture.metadata();
+      const avif = format === 'heif' && compression === 'av1';
+      if (!(avif || (format && FORMATS.has(format)))) return null;
+      if (width * height > MAX_PIXELS) return null;
+      const grey = await picture
         .flatten({ background: '#ffffff' })
         .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, { fit: 'cover' })
         .greyscale()
@@ -144,21 +161,21 @@ export function createLinkPreviewer({
   }
 
   async function read(url: Url): Promise<LinkPreview | null> {
-    let page;
+    // Nothing a site does may reach the caller as an error: no card instead.
     try {
-      page = await get(url, PAGE);
+      const page = await get(url, PAGE);
+      const found = readPreview(page.body.toString('utf8'), page.url);
+      if (!found) return null;
+      return {
+        url,
+        site: found.site,
+        title: found.title,
+        description: found.description,
+        thumbnail: found.image ? await thumbnail(found.image) : null,
+      };
     } catch {
       return null;
     }
-    const found = readPreview(page.body.toString('utf8'), page.url);
-    if (!found) return null;
-    return {
-      url,
-      site: found.site,
-      title: found.title,
-      description: found.description,
-      thumbnail: found.image ? await thumbnail(found.image) : null,
-    };
   }
 
   // At most AT_ONCE previews run at a time, so decoding pictures fits in memory.

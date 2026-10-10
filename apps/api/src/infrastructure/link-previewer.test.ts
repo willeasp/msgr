@@ -14,6 +14,9 @@ let server: Server;
 let base: string;
 let port: number;
 let png: Buffer;
+let bigPng: Buffer;
+const svg =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>';
 let open = 0;
 let mostOpen = 0;
 let hugeFinished = false;
@@ -46,6 +49,13 @@ beforeAll(async () => {
         top: 0,
       },
     ])
+    .png()
+    .toBuffer();
+
+  // Over 4 megapixels: decoding pictures that big could exhaust memory.
+  bigPng = await sharp({
+    create: { width: 2100, height: 2100, channels: 3, background: '#000' },
+  })
     .png()
     .toBuffer();
 
@@ -91,6 +101,11 @@ beforeAll(async () => {
       });
       return res.write(png); // claims far more than it sends
     }
+    if (path === '/huge-picture')
+      return send(res, 'text/html', page('/big-picture.png'));
+    if (path === '/big-picture.png') return send(res, 'image/png', bigPng);
+    if (path === '/svg') return send(res, 'text/html', page('/picture.svg'));
+    if (path === '/picture.svg') return send(res, 'image/svg+xml', svg);
     if (path === '/elsewhere')
       return send(res, 'text/html', page(`http://127.0.0.2:${port}/image.png`));
     if (path.startsWith('/busy')) {
@@ -180,7 +195,7 @@ describe('the link previewer', () => {
   it('keeps the card without a picture that is broken, too big, or somewhere refused', async () => {
     const isAllowed = vi.fn((address: string) => address === '127.0.0.1');
 
-    for (const path of ['/broken', '/big']) {
+    for (const path of ['/broken', '/big', '/huge-picture', '/svg']) {
       const preview = await local().preview(url(path));
       expect(preview, path).toMatchObject({ title: 'A page', thumbnail: null });
     }

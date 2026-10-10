@@ -53,6 +53,27 @@ describe('readPreview', () => {
     expect(preview?.title.endsWith('…')).toBe(true);
   });
 
+  it('reads hostile pages in linear time', () => {
+    const size = 64 * 1024;
+    for (const html of [
+      `<meta ${'a'.repeat(size)}>`,
+      '<meta '.repeat(size / 6),
+      '<title>'.repeat(size / 7),
+      `<meta content="${'x'.repeat(size)}`,
+      `<meta ${'a="b" '.repeat(size / 6)}>`,
+    ]) {
+      const start = performance.now();
+      readPreview(html, page);
+      expect(performance.now() - start).toBeLessThan(50);
+    }
+  });
+
+  it('turns character codes that are not characters into replacement marks', () => {
+    expect(
+      readPreview('<title>&#x110000; and &#99999999;</title>', page)?.title
+    ).toBe('\uFFFD and \uFFFD');
+  });
+
   it('gives nothing for a page without a title, and no picture for a bad one', () => {
     expect(readPreview('<p>no head at all</p>', page)).toBeNull();
     expect(

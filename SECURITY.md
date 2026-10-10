@@ -47,8 +47,11 @@ the addresses checked, so a second DNS answer can't redirect it; at most 3
 redirects, each checked the same way; 5 seconds and 512 KB per page, 5 MB per
 picture, at most 2 fetches at once. It sends no cookies and never logs URLs.
 It only fetches the first link of a message the asker can already see, so it
-can't be used to fetch anything else. Pictures are decoded by `sharp` with a
-pixel limit and reach browsers only as a 64×64 dithered bitmap.
+can't be used to fetch anything else. Pages are read with plain scans of their
+first 64 KB, never backtracking patterns, so a hostile page can't stall the
+server. Pictures must be JPEG, PNG, WebP, GIF or AVIF of at most 4 megapixels,
+checked from the header before `sharp` decodes them, and reach browsers only as
+a 64×64 dithered bitmap.
 
 **Privacy between users.** Only a chat's participants can read it; to anyone
 else it answers exactly as if it didn't exist. The channel directory shows

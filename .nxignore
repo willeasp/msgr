@@ -1,0 +1,2 @@
+# Claude Code keeps git worktrees here; each holds a copy of every project.
+.claude/worktrees

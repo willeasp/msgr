@@ -45,7 +45,7 @@ Out:
   - **`site`:** `og:site_name`, then the page's host without `www.`.
   - **`description`:** `og:description`, then `description`, or `null`.
   - **`image`:** `og:image`, resolved against the page's URL, if it parses as a `Url`; otherwise `null`.
-  - Entities (`&amp; &lt; &gt; &quot; &#39; &#NNN; &#xHH;`) are decoded and whitespace is collapsed. Title, site and description are cut to 120, 60 and 200 characters, with "…".
+  - Entities (`&amp; &lt; &gt; &quot; &#39; &#NNN; &#xHH;`) are decoded, codes that aren't characters become `�`, and whitespace is collapsed. Title, site and description are cut to 120, 60 and 200 characters, with "…".
 - `ditherThumbnail(grey: Uint8Array): Thumbnail` takes 64×64 greyscale bytes and returns 512 bytes. The layout is the drawings' (rows top to bottom, 8 pixels a byte, leftmost in the high bit, 1 is ink), and the dithering is the emoji's Atkinson: ink below half, an eighth of the error to each of six neighbours.
 - `LinkPreview = { url: Url; site; title; description: string | null; thumbnail: Thumbnail | null }`.
 
@@ -95,8 +95,8 @@ Node's own `http`/`https`, no fetch library. Every request goes through the same
   - Pages must be `text/html`; at most the first 512 KB is read, then the connection is closed.
   - Pictures must be `image/*`, at most 5 MB.
 - **Headers:** `User-Agent: MsgrLinkPreview/1.0`, `Accept: text/html` for pages and `image/*` for pictures, and no cookies.
-- **The thumbnail:** `sharp`, a new dependency of `@msgr/api`, decodes JPEG, PNG, WebP, AVIF and GIF.
-  - It runs with `limitInputPixels: 25_000_000` and `failOn: 'error'`.
+- **The thumbnail:** `sharp`, a new dependency of `@msgr/api`, decodes JPEG, PNG, WebP, AVIF and GIF. Anything else, SVG and TIFF included, is refused after reading only the picture's header.
+  - It runs with `limitInputPixels: 4_000_000` and `failOn: 'error'`, with its cache off and one thread: a 1 KB AVIF can claim 5000×5000 pixels, and decoding two of those would take more than the instance's 512 MB. Social cards are about 1200×630, under 1 megapixel.
   - It is resized to 64×64 with `fit: 'cover'`, made greyscale, and read out as raw bytes, which go to `ditherThumbnail`.
   - If the picture can't be fetched or decoded, the preview has no thumbnail; it still has its text.
 - **Concurrency:** at most 2 fetches at once across the server; the rest wait. This keeps image decoding inside the free instance's 512 MB.

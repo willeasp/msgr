@@ -43,3 +43,11 @@
 .link:hover {
   text-decoration-thickness: 2px;
 }
+
+/* Sacred inverts a focused link, which vanishes in an inverted bubble. */
+.link:focus {
+  background: none;
+  color: inherit;
+  outline: 1px dotted currentColor;
+  outline-offset: 1px;
+}

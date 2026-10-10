@@ -50,6 +50,23 @@ describe('the link preview cache', () => {
     expect(inner.preview).toHaveBeenCalledTimes(2);
   });
 
+  it('treats a previewer that throws as a failed link, retried after an hour', async () => {
+    const { later, clock } = world();
+    const inner: LinkPreviewer = {
+      preview: vi.fn(async () => {
+        throw new Error('a bug');
+      }),
+    };
+    const cached = cachedLinkPreviewer(inner, clock);
+
+    expect(await cached.preview(url(1))).toBeNull();
+    expect(await cached.preview(url(1))).toBeNull();
+    expect(inner.preview).toHaveBeenCalledTimes(1);
+    later(2 * HOUR);
+    await cached.preview(url(1));
+    expect(inner.preview).toHaveBeenCalledTimes(2);
+  });
+
   it('forgets the oldest link when full', async () => {
     const { inner, clock } = world();
     const cached = cachedLinkPreviewer(inner, clock, { maxEntries: 2 });

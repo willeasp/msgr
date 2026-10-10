@@ -86,6 +86,16 @@ test('links open in a new tab, and the first gets a card', async ({
     expect(await maskOf(picture)).toContain('data:image/svg+xml');
   }
 
+  // A focused link shows where it is, even in the viewer's inverted bubble.
+  const own = chatWindow(page, 'Charlie Brown').getByRole('link', {
+    name: 'https://example.com/page',
+    exact: true,
+  });
+  await own.focus();
+  expect(
+    await own.evaluate((node) => getComputedStyle(node).outlineStyle)
+  ).not.toBe('none');
+
   // A page with nothing to preview leaves just the link.
   answer.preview = null;
   await say(page, 'and https://example.com/none');
