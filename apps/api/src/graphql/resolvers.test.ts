@@ -5,9 +5,11 @@ import type { Url } from '../domain/link.js';
 import type { User } from '../domain/user.js';
 import {
   createTestApp,
+  fakeBrowser,
   fakeHash,
   fakeLinkPreviewer,
   nextEvent,
+  TEST_PUSH_KEY,
 } from '../testing/harness.js';
 import { createContext } from './context.js';
 import { schema } from './server.js';
@@ -591,5 +593,82 @@ describe('messages', () => {
     });
 
     expect(codeOf(result as ExecutionResult)).toBe('UNAUTHENTICATED');
+  });
+});
+
+describe('push', () => {
+  const browser = { ...fakeBrowser('ada-phone') };
+  const ENABLE = `mutation ($subscription: PushSubscriptionInput!) {
+    enablePush(subscription: $subscription)
+  }`;
+  const DISABLE = `mutation ($endpoint: String!) {
+    disablePush(endpoint: $endpoint)
+  }`;
+
+  it('hands out the key browsers subscribe with, signed in or not', async () => {
+    const { app } = await world();
+    expect((await execute(app, '{ pushKey }')).data).toEqual({
+      pushKey: TEST_PUSH_KEY,
+    });
+  });
+
+  it("remembers and forgets the viewer's browser", async () => {
+    const { app, ada } = await world();
+    const browsers = () =>
+      app.deps.repositories.pushSubscriptions.findByUserIds([ada.id]);
+
+    const enabled = await execute(app, ENABLE, {
+      as: ada,
+      variables: { subscription: browser },
+    });
+    expect(enabled.data).toEqual({ enablePush: true });
+    expect(await browsers()).toEqual([
+      { userId: ada.id, subscription: browser },
+    ]);
+
+    const disabled = await execute(app, DISABLE, {
+      as: ada,
+      variables: { endpoint: browser.endpoint },
+    });
+    expect(disabled.data).toEqual({ disablePush: true });
+    expect(await browsers()).toEqual([]);
+  });
+
+  it('refuses anonymous callers and addresses that are not push services', async () => {
+    const { app, ada } = await world();
+
+    expect(
+      codeOf(
+        await execute(app, ENABLE, { variables: { subscription: browser } })
+      )
+    ).toBe('UNAUTHENTICATED');
+    expect(
+      codeOf(
+        await execute(app, ENABLE, {
+          as: ada,
+          variables: {
+            subscription: { ...browser, endpoint: 'https://127.0.0.1/' },
+          },
+        })
+      )
+    ).toBe('BAD_USER_INPUT');
+  });
+
+  it('counts the viewer as watching a chat while the subscription is open', async () => {
+    const { app, ada, team } = await world();
+    const stream = await feed(
+      app,
+      ada,
+      `subscription { watching(chatId: "${team.id}") }`
+    );
+
+    const reading = stream.next();
+    await vi.waitFor(() =>
+      expect(app.deps.watching.isWatching(ada.id, team.id)).toBe(true)
+    );
+
+    await stream.return?.();
+    await reading;
+    expect(app.deps.watching.isWatching(ada.id, team.id)).toBe(false);
   });
 });

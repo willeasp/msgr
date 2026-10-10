@@ -11,6 +11,7 @@ import {
   type MessageService,
 } from './message.service.js';
 import type { Dependencies } from './ports.js';
+import { createPushService, type PushService } from './push.service.js';
 import { createUserService, type UserService } from './user.service.js';
 
 export interface Services {
@@ -20,6 +21,7 @@ export interface Services {
   readonly messages: MessageService;
   readonly invites: InviteService;
   readonly linkPreviews: LinkPreviewService;
+  readonly push: PushService;
 }
 
 /** One operation's worth of application: services and loaders sharing one cache. */
@@ -39,6 +41,7 @@ export function createScope(deps: Dependencies, options: LoaderOptions): Scope {
       messages: createMessageService(deps, loaders),
       invites: createInviteService(deps),
       linkPreviews: createLinkPreviewService(deps, loaders),
+      push: createPushService(deps),
     },
   };
 }

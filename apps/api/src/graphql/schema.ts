@@ -110,6 +110,13 @@ export const typeDefs = /* GraphQL */ `
     drawing: String!
   }
 
+  "Where one browser receives Web Push, from its PushSubscription.toJSON()."
+  input PushSubscriptionInput {
+    endpoint: String!
+    p256dh: String!
+    auth: String!
+  }
+
   type Query {
     "The signed-in user, or null."
     me: User
@@ -127,6 +134,8 @@ export const typeDefs = /* GraphQL */ `
     linkPreview(messageId: ID!): LinkPreview
     "Whether an invite can still sign someone up. Used, expired and made-up codes all say false. Needs no sign-in."
     inviteRedeemable(code: String!): Boolean!
+    "The key browsers subscribe to Web Push with (VAPID, base64url); null while push is off. Needs no sign-in."
+    pushKey: String
   }
 
   type Mutation {
@@ -147,6 +156,10 @@ export const typeDefs = /* GraphQL */ `
     leaveChannel(chatId: ID!): Boolean!
     "Adds people to a channel the viewer is in; each newcomer is told who added them."
     addToChannel(chatId: ID!, userIds: [ID!]!): Chat!
+    "Notifies this browser of the viewer's chats, even with Msgr closed. A browser notifies one user at a time: whoever enabled it last."
+    enablePush(subscription: PushSubscriptionInput!): Boolean!
+    "Stops notifying this browser, if it was the viewer's."
+    disablePush(endpoint: String!): Boolean!
   }
 
   type Subscription {
@@ -154,5 +167,7 @@ export const typeDefs = /* GraphQL */ `
     messageReceived: Message!
     "Every chat that comes to include the viewer without them opening it."
     chatAdded: ChatAdded!
+    "Held while a visible page shows this chat, so its messages don't notify the viewer. Never sends anything."
+    watching(chatId: ID!): Boolean
   }
 `;

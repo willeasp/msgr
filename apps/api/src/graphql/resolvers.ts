@@ -37,6 +37,7 @@ export const resolvers: Resolvers = {
       requireViewer(ctx);
       return ctx.services.chats.listChannels();
     },
+    pushKey: (_, __, ctx) => ctx.services.push.key(),
     inviteRedeemable: (_, { code }, ctx) =>
       ctx.services.invites.isRedeemable(code),
   },
@@ -80,6 +81,10 @@ export const resolvers: Resolvers = {
           userIds
         )
       ),
+    enablePush: async (_, { subscription }, ctx) =>
+      unwrap(await ctx.services.push.enable(requireViewer(ctx), subscription)),
+    disablePush: (_, { endpoint }, ctx) =>
+      ctx.services.push.disable(requireViewer(ctx), endpoint),
   },
 
   Subscription: {
@@ -91,6 +96,11 @@ export const resolvers: Resolvers = {
       subscribe: (_, __, ctx) =>
         ctx.services.chats.additions(requireViewer(ctx)),
       resolve: (event: ChatAdded) => event,
+    },
+    watching: {
+      subscribe: (_, { chatId }, ctx) =>
+        ctx.services.push.watch(requireViewer(ctx), chatId),
+      resolve: () => true,
     },
   },
 
