@@ -1,7 +1,12 @@
 import { EMOJI_ART } from './emoji-art';
 import type { Bitmap } from './pixels';
 
-export const SIZE = 16;
+/**
+ * Dithered emoji are SIZE×SIZE and drawn 16 px tall: one screen pixel per
+ * pixel on a high-density display. Hand-drawn ones are ART_SIZE, chunkier.
+ */
+export const SIZE = 32;
+export const ART_SIZE = 16;
 export type Piece = { readonly text: string } | { readonly emoji: string };
 /** One pixel of an emoji shrunk to SIZE×SIZE: alpha 0–1, luminance 0 (black) to 1 over white. */
 export interface Sample {

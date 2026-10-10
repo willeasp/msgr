@@ -48,9 +48,9 @@ function sample(emoji: string): Sample[] | null {
 
 const maskOf = (bitmap: Bitmap) =>
   `url("data:image/svg+xml,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}" shape-rendering="crispEdges"><path d="${pixelPath(
-      bitmap
-    )}"/></svg>`
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${bitmap.length} ${
+      bitmap.length
+    }" shape-rendering="crispEdges"><path d="${pixelPath(bitmap)}"/></svg>`
   )}")`;
 
 // Each emoji's mask, made once a page; null where this device can't draw it.

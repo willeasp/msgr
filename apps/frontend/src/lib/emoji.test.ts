@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { EMOJI_ART } from './emoji-art';
 import {
+  ART_SIZE,
   SIZE,
   drawnEmoji,
   isBlankBitmap,
@@ -75,9 +76,14 @@ describe('pixelEmoji', () => {
           : clear
       )
     );
-    expect(bitmap[4]).toBe('....########....');
-    expect(bitmap[8]).toBe('....########....');
-    expect(bitmap).toHaveLength(SIZE);
+    const row = '....########'.padEnd(SIZE, '.');
+    expect(bitmap[4]).toBe(row);
+    expect(bitmap[8]).toBe(row);
+  });
+  it('dithers at 32×32, twice the hand-drawn detail', () => {
+    const bitmap = pixelEmoji(samples(() => clear));
+    expect(bitmap).toHaveLength(32);
+    for (const row of bitmap) expect(row).toHaveLength(32);
   });
   it('outlines a white disc, leaving its inside paper', () => {
     const bitmap = pixelEmoji(
@@ -102,7 +108,7 @@ describe('pixelEmoji', () => {
 describe('hand-drawn emoji', () => {
   it('are all 16×16', () => {
     for (const art of Object.values(EMOJI_ART)) {
-      expect(art).toHaveLength(SIZE);
+      expect(art).toHaveLength(ART_SIZE);
       for (const row of art) expect(row).toMatch(/^[#.]{16}$/);
     }
   });

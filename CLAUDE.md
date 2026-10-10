@@ -141,4 +141,4 @@ Test through interfaces, not internals: assert on what a service, operation or r
 - Joining and leaving a channel connect through the _user's_ side of the relation, so the chat's `updatedAt`, its activity, doesn't change.
 - The frontend's GraphQL codegen scans `src/**/*.{ts,tsx}`; operations can live in hooks.
 - Prettier ignores `apps/frontend/src/sacred`, which keeps upstream's formatting.
-- Emoji are dithered from each device's own font (`lib/emoji.ts`, drawn by `PixelText`), so they differ a little between a Mac and a phone. To replace one that comes out badly, add a 16×16 bitmap to `lib/emoji-art.ts`. Text that people write goes through `PixelText` wherever it's shown.
+- Emoji are dithered from each device's own font (`lib/emoji.ts`, drawn by `PixelText`), so they differ a little between a Mac and a phone. They are dithered at 32×32 (`SIZE`) and drawn 16 px tall. To replace one that comes out badly, add a 16×16 bitmap to `lib/emoji-art.ts`. Text that people write goes through `PixelText` wherever it's shown.
