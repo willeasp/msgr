@@ -68,3 +68,10 @@ _Avoid_: Unfurl, embed
 
 **Chat added**:
 The live notice that a chat now includes the viewer without them opening it: someone they invited signed up, or someone added them to a channel. It says who did it.
+
+**Notification**:
+What a viewer's device shows, with Msgr open or not, when someone else posts to one of their chats or a chat comes to include them. They're sent by Web Push to every browser where the viewer turned notifications on, except for a chat they're watching.
+_Avoid_: Alert (that's the beep and the unread count in the tab), push (that's how it travels)
+
+**Watching**:
+Having a chat open in a visible Msgr window. A chat you're watching doesn't notify you, on any device.

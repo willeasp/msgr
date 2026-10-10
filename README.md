@@ -27,7 +27,7 @@
 - **Live.** Messages arrive the moment they're sent, and the chat list reorders itself.
 - **Pixel emoji.** Every emoji is redrawn as black-and-white pixel art in the theme's ink, and a message of just emoji shows them big.
 - **MacPaint drawings.** **Draw…** opens a paint window with a pencil, brush, paint bucket, eraser and eight patterns, and sends the picture to the chat. **Draw on It** sends one back with your additions.
-- **Desktop notifications** and a beep for messages in chats you aren't looking at. Turn them on in the **Special** menu.
+- **Notifications, even with Msgr closed**, on computers and phones, for messages in chats you aren't looking at. Msgr offers them once on each device, and keeps them in the **Special** menu. On an iPhone, add Msgr to the Home Screen first (Share → Add to Home Screen); elsewhere it can be installed as an app from the **Special** menu. A beep sounds while it's open.
 - **Light, dark and seven tints** from the **View** menu, and a layout that works on a phone.
 
 <p align="center">

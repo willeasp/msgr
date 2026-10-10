@@ -72,13 +72,23 @@ This text moves out of the frontend's `lib/alerts.ts`.
 ### GraphQL
 
 ```graphql
-type Query { "The VAPID public key; null when push is off." pushKey: String }
-input PushSubscriptionInput { endpoint: String!, p256dh: String!, auth: String! }
+type Query {
+  "The VAPID public key; null when push is off."
+  pushKey: String
+}
+input PushSubscriptionInput {
+  endpoint: String!
+  p256dh: String!
+  auth: String!
+}
 type Mutation {
   enablePush(subscription: PushSubscriptionInput!): Boolean!
   disablePush(endpoint: String!): Boolean!
 }
-type Subscription { "Held while a visible page shows this chat; never sends." watching(chatId: ID!): Boolean }
+type Subscription {
+  "Held while a visible page shows this chat; never sends."
+  watching(chatId: ID!): Boolean
+}
 ```
 
 The mutations and `watching` require a viewer.

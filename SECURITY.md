@@ -57,6 +57,12 @@ a 64×64 dithered bitmap.
 else it answers exactly as if it didn't exist. The channel directory shows
 names and participant counts, never messages or members.
 
+**Notifications.** Pushes go only to the browser vendors' push services
+(Google, Mozilla, Apple, Microsoft); an endpoint anywhere else is refused
+before it's stored, so Msgr can't be made to call an internal address. Each
+payload is encrypted for its one browser. A browser notifies one user at a
+time: logging out removes it, and signing in moves it to whoever signed in.
+
 ## Known limits
 
 - **No server-side logout.** Logging out clears the cookie, but a copied
@@ -68,6 +74,10 @@ names and participant counts, never messages or members.
 - **Not end-to-end encrypted.** Messages are encrypted in transit (HTTPS) but
   stored readable in the database. Whoever runs the server, or holds its
   database, can read them.
+- **Push services see metadata.** They can't read a notification, but they see
+  when Msgr sends one, and to which browser. A browser whose session simply
+  expires, without logging out, keeps getting its user's notifications until
+  someone signs in there or turns them off.
 - **Channel names are public** to every user, and anyone can join any channel.
   Anyone in a channel can also add anyone else, who is notified; they can't
   refuse, only leave.

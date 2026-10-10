@@ -153,17 +153,29 @@ keyboard, notifications, layout) is checked here.
 
 ## 7. Notifications and alerts
 
-- [ ] **Turn them on:** Special → Notifications. The browser asks for
-      permission; allow it and the item gets a ✓. (On macOS the browser itself
-      may also need permission in System Settings → Notifications.)
-- [ ] **Blocked:** block notifications for localhost in the site settings and
-      try turning them on. A dialog explains where to allow them.
-- [ ] **Desktop notification:** with Test User on the empty desktop or another
-      chat, have Alice write. A direct message shows "Alice Johnson" with the
-      text; a channel message shows "Alice Johnson in #general". Clicking the
-      notification brings the window forward and opens that chat.
-- [ ] **No noise:** your own messages, and messages in the chat you're looking at
-      (tab in front), give no beep or notification.
+- [ ] **The offer:** in a fresh browser profile, sign in. A dialog offers
+      notifications. Not Now closes it, and it doesn't come back after a
+      reload. Special → Notifications turns them on; the browser asks, and the
+      item gets a ✓. (On macOS the browser itself may also need permission in
+      System Settings → Notifications.)
+- [ ] **Blocked:** block notifications for the site and try turning them on. A
+      dialog explains where to allow them, on a computer and on phones.
+- [ ] **Closed:** with notifications on for Test User, close every Msgr tab and
+      have Alice write. A direct message shows "Alice Johnson" with the text; a
+      channel message shows "Alice Johnson in #general". Clicking it opens
+      Msgr at that chat.
+- [ ] **No noise:** your own messages, and messages in the chat you have open
+      in front, give no notification on any of your devices. Switch tabs and
+      they notify again.
+- [ ] **Android (Chrome):** open the deployed address, sign in, and Turn On in
+      the offer. Lock the phone and have someone write. The notification
+      arrives, and tapping it opens the chat.
+- [ ] **iPhone (iOS 16.4+):** in Safari, the offer explains Add to Home Screen.
+      Do that, open Msgr from the Home Screen, sign in, and Turn On. Lock the
+      phone and have someone write. The notification arrives. With the chat
+      open in front, messages there don't notify.
+- [ ] **Log out:** log out on a device with notifications on, and have someone
+      write. Nothing arrives there.
 - [ ] **Sound:** Special → Alert Sound is on by default, and turning it on plays
       the beep. Incoming alerts beep too, once you've clicked or typed in the
       page (browsers mute audio until then).

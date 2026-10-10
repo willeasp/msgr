@@ -8,7 +8,8 @@ Ours runs on [Render](https://render.com)'s free web service, described by `rend
 
 1. **Database.** Create a Neon project in AWS Europe Central 1 (Frankfurt) and copy its _direct_ connection string (connection pooling off); it starts with `postgresql://`. Append `&connect_timeout=15`: the database sleeps after 5 minutes without queries, and waking it takes a moment.
 2. **App.** In Render, choose **New → Blueprint** and pick this repository. Paste the Neon string as `DATABASE_URL`. Render generates `JWT_SECRET`, and the app learns its own address from Render's `RENDER_EXTERNAL_URL`. Render deploys `main` once its CI checks pass, and migrations run on every start.
-3. **First invite.** From your machine, against the production database:
+3. **Notifications.** Generate keys once with `npx web-push generate-vapid-keys` and set them in Render as `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`. Until then Msgr runs with notifications off and says so in its log. Keep the keys: new ones mean everyone turns notifications on again.
+4. **First invite.** From your machine, against the production database:
 
    ```bash
    DATABASE_URL='<neon connection string>' CORS_ORIGIN='https://<your-app>.onrender.com' npm run invite

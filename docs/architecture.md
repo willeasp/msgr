@@ -36,8 +36,13 @@ transport. `main.ts` is the only file that picks adapters.
 3. Each participant's open tab has one `messageReceived` subscription, owned by
    the chat page (`useChatFeed`). It moves the chat to the top of the list,
    appends the message to that chat's cached history, and hands it to
-   `useAlerts`, which beeps and shows a desktop notification if it's someone
-   else's message in a chat you aren't looking at.
+   `useAlerts`, which beeps (and counts it in the tab) if it's someone else's
+   message in a chat you aren't looking at.
+4. Meanwhile, without making the sender wait, the `Notifier` pushes it to the
+   browsers of every other participant who isn't watching that chat (a visible
+   page holds a `watching` subscription for the chat it shows). The service
+   worker (`public/sw.js`) shows it, open or not, and a click opens the chat.
+   See [ADR 0006](adr/0006-web-push-for-notifications.md).
 
 The page's second subscription, `chatAdded`, tells the viewer about chats that
 now include them without them opening one: the direct chat a newcomer started by

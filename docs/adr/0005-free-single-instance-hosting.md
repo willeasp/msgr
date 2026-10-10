@@ -26,7 +26,7 @@ the API.
   takes about a minute, and open tabs reconnect by themselves. Opening a chat
   refetches its history, so messages sent meanwhile appear; the chat list
   catches up on reload.
-- Desktop notifications only arrive while Msgr is open in a tab; notifying a
-  closed browser would need Web Push and the browser vendors' push services.
+- Notifications once arrived only while Msgr was open in a tab. Web Push
+  replaced that (see [ADR 6](0006-web-push-for-notifications.md)).
 - To run more than one instance, replace the `PubSub` with a shared
   `PubSubEngine` and move the throttle to the database or Redis.
