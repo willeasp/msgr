@@ -27,9 +27,10 @@ transport. `main.ts` is the only file that picks adapters.
 
 ## How a message travels
 
-1. The composer calls `sendMessage`. `MessageService.send` parses the content,
-   checks the viewer is a participant, stores the message and marks the chat
-   active, in one repository call.
+1. The composer calls `sendMessage` (the paint window, `sendDrawing`).
+   `MessageService` parses the text or the drawing, checks the viewer is a
+   participant, stores the message and marks the chat active, in one
+   repository call.
 2. It publishes the message to every participant through the in-process
    `PubSub`.
 3. Each participant's open tab has one `messageReceived` subscription, owned by

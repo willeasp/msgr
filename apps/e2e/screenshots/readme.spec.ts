@@ -118,6 +118,86 @@ test('on a phone', async ({ browser }) => {
   await capture(page, 'phone.png');
 });
 
+test('a drawing, in the paint window', async ({ browser }) => {
+  const page = await screen(browser, { email: 'test@example.com' });
+  await openChat(page, 'Bob Smith', 'Great work!');
+  await chatWindow(page, 'Bob Smith')
+    .getByRole('button', { name: 'Draw…' })
+    .click();
+  const paint = page.getByRole('dialog', { name: 'Drawing for Bob Smith' });
+  const canvas = paint.locator('canvas');
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('The paint window has no canvas');
+  const pick = (name: string) =>
+    paint.getByRole('button', { name, exact: true }).click();
+  // Points are fractions of the canvas. Strokes start on paper: the pencil
+  // draws paper when it starts on ink, as MacPaint's did.
+  const drag = async (points: [number, number][]) => {
+    const [first, ...rest] = points;
+    if (!first) return;
+    await canvas.hover({
+      position: { x: first[0] * box.width, y: first[1] * box.height },
+    });
+    await page.mouse.down();
+    for (const [x, y] of rest) {
+      await page.mouse.move(box.x + x * box.width, box.y + y * box.height, {
+        steps: 10,
+      });
+    }
+    await page.mouse.up();
+  };
+  const pour = async (x: number, y: number) =>
+    canvas.click({ position: { x: x * box.width, y: y * box.height } });
+
+  // A house: the roof, the walls, a door; then bricks, tiles and a sun.
+  await drag([
+    [0.29, 0.5],
+    [0.5, 0.16],
+    [0.71, 0.5],
+    [0.29, 0.5],
+  ]);
+  await drag([
+    [0.35, 0.9],
+    [0.35, 0.5],
+    [0.65, 0.5],
+    [0.65, 0.9],
+    [0.35, 0.9],
+  ]);
+  await drag([
+    [0.46, 0.7],
+    [0.54, 0.7],
+    [0.54, 0.9],
+  ]);
+  await drag([
+    [0.46, 0.71],
+    [0.46, 0.9],
+  ]);
+  await pick('Paint Bucket');
+  await pick('Bricks');
+  await pour(0.4, 0.8);
+  await pick('Dark grey');
+  await pour(0.5, 0.4);
+  await pick('Black');
+  await pour(0.5, 0.8);
+  await pick('Brush');
+  await drag([
+    [0.84, 0.16],
+    [0.88, 0.2],
+    [0.84, 0.24],
+    [0.8, 0.2],
+    [0.84, 0.16],
+  ]);
+  await pick('Paint Bucket');
+  await pour(0.84, 0.2);
+  await pick('Brush');
+  await pick('Grey');
+  await drag([
+    [0.02, 0.96],
+    [0.98, 0.96],
+  ]);
+  await capture(page, 'paint.png');
+});
+
 test('a new channel, and adding people to it', async ({ browser }) => {
   const page = await screen(browser, { email: 'test@example.com' });
   await menuBar(page)

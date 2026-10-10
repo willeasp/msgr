@@ -58,9 +58,7 @@ test('a drawing reaches Bob live, and comes back drawn on', async ({
   await chatWindow(page, 'Bob Smith')
     .getByRole('button', { name: 'Draw…' })
     .click();
-  await expect(paintWindow(page)).toHaveAccessibleName(
-    'Drawing for Bob Smith'
-  );
+  await expect(paintWindow(page)).toHaveAccessibleName('Drawing for Bob Smith');
   await scribble(page, [0.1, 0.2], [0.9, 0.8]);
   await paintWindow(page).getByRole('button', { name: 'Send' }).click();
   await expect(paintWindow(page)).toBeHidden();

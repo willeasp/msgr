@@ -47,7 +47,11 @@ _Avoid_: Member
 The other participant of a direct chat, as seen by the viewer.
 
 **Message**:
-Trimmed, non-blank text a participant posted to a chat at a point in time.
+Text or a drawing a participant posted to a chat at a point in time. Text is trimmed and non-blank.
+
+**Drawing**:
+A 256×160 black-and-white picture made in the paint window and sent as a message. It is never blank.
+_Avoid_: Doodle, sketch, image
 
 **Activity**:
 When a chat last received a message. A viewer's chats are listed most recently active first. Opening a chat, or joining or leaving a channel, is not activity.

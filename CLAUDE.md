@@ -72,7 +72,7 @@ const chat = visibleTo(await loaders.chat.load(ChatId(input.chatId)), viewer.id)
 if (!chat.ok) return chat;
 ```
 
-**Make illegal states unrepresentable.** `Chat = DirectChat | GroupChat | ChannelChat`: a direct chat has exactly two participants and no title; a channel has a name. Switch on `kind`; don't test `participants.length === 2`. The DB enforces the same invariant: exactly one of `directKey`, `title` and `channelName` is set (CHECK constraint), and `directKey` and `channelName` are unique.
+**Make illegal states unrepresentable.** `Chat = DirectChat | GroupChat | ChannelChat`: a direct chat has exactly two participants and no title; a channel has a name. Switch on `kind`; don't test `participants.length === 2`. The DB enforces the same invariant: exactly one of `directKey`, `title` and `channelName` is set (CHECK constraint), and `directKey` and `channelName` are unique. Likewise `Message = TextMessage | DrawingMessage`, with exactly one of `content` and `drawing` set.
 
 **Resolvers stay one-liners.** No Prisma, no rules, no hand-built objects in `graphql/`. Codegen `mappers` let resolvers return domain entities directly.
 
@@ -92,7 +92,7 @@ apps/frontend/src/
   app/pages/       routes: chat (the desktop), login, sign-up (/invite/:code), not-found
   app/components/  Mac chrome (MenuBar, MacWindow, MacDialog, PixelIcon), chat/ windows and dialogs
   app/hooks/       useChatFeed (the live subscriptions), useAlerts, useClock, useMediaQuery
-  lib/             pure logic, each with a test: theme, alerts, commands, chat-list, pixels
+  lib/             pure logic, each with a test: theme, alerts, commands, chat-list, pixels, paint
   sacred/          vendored Sacred Computer components (read its README first)
   skin.css         the Macintosh skin over them
 ```

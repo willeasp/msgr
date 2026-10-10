@@ -97,6 +97,19 @@ keyboard, notifications, layout) is checked here.
 - [ ] **Closed chats stay current:** with a chat _closed_, have the other person
       write in it. Opening it shows the new message.
 - [ ] **New chat:** a brand-new chat says "No messages yet. Say hello."
+- [ ] **Drawing:** Draw… opens "Drawing for _chat_". Try each tool: the pencil
+      (starting on black, it draws white), the brush and the paint bucket in a
+      few patterns, and the eraser. Undo (⌘Z or Ctrl+Z) steps back through
+      strokes, fills and Clear. Send is greyed out while the canvas is blank.
+- [ ] **Sending a drawing:** it arrives live in the other window, the chat list
+      previews it as "Drawing", and a notification says "Sent a drawing."
+- [ ] **Draw on It:** under any drawing, opens it in the paint window; sending
+      adds a new message and leaves the original as it was.
+- [ ] **Discarding:** Cancel or Esc on a canvas you've drawn on asks "Discard
+      this drawing?"; Keep Drawing returns to it.
+- [ ] **Drawings and themes:** switch to Dark and a tint; drawings already in
+      the chat repaint in the new ink and paper. On a phone they show at 1×,
+      and dragging on the canvas draws instead of scrolling.
 
 ## 6. Channels
 
