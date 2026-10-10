@@ -22,7 +22,8 @@ Out:
 - Notification settings per chat (muting).
 - Offline use or caching in the service worker.
 - Notifications in browsers that can't subscribe to push (Brave with Google push services off, say). They're told it couldn't be turned on.
-- Expiring a subscription along with its session. Session changes drop it instead (below).
+- Expiring a subscription along with its session. Logging out removes it, and signing in moves it to whoever signed in (below).
+- Noticing rotated VAPID keys. After a rotation, people turn notifications off and on again.
 
 ## How it works
 
@@ -110,7 +111,7 @@ The mutations and `watching` require a viewer.
     - `'push'` when the service worker and PushManager are both present;
     - `'install-first'` when `navigator.standalone === false` (only iOS has that property), meaning iOS in the browser;
     - `'unsupported'` otherwise.
-  - `shouldOffer({ setup, permission, subscribed, dismissed })` holds when the setup isn't `'unsupported'`, this device has no subscription, permission isn't `denied`, and this user hasn't dismissed the offer here.
+  - `shouldOffer({ setup, pushKey, permission, subscribed, dismissed })` holds when the setup isn't `'unsupported'`, the server has a push key, this device has no subscription, permission isn't `denied`, and nobody has dismissed the offer on this device.
 - **`useNotifications`** replaces the notify half of `useAlerts`:
   - `turnOn()` asks permission inside the tap, subscribes with `userVisibleOnly: true` and `pushKey`, then calls `enablePush`.
   - `turnOff()` unsubscribes, then calls `disablePush`.
@@ -124,10 +125,10 @@ The mutations and `watching` require a viewer.
 
 ### The offer, menus and dialogs
 
-- **`NotificationsDialog`**, a Mac alert, opened by the chat page once per device per user when `shouldOffer` holds:
+- **`NotificationsDialog`**, a Mac alert, opened by the chat page when `shouldOffer` holds:
   - **Push setup:** "Get a notification when a message arrives, even with Msgr closed?" with [Not Now] and [Turn On], plus [Install] while Chrome offers it.
   - **iOS in the browser:** "To get notifications, add Msgr to your Home Screen: tap Share, then 'Add to Home Screen', and open it from there." with [OK].
-  - Not Now and OK store `notifications-offered:<userId>` in localStorage.
+  - Not Now, OK and Escape store `notifications-dismissed` in localStorage, once per device. So does a Turn On that fails, so a browser that can't subscribe isn't asked again on every visit. A Turn On that succeeds stores nothing: after logging out and back in, the offer comes back, one tap from on again.
 - **Special menu**:
   - "Notifications" as a checkbox where the setup is push.
   - "Notifications…" on iOS in the browser, which opens the install steps.
@@ -137,9 +138,9 @@ The mutations and `watching` require a viewer.
 ### Session changes
 
 - Log out calls `disablePush` while still signed in, then unsubscribes.
-- Signing in or signing up first unsubscribes any leftover subscription in the browser. Its endpoint then answers 410, and the server deletes the row on its next push.
+- Every time the chat page opens with a subscription in the browser, it calls `enablePush` with it again. That re-registers the browser for whoever is signed in now. It also keeps a phone notifying after its 30-day session runs out and its owner signs in again.
 
-A shared computer never keeps getting the previous person's messages.
+A browser notifies one user at a time, and never the previous person after someone else signs in.
 
 ## Testing
 
@@ -159,7 +160,7 @@ A shared computer never keeps getting the previous person's messages.
 - **Playwright:**
   - The offer appears after the first sign-in, and Not Now is remembered.
   - The install steps appear when `navigator.standalone === false` is faked with an init script.
-  - Existing specs and the README screenshots start with the offer dismissed, through an init script in the shared setup.
+  - Existing specs and the README screenshots start with the offer dismissed: `playwright.config.ts` presets `notifications-dismissed` through `use.storageState`.
 - **Manual:** Playwright's Chromium can't reach a real push service, so `docs/manual-testing.md` covers delivery on desktop Chrome, Android Chrome and an installed iPhone app, including that the chat you're looking at doesn't notify.
 
 ## Docs
