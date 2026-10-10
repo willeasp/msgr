@@ -1,0 +1,21 @@
+/* A little MacPaint document: ink on paper in a 1-pixel frame, at 2× (1× on a phone). */
+.picture {
+  display: block;
+  width: 512px;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 8 / 5;
+  color: var(--ink);
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--ink);
+  image-rendering: pixelated;
+
+  @media (max-width: 760px) {
+    width: 256px;
+  }
+}
+
+.actions {
+  display: flex;
+  margin-top: 4px;
+}

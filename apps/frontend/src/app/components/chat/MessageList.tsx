@@ -11,6 +11,7 @@ export const GET_CHAT_MESSAGES = gql(`
     messages(chatId: $chatId, limit: 50) {
       id
       content
+      drawing
       sender {
         id
         name
@@ -23,9 +24,14 @@ export const GET_CHAT_MESSAGES = gql(`
 interface MessageListProps {
   chatId: string;
   currentUserId: string | undefined;
+  onDrawOnIt?: (drawing: string) => void;
 }
 
-export function MessageList({ chatId, currentUserId }: MessageListProps) {
+export function MessageList({
+  chatId,
+  currentUserId,
+  onDrawOnIt,
+}: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // The page's feed appends live messages; opening the chat also refreshes
@@ -71,6 +77,7 @@ export function MessageList({ chatId, currentUserId }: MessageListProps) {
           message={message}
           isCurrentUser={message.sender.id === currentUserId}
           showMeta={messages[index - 1]?.sender.id !== message.sender.id}
+          onDrawOnIt={onDrawOnIt}
         />
       ))}
       <div ref={messagesEndRef} />

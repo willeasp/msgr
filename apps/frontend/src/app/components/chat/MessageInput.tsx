@@ -14,6 +14,7 @@ const SEND_MESSAGE = gql(`
     sendMessage(input: { chatId: $chatId, content: $content }) {
       id
       content
+      drawing
       sender {
         id
         name

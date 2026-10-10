@@ -18,7 +18,8 @@ const STORAGE_KEY = 'alerts';
 const TITLE = document.title;
 
 export interface ArrivedMessage {
-  content: string;
+  /** Null for a drawing. */
+  content?: string | null;
   sender: { id: string; name: string };
   chat: { id: string; kind: ChatKind; title: string };
 }
@@ -95,7 +96,7 @@ export function useAlerts(viewerId: string | undefined, openChatId?: string) {
       ) {
         ring({
           title: notificationTitle(sender.name, chat),
-          body: content,
+          body: content ?? 'Sent a drawing.',
           chatId: chat.id,
         });
       }

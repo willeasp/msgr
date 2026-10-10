@@ -1,12 +1,14 @@
 import { formatTime } from '../../../lib/utils/time';
 import Message from '../../../sacred/components/Message';
 import MessageViewer from '../../../sacred/components/MessageViewer';
+import { DrawingPicture } from './DrawingPicture';
 import styles from './MessageBubble.module.css';
 
 interface MessageBubbleProps {
   message: {
     id: string;
-    content: string;
+    content?: string | null;
+    drawing?: string | null;
     sender: {
       id: string;
       name: string;
@@ -16,6 +18,8 @@ interface MessageBubbleProps {
   isCurrentUser: boolean;
   /** Label the bubble with its sender and time; off for follow-ups in a run. */
   showMeta: boolean;
+  /** Opens the paint window on a drawing; offered under each one. */
+  onDrawOnIt?: (drawing: string) => void;
 }
 
 /** The viewer's own messages sit right in the accent colour, others' left. */
@@ -23,8 +27,10 @@ export function MessageBubble({
   message,
   isCurrentUser,
   showMeta,
+  onDrawOnIt,
 }: MessageBubbleProps) {
   const Bubble = isCurrentUser ? MessageViewer : Message;
+  const { drawing } = message;
 
   return (
     <>
@@ -39,12 +45,19 @@ export function MessageBubble({
         </div>
       )}
       <Bubble>
-        <span
-          className={styles.content}
-          title={new Date(message.createdAt).toLocaleString()}
-        >
-          {message.content}
-        </span>
+        {drawing != null ? (
+          <DrawingPicture
+            drawing={drawing}
+            onDrawOnIt={onDrawOnIt && (() => onDrawOnIt(drawing))}
+          />
+        ) : (
+          <span
+            className={styles.content}
+            title={new Date(message.createdAt).toLocaleString()}
+          >
+            {message.content}
+          </span>
+        )}
       </Bubble>
     </>
   );

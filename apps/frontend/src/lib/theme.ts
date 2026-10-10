@@ -58,6 +58,9 @@ export function loadTheme(): Theme {
   );
 }
 
+/** Fired on `window` whenever the theme changes, for what CSS can't repaint. */
+export const THEME_CHANGED = 'msgr:theme-changed';
+
 /** Puts the theme on <body> and remembers it for the next visit. */
 export function applyTheme(theme: Theme, { save = false } = {}): void {
   const { classList } = document.body;
@@ -68,4 +71,5 @@ export function applyTheme(theme: Theme, { save = false } = {}): void {
   }
   classList.add(...themeClasses(theme));
   if (save) localStorage.setItem(STORAGE_KEY, serializeTheme(theme));
+  window.dispatchEvent(new Event(THEME_CHANGED));
 }

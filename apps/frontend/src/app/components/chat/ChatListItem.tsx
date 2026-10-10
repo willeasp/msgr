@@ -14,7 +14,7 @@ interface ChatListItemProps {
     title: string;
     messages: Array<{
       id: string;
-      content: string;
+      content?: string | null;
       createdAt: string;
     }>;
   };
@@ -43,7 +43,11 @@ export function ChatListItem({ chat, isSelected }: ChatListItemProps) {
             )}
           </RowSpaceBetween>
           <RowEllipsis>
-            <Muted>{latestMessage?.content ?? 'No messages yet'}</Muted>
+            <Muted>
+              {latestMessage
+                ? latestMessage.content ?? 'Drawing'
+                : 'No messages yet'}
+            </Muted>
           </RowEllipsis>
         </Indent>
       </Avatar>
