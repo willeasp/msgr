@@ -57,7 +57,7 @@ This text moves out of the frontend's `lib/alerts.ts`.
   - `remove(endpoint, userId)`: a no-op unless that user owns the endpoint.
 - **`PushSender.send(subscription, notification): Promise<'sent' | 'gone'>`**: 'gone' is the push service answering 404 or 410. Other failures throw.
 - **`Watching`**: `watch(userId, chatId)` returns a release function, and `isWatching(userId, chatId)` returns a boolean. It lives in process memory, like the throttle and the `PubSub`.
-- **`Dependencies`** gains `push: PushSender`, `pushKey: string | null` (the VAPID public key) and `watching: Watching`. Without keys, `push` is a no-op and `pushKey` is null.
+- **`Dependencies`** gains `pushSender: PushSender`, `pushKey: string | null` (the VAPID public key) and `watching: Watching`. Without keys, `pushSender` is a no-op and `pushKey` is null.
 
 ### Application
 
