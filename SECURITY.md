@@ -37,6 +37,19 @@ Content-Security-Policy that allows scripts, styles and connections only from
 that origin and forbids framing, plus `X-Content-Type-Options: nosniff` and
 `Referrer-Policy: same-origin`. Messages are rendered as text, never HTML.
 
+**Link previews.** Our server, not the reader's browser, fetches a page to
+preview a link, so linked sites never see readers' addresses. Because anyone can
+post a link, the fetcher is fenced in against server-side request forgery:
+only `http` and `https` on ports 80 and 443; every address a name resolves to
+must be public (no loopback, private, link-local, carrier-grade NAT, multicast or
+reserved ranges, and no IPv4 hidden in IPv6), and the connection uses exactly
+the addresses checked, so a second DNS answer can't redirect it; at most 3
+redirects, each checked the same way; 5 seconds and 512 KB per page, 5 MB per
+picture, at most 2 fetches at once. It sends no cookies and never logs URLs.
+It only fetches the first link of a message the asker can already see, so it
+can't be used to fetch anything else. Pictures are decoded by `sharp` with a
+pixel limit and reach browsers only as a 64×64 dithered bitmap.
+
 **Privacy between users.** Only a chat's participants can read it; to anyone
 else it answers exactly as if it didn't exist. The channel directory shows
 names and participant counts, never messages or members.
@@ -55,6 +68,9 @@ names and participant counts, never messages or members.
 - **Channel names are public** to every user, and anyone can join any channel.
   Anyone in a channel can also add anyone else, who is notified; they can't
   refuse, only leave.
+- **Linked sites see our server.** A page in a link is fetched by the server
+  when someone first sees it, which tells that site the link was shared
+  (from Render's address, with no cookies or personal data).
 - **No account recovery or deletion** yet.
 
 ## Running it safely

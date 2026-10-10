@@ -62,5 +62,9 @@ A window into a chat's history, counted back from the newest message and returne
 **Feed**:
 The live stream of every message posted to any chat the viewer participates in, including the viewer's own messages.
 
+**Link preview**:
+The card under a message for the first link in it: the page's site, title, description and a dithered thumbnail, as our server read the page.
+_Avoid_: Unfurl, embed
+
 **Chat added**:
 The live notice that a chat now includes the viewer without them opening it: someone they invited signed up, or someone added them to a channel. It says who did it.

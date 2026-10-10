@@ -99,6 +99,11 @@ keyboard, notifications, layout) is checked here.
 - [ ] **Closed chats stay current:** with a chat _closed_, have the other person
       write in it. Opening it shows the new message.
 - [ ] **New chat:** a brand-new chat says "No messages yet. Say hello."
+- [ ] **Links:** a link in a message is underlined in the bubble's colour and
+      opens in a new tab. The first link gets a card under the bubble: the
+      site, the title, two lines of description and the page's picture
+      dithered to 64×64 (a document icon without one). Try a Wikipedia article
+      and a GitHub page; a page that can't be previewed just stays a link.
 - [ ] **Pixel emoji:** emoji in messages, the chat list, names and window
       titles are black-and-white pixel art in the text's colour, white in your
       own bubbles and in the theme's ink in Dark and the tints. A message of one
