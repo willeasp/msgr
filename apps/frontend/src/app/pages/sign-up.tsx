@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { CombinedGraphQLErrors } from '@apollo/client';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { gql } from '../../lib/__generated__';
 import { ME } from '../auth/protected-route';
 import { useSessionChange } from '../auth/use-session-change';
@@ -11,7 +11,11 @@ import Divider from '../../sacred/components/Divider';
 import Input from '../../sacred/components/Input';
 import { COMPUTER } from '../components/icons';
 import { LoadingState } from '../components/LoadingState';
-import { DialogButtons, MacDialog } from '../components/MacDialog';
+import {
+  DialogButtons,
+  DialogMessage,
+  MacDialog,
+} from '../components/MacDialog';
 import { MenuBar } from '../components/MenuBar';
 import { Muted } from '../components/Muted';
 import { PixelIcon } from '../components/PixelIcon';
@@ -32,6 +36,12 @@ const SIGN_UP = gql(`
   }
 `);
 
+const INVITE_REDEEMABLE = gql(`
+  query InviteRedeemable($code: String!) {
+    inviteRedeemable(code: $code)
+  }
+`);
+
 /** What to tell someone whose sign-up failed. */
 function explain(error: unknown): string {
   const first = CombinedGraphQLErrors.is(error) ? error.errors[0] : undefined;
@@ -45,7 +55,8 @@ function explain(error: unknown): string {
 export function SignUpPage() {
   const { code = '' } = useParams<{ code: string }>();
   const changeSession = useSessionChange();
-  const { data: session, loading: checking } = useQuery(ME);
+  const session = useQuery(ME);
+  const invite = useQuery(INVITE_REDEEMABLE, { variables: { code } });
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -72,8 +83,11 @@ export function SignUpPage() {
   };
 
   // An invite works once, so someone back on theirs has already joined.
-  if (session?.me) return <Navigate to="/" replace />;
-  if (checking) return <LoadingState label="Connecting" fill />;
+  if (session.data?.me) return <Navigate to="/" replace />;
+  if (session.loading || invite.loading) {
+    return <LoadingState label="Connecting" fill />;
+  }
+  if (invite.data?.inviteRedeemable === false) return <SpentInvite />;
 
   return (
     <div className={styles.screen}>
@@ -128,10 +142,32 @@ export function SignUpPage() {
                 <Button type="submit">Join</Button>
               )}
             </DialogButtons>
-            <Muted>
-              Already joined? <Link to="/login">Sign in</Link>.
-            </Muted>
           </form>
+        </MacDialog>
+      </main>
+    </div>
+  );
+}
+
+/** Said before anyone fills in the form. Used, expired and made-up look the same. */
+function SpentInvite() {
+  const navigate = useNavigate();
+  return (
+    <div className={styles.screen}>
+      <MenuBar menus={<ThemeMenu />} />
+      <main className={styles.desktop}>
+        <MacDialog title="Join Msgr">
+          <DialogMessage icon={COMPUTER}>
+            <p className={styles.title}>
+              This invite has been used or has expired.
+            </p>
+            <Muted>Ask for a new one, or sign in if it was yours.</Muted>
+          </DialogMessage>
+          <DialogButtons>
+            <Button autoFocus onClick={() => navigate('/login')}>
+              Sign In
+            </Button>
+          </DialogButtons>
         </MacDialog>
       </main>
     </div>

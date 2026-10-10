@@ -7,7 +7,9 @@ import {
   signIn,
 } from './support';
 
-test('opening your invite link again after joining takes you back to your chats', async ({
+const SPENT = 'This invite has been used or has expired.';
+
+test('a used invite link takes whoever joined back to their chats, and tells anyone else', async ({
   page,
   browser,
 }) => {
@@ -28,14 +30,20 @@ test('opening your invite link again after joining takes you back to your chats'
 
   await expect(newcomer).toHaveURL(/\/$/);
   await expect(chatsWindow(newcomer)).toBeVisible();
+
+  const stranger = await anotherPerson(browser);
+  await stranger.goto(link ?? '');
+  await expect(stranger.getByText(SPENT)).toBeVisible();
+  await expect(stranger.getByLabel('Name')).toBeHidden();
 });
 
-test('the invite page leads someone who already joined to sign in', async ({
+test('a made-up invite link looks spent, and offers a way to sign in', async ({
   page,
 }) => {
-  await page.goto('/invite/used-or-not');
+  await page.goto('/invite/made-up');
+  await expect(page.getByText(SPENT)).toBeVisible();
 
-  await page.getByRole('link', { name: 'Sign in' }).click();
+  await page.getByRole('button', { name: 'Sign In' }).click();
 
   await expect(page).toHaveURL(/\/login$/);
 });

@@ -35,6 +35,8 @@ export const resolvers: Resolvers = {
       requireViewer(ctx);
       return ctx.services.chats.listChannels();
     },
+    inviteRedeemable: (_, { code }, ctx) =>
+      ctx.services.invites.isRedeemable(code),
   },
 
   Mutation: {

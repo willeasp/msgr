@@ -191,6 +191,19 @@ describe('invites', () => {
     expect(codeOf(again)).toBe('NOT_FOUND');
     expect(again.cookie.set).not.toHaveBeenCalled();
   });
+
+  it('tells anyone, before they fill in the form, whether an invite is spent', async () => {
+    const { app, ada } = await world();
+    const { code } = await app.services().invites.create(ada);
+    const ask = () =>
+      execute(app, 'query ($code: String!) { inviteRedeemable(code: $code) }', {
+        variables: { code },
+      });
+
+    expect((await ask()).data).toEqual({ inviteRedeemable: true });
+    await execute(app, SIGN_UP, { variables: { code } });
+    expect((await ask()).data).toEqual({ inviteRedeemable: false });
+  });
 });
 
 describe('channels', () => {

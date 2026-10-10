@@ -64,11 +64,10 @@ keyboard, notifications, layout) is checked here.
       notification: "<name> joined Msgr".
 - [ ] **Back on your link:** as the newcomer, open the same link again. You're
       back in your chats, not on the form.
-- [ ] **Spent link:** open the same link in a fresh private window and submit.
-      "This invite has been used or has expired. Ask for a new one." "Already
-      joined? Sign in." goes to the login page.
-- [ ] **Made-up link:** go to `localhost:4200/invite/whatever` and submit. Same
-      message.
+- [ ] **Spent link:** open the same link in a fresh private window. Straight
+      away, with no form: "This invite has been used or has expired." Sign In
+      goes to the login page.
+- [ ] **Made-up link:** go to `localhost:4200/invite/whatever`. Same message.
 - [ ] **Taken email:** with a fresh invite, sign up as `alice@example.com`.
       "Someone already signed up with this email." Then use a different email:
       the same invite still works.

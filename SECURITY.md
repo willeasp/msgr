@@ -15,7 +15,9 @@ found and how to reproduce it.
 **Who can get in.** Sign-up is invite-only. An invite is a single-use link
 that lasts a week, holding 128 random bits; the database stores only its
 SHA-256 hash. Redeeming is one transaction, so an invite can't be spent twice.
-Used, expired and made-up invites all look the same.
+Used, expired and made-up invites all look the same. Anyone can ask whether a
+code still works (`inviteRedeemable`), so the invite page can say so before the
+form; that tells a guesser nothing a sign-up attempt wouldn't.
 
 **Passwords.** Hashed with bcrypt (cost 10). New passwords need at least 8
 characters and at most 72 bytes, bcrypt's limit, so nothing is silently cut

@@ -112,6 +112,8 @@ export const typeDefs = /* GraphQL */ `
     messages(chatId: ID!, limit: Int, offset: Int): [Message!]!
     "Every channel, by name, joined or not."
     channels: [ChannelListing!]!
+    "Whether an invite can still sign someone up. Used, expired and made-up codes all say false. Needs no sign-in."
+    inviteRedeemable(code: String!): Boolean!
   }
 
   type Mutation {
