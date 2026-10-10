@@ -19,7 +19,7 @@ const svg =
   '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>';
 let open = 0;
 let mostOpen = 0;
-let hugeFinished = false;
+let hugeClosed = false;
 
 const html = (head: string) =>
   `<!doctype html><html><head>${head}</head><body></body></html>`;
@@ -74,20 +74,21 @@ beforeAll(async () => {
       return; // and never finish
     }
     if (path === '/huge') {
+      // Endless: only a reader that stops at its cap gets a card in time.
       res.writeHead(200, { 'content-type': 'text/html' });
       res.write(page());
       const chunk = 'x'.repeat(64 * 1024);
-      for (let sent = 0; sent < 2 * 1024 * 1024; sent += chunk.length) {
-        if (res.destroyed) return;
-        if (!res.write(chunk)) {
-          await new Promise((resolve) => {
+      res.once('close', () => (hugeClosed = true));
+      while (!res.destroyed) {
+        await new Promise((resolve) => {
+          if (res.write(chunk)) setImmediate(resolve);
+          else {
             res.once('drain', resolve);
             res.once('close', resolve);
-          });
-        }
+          }
+        });
       }
-      hugeFinished = true;
-      return res.end();
+      return;
     }
     if (path === '/json')
       return send(res, 'application/json', '{"title":"no"}');
@@ -185,7 +186,7 @@ describe('the link previewer', () => {
     expect(await local().preview(url('/huge'))).toMatchObject({
       title: 'A page',
     });
-    expect(hugeFinished).toBe(false);
+    await vi.waitFor(() => expect(hugeClosed).toBe(true));
   });
 
   it('previews only HTML', async () => {
