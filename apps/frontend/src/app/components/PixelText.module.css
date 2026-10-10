@@ -21,3 +21,13 @@
 .char {
   opacity: 0;
 }
+
+/* Forced colours (Windows High Contrast) would paint the emoji the page's
+   background; keep it in the text's colour. */
+@media (forced-colors: active) {
+  .emoji,
+  .big {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+}

@@ -64,4 +64,24 @@ test('emoji arrive as pixel art, big when they are the whole message', async ({
 
   const preview = await look(pixel(chatsWindow(charlie), '😀'));
   expect(preview.mask).toContain('data:image/svg+xml');
+
+  // A rocket joined to a pizza is one emoji to the text, but no font draws it
+  // as one: it stays as its characters rather than a cropped blob.
+  await say(page, '🚀\u200d🍕');
+  const unjoined = await look(pixel(chat, '🚀\u200d🍕'));
+  expect(unjoined.mask).toBe('none');
+});
+
+test('in forced colours, like Windows High Contrast, emoji stay visible', async ({
+  browser,
+}) => {
+  const page = await anotherPerson(browser);
+  await page.emulateMedia({ forcedColors: 'active' });
+  await page.goto('/login');
+  await signIn(page, 'diana@example.com');
+  await chatsWindow(page).getByText('#general', { exact: true }).click();
+
+  // The seed's "Morning, everyone! 😀".
+  const morning = await look(pixel(chatWindow(page, '#general'), '😀'));
+  expect(morning.paint).toBe(morning.text);
 });

@@ -9,13 +9,18 @@ export interface Sample {
   readonly luminance: number;
 }
 
-const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+// Firefox before 125 has no Segmenter: there, emoji stay ordinary characters.
+const graphemes =
+  'Segmenter' in Intl
+    ? new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+    : null;
 // Shown as emoji by default, or asked to be (U+FE0F), or a keycap.
 const EMOJI = /\p{Emoji_Presentation}|\p{Extended_Pictographic}️|⃣/u;
 
 export const isEmoji = (grapheme: string): boolean => EMOJI.test(grapheme);
 
 export function splitEmoji(text: string): Piece[] {
+  if (!graphemes) return text ? [{ text }] : [];
   const pieces: Piece[] = [];
   let run = '';
   for (const { segment } of graphemes.segment(text)) {

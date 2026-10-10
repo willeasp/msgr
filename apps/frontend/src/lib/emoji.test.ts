@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { EMOJI_ART } from './emoji-art';
 import {
   SIZE,
@@ -29,6 +29,20 @@ describe('splitEmoji', () => {
   it('leaves symbols that are text by default as text', () => {
     expect(splitEmoji('© 2026 ™ ❤')).toEqual([{ text: '© 2026 ™ ❤' }]);
   });
+});
+
+it('leaves text as it is in browsers without Intl.Segmenter', async () => {
+  const { Segmenter } = Intl;
+  Reflect.deleteProperty(Intl, 'Segmenter');
+  try {
+    vi.resetModules();
+    const old = await import('./emoji');
+    expect(old.splitEmoji('Ship it 🚀')).toEqual([{ text: 'Ship it 🚀' }]);
+    expect(old.isOnlyEmoji('🚀')).toBe(false);
+  } finally {
+    Object.assign(Intl, { Segmenter });
+    vi.resetModules();
+  }
 });
 
 describe('isOnlyEmoji', () => {

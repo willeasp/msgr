@@ -14,7 +14,10 @@ const FONT =
   '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
 const CANVAS = 96;
 
-/** This device's emoji, drawn big and shrunk to SIZE×SIZE; null without a canvas. */
+/**
+ * This device's emoji, drawn big and shrunk to SIZE×SIZE; null without a
+ * canvas, or when its font draws the emoji as separate pictures side by side.
+ */
 function sample(emoji: string): Sample[] | null {
   const big = document.createElement('canvas');
   big.width = big.height = CANVAS;
@@ -26,6 +29,8 @@ function sample(emoji: string): Sample[] | null {
   draw.font = `${CANVAS * 0.85}px ${FONT}`;
   draw.textAlign = 'center';
   draw.textBaseline = 'middle';
+  // A sequence the font can't join comes out too wide to be one picture.
+  if (draw.measureText(emoji).width > CANVAS) return null;
   draw.fillText(emoji, CANVAS / 2, CANVAS * 0.55);
   shrink.imageSmoothingQuality = 'high';
   shrink.drawImage(big, 0, 0, SIZE, SIZE);
