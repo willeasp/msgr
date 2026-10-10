@@ -153,7 +153,9 @@ function serveApp(app: express.Express, dir: string) {
   );
   app.use(express.static(dir));
   app.use((req, res, next) =>
-    req.method === 'GET' ? res.sendFile(join(dir, 'index.html')) : next()
+    // With `root`, only the path below it is checked for dot-directories, so
+    // the app may live under one (a `.claude/worktrees/…` checkout, say).
+    req.method === 'GET' ? res.sendFile('index.html', { root: dir }) : next()
   );
 }
 
