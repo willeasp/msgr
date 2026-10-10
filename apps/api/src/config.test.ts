@@ -63,6 +63,60 @@ describe('parseConfig', () => {
     });
   });
 
+  it('pushes with the development keys locally, signed as the app’s address', () => {
+    const config = parseConfig({});
+    expect(config.ok && config.value.push).toMatchObject({
+      publicKey: expect.stringMatching(/^B[A-Za-z0-9_-]{86}$/),
+      subject: 'http://localhost:4200',
+    });
+  });
+
+  it('runs with push off in production until both VAPID keys are set', () => {
+    expect(parseConfig(production)).toMatchObject({
+      ok: true,
+      value: { push: null },
+    });
+    expect(
+      parseConfig({
+        ...production,
+        VAPID_PUBLIC_KEY: `B${'a'.repeat(86)}`,
+        VAPID_PRIVATE_KEY: 'p'.repeat(43),
+      })
+    ).toMatchObject({
+      ok: true,
+      value: {
+        push: {
+          publicKey: `B${'a'.repeat(86)}`,
+          privateKey: 'p'.repeat(43),
+          subject: 'https://msgr.example',
+        },
+      },
+    });
+  });
+
+  it('refuses one VAPID key without the other, or keys that are not base64url', () => {
+    expect(
+      parseConfig({ ...production, VAPID_PUBLIC_KEY: `B${'a'.repeat(86)}` })
+    ).toEqual({
+      ok: false,
+      error: [
+        'VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY go together: set both, or neither to turn push off',
+      ],
+    });
+    expect(
+      parseConfig({
+        ...production,
+        VAPID_PUBLIC_KEY: 'not a key',
+        VAPID_PRIVATE_KEY: 'p'.repeat(43),
+      })
+    ).toEqual({
+      ok: false,
+      error: [
+        'VAPID keys must be base64url, as `npx web-push generate-vapid-keys` prints them',
+      ],
+    });
+  });
+
   it('reports every problem at once', () => {
     expect(parseConfig({ PORT: 'eighty', JWT_SECRET: 'short' })).toMatchObject({
       ok: false,

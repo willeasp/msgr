@@ -4,8 +4,10 @@ import type {
   InviteCodes,
   LinkPreviewer,
   PasswordHasher,
+  PushSender,
 } from '../application/ports.js';
 import type { LinkPreview } from '../domain/link-preview.js';
+import type { Notification } from '../domain/push.js';
 import { createScope } from '../application/scope.js';
 import type { InviteCode } from '../domain/invite.js';
 import type { Result } from '../domain/result.js';
@@ -14,6 +16,7 @@ import { createPubSubChatEvents } from '../infrastructure/chat-events.js';
 import { createPubSubMessageEvents } from '../infrastructure/message-events.js';
 import { createMemoryThrottle } from '../infrastructure/throttle.js';
 import { createJwtTokenService } from '../infrastructure/token-service.js';
+import { createMemoryWatching } from '../infrastructure/watching.js';
 import { createInMemoryRepositories } from './in-memory-repositories.js';
 
 export const TEST_JWT_SECRET = 'test-secret-that-is-at-least-32-characters';
@@ -32,6 +35,21 @@ export const fakeLinkPreviewer = (
 ): LinkPreviewer => ({
   preview: async (url) => previews.find((known) => known.url === url) ?? null,
 });
+
+/** The key the test app hands browsers, as a server with push on would. */
+export const TEST_PUSH_KEY = `B${'k'.repeat(86)}`;
+
+/** Records every push instead of sending it; answers 'gone' for the endpoints in `gone`. */
+export function recordingPushSender(gone: readonly string[] = []) {
+  const sent: { endpoint: string; notification: Notification }[] = [];
+  const sender: PushSender = {
+    send: async ({ endpoint }, notification) => {
+      sent.push({ endpoint, notification });
+      return gone.includes(endpoint) ? 'gone' : 'sent';
+    },
+  };
+  return { sender, sent };
+}
 
 /** Valid, predictable invite codes: `invite0000000000000001`, then `…02`. */
 export function sequentialInviteCodes(): InviteCodes {
@@ -88,6 +106,9 @@ export function createTestApp(overrides: Partial<Dependencies> = {}) {
     inviteCodes: sequentialInviteCodes(),
     throttle: createMemoryThrottle({ limit: 10, windowMs: 60_000, clock }),
     linkPreviewer: fakeLinkPreviewer(),
+    pushSender: recordingPushSender().sender,
+    pushKey: TEST_PUSH_KEY,
+    watching: createMemoryWatching(),
     ...overrides,
   };
   return {

@@ -7,10 +7,15 @@ import { cachedLinkPreviewer } from './infrastructure/cached-link-previewer.js';
 import { randomInviteCodes } from './infrastructure/invite-codes.js';
 import { createLinkPreviewer } from './infrastructure/link-previewer.js';
 import { createBcryptPasswordHasher } from './infrastructure/password-hasher.js';
+import {
+  createWebPushSender,
+  noPushSender,
+} from './infrastructure/push-sender.js';
 import { PrismaClient } from './infrastructure/prisma/client.js';
 import { prismaRepositories } from './infrastructure/prisma/repositories.js';
 import { createMemoryThrottle } from './infrastructure/throttle.js';
 import { createJwtTokenService } from './infrastructure/token-service.js';
+import { createMemoryWatching } from './infrastructure/watching.js';
 
 // The composition root: the only place that knows which adapter fills which port.
 
@@ -21,6 +26,13 @@ const config = parseConfig(process.env);
 if (!config.ok) {
   console.error(`Invalid configuration:\n  - ${config.error.join('\n  - ')}`);
   process.exit(1);
+}
+
+const push = config.value.push;
+if (!push) {
+  console.warn(
+    'Push notifications are off: set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY to turn them on.'
+  );
 }
 
 const db = new PrismaClient();
@@ -45,6 +57,9 @@ const server = await startServer(
       clock,
     }),
     linkPreviewer: cachedLinkPreviewer(createLinkPreviewer(), clock),
+    pushSender: push ? createWebPushSender(push) : noPushSender,
+    pushKey: push?.publicKey ?? null,
+    watching: createMemoryWatching(),
   },
   config.value
 );

@@ -74,6 +74,7 @@ describe('server', () => {
       sessionTtlSeconds: 60,
       secureCookies: false,
       staticDir: builtApp(),
+      push: null,
     });
   });
 

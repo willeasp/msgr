@@ -12,11 +12,25 @@ export interface Config {
   readonly secureCookies: boolean;
   /** The built frontend, served from the API's own address; `null` serves only the API. */
   readonly staticDir: string | null;
+  /** Web Push's VAPID keys, and who signs with them; null turns push off. */
+  readonly push: {
+    readonly publicKey: string;
+    readonly privateKey: string;
+    readonly subject: string;
+  } | null;
 }
 
 const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 const MIN_SECRET_LENGTH = 32;
 const DEVELOPMENT_SECRET = 'msgr-development-only-secret-0123456789';
+// Development's own push keys, like its JWT secret: useless anywhere else.
+const DEVELOPMENT_VAPID = {
+  publicKey:
+    'BHdgRT9dGCZv-REtiHJtRv-vcQMexFE3rhRYq5_8EIqBR2zDLtUJ2SVOz2LBEq8Lone3iCmqO_W-uHT5C6eDLJ8',
+  privateKey: 'Sy7TpkdTQnDIi_pqCnRTZegtIR265nJb2gFLqGF16kw',
+};
+const VAPID_PUBLIC = /^[A-Za-z0-9_-]{87}$/;
+const VAPID_PRIVATE = /^[A-Za-z0-9_-]{43}$/;
 
 /** Reads the environment once, at boot. Every problem is reported, not just the first. */
 export function parseConfig(
@@ -49,6 +63,24 @@ export function parseConfig(
     );
   }
 
+  const publicKey =
+    env['VAPID_PUBLIC_KEY'] ?? (production ? '' : DEVELOPMENT_VAPID.publicKey);
+  const privateKey =
+    env['VAPID_PRIVATE_KEY'] ??
+    (production ? '' : DEVELOPMENT_VAPID.privateKey);
+  if (!publicKey !== !privateKey) {
+    problems.push(
+      'VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY go together: set both, or neither to turn push off'
+    );
+  } else if (
+    publicKey &&
+    !(VAPID_PUBLIC.test(publicKey) && VAPID_PRIVATE.test(privateKey))
+  ) {
+    problems.push(
+      'VAPID keys must be base64url, as `npx web-push generate-vapid-keys` prints them'
+    );
+  }
+
   if (problems.length > 0) return err(problems);
   return ok({
     port,
@@ -57,5 +89,9 @@ export function parseConfig(
     sessionTtlSeconds: SESSION_TTL_SECONDS,
     secureCookies: production,
     staticDir: env['STATIC_DIR'] || null,
+    push:
+      publicKey && privateKey
+        ? { publicKey, privateKey, subject: corsOrigin }
+        : null,
   });
 }

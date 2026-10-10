@@ -12,7 +12,7 @@ import type { LinkPreview } from '../domain/link-preview.js';
 import type { Url } from '../domain/link.js';
 import type { Message, MessageId, NewMessage } from '../domain/message.js';
 import type { Page } from '../domain/page.js';
-import type { PushSubscription } from '../domain/push.js';
+import type { Notification, PushSubscription } from '../domain/push.js';
 import type { Result } from '../domain/result.js';
 import type {
   Credentials,
@@ -140,6 +140,22 @@ export interface ChatEvents {
   subscribe(recipient: UserId): AsyncIterableIterator<ChatAdded>;
 }
 
+/** Who has which chat open in a visible window right now. Its messages don't notify them. */
+export interface Watching {
+  /** Counts `userId` as watching `chatId` until the returned function is called. */
+  watch(userId: UserId, chatId: ChatId): () => void;
+  isWatching(userId: UserId, chatId: ChatId): boolean;
+}
+
+/** Sends one notification to one browser through its push service. */
+export interface PushSender {
+  /** 'gone' when the push service says the browser unsubscribed. Other failures throw. */
+  send(
+    subscription: PushSubscription,
+    notification: Notification
+  ): Promise<'sent' | 'gone'>;
+}
+
 export type Clock = () => Date;
 
 /** Reads a page for its card. Never throws: anything a site gets wrong is null. */
@@ -167,4 +183,8 @@ export interface Dependencies {
   readonly inviteCodes: InviteCodes;
   readonly throttle: Throttle;
   readonly linkPreviewer: LinkPreviewer;
+  readonly pushSender: PushSender;
+  /** The VAPID public key browsers subscribe with; null while push is off. */
+  readonly pushKey: string | null;
+  readonly watching: Watching;
 }
