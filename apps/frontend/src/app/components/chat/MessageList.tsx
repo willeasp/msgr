@@ -44,9 +44,14 @@ export function MessageList({
     }
   );
 
-  // Auto-scroll to bottom when messages change
+  // Open on the latest message; glide only to ones that arrive after.
+  const hasScrolled = useRef(false);
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!messagesEndRef.current) return;
+    messagesEndRef.current.scrollIntoView({
+      behavior: hasScrolled.current ? 'smooth' : 'instant',
+    });
+    hasScrolled.current = true;
   }, [messagesData?.messages]);
 
   if (messagesLoading && !messagesData) {
