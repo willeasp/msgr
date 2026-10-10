@@ -12,6 +12,7 @@ import type { LinkPreview } from '../domain/link-preview.js';
 import type { Url } from '../domain/link.js';
 import type { Message, MessageId, NewMessage } from '../domain/message.js';
 import type { Page } from '../domain/page.js';
+import type { PushSubscription } from '../domain/push.js';
 import type { Result } from '../domain/result.js';
 import type {
   Credentials,
@@ -90,11 +91,27 @@ export interface InviteRepository {
   >;
 }
 
+/** A browser's push subscription, and the user it notifies. */
+export interface OwnedPushSubscription {
+  readonly userId: UserId;
+  readonly subscription: PushSubscription;
+}
+
+/** Where each user's browsers receive Web Push. A browser notifies one user at a time. */
+export interface PushSubscriptionRepository {
+  /** Upserts by endpoint: a browser someone else had now notifies `userId`, with its newest keys. */
+  save(userId: UserId, subscription: PushSubscription): Promise<void>;
+  findByUserIds(ids: readonly UserId[]): Promise<OwnedPushSubscription[]>;
+  /** Forgets a browser; a no-op unless it notifies `userId`. */
+  remove(endpoint: string, userId: UserId): Promise<void>;
+}
+
 export interface Repositories {
   readonly users: UserRepository;
   readonly chats: ChatRepository;
   readonly messages: MessageRepository;
   readonly invites: InviteRepository;
+  readonly pushSubscriptions: PushSubscriptionRepository;
 }
 
 export interface PasswordHasher {

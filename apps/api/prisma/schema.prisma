@@ -17,6 +17,7 @@ model User {
   messages    Message[]
   invitesSent Invite[]  @relation("InvitesSent")
   invite      Invite?   @relation("InviteUsed")
+  pushSubscriptions PushSubscription[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -69,4 +70,18 @@ model Invite {
   usedById    String?   @unique
   usedBy      User?     @relation("InviteUsed", fields: [usedById], references: [id], onDelete: SetNull)
   createdAt   DateTime  @default(now())
+}
+
+/// One browser's Web Push subscription, and the user it notifies.
+model PushSubscription {
+  /// Its address at the browser vendor's push service. The key, so a browser
+  /// notifies one user at a time.
+  endpoint  String   @id
+  p256dh    String
+  auth      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }

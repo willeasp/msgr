@@ -10,6 +10,7 @@ import {
 } from '../domain/chat.js';
 import type { Invite, InviteCode } from '../domain/invite.js';
 import { MessageId, type Message } from '../domain/message.js';
+import type { PushSubscription } from '../domain/push.js';
 import { err, ok } from '../domain/result.js';
 import {
   Email,
@@ -43,6 +44,10 @@ export function createInMemoryRepositories(): {
     return !!record && !record.used && at < record.invite.expiresAt;
   };
   const messages: Message[] = [];
+  const pushSubscriptions = new Map<
+    string,
+    { userId: UserId; subscription: PushSubscription }
+  >();
   let lastId = 0;
   const nextId = () => `id-${String(++lastId).padStart(6, '0')}`;
 
@@ -189,6 +194,24 @@ export function createInMemoryRepositories(): {
         messages.push(message);
         record.activeAt = input.createdAt;
         return message;
+      },
+    },
+
+    pushSubscriptions: {
+      save: async (userId, subscription) => {
+        requireUser(userId);
+        pushSubscriptions.set(subscription.endpoint, { userId, subscription });
+      },
+
+      findByUserIds: async (ids) =>
+        [...pushSubscriptions.values()].filter(({ userId }) =>
+          ids.includes(userId)
+        ),
+
+      remove: async (endpoint, userId) => {
+        if (pushSubscriptions.get(endpoint)?.userId === userId) {
+          pushSubscriptions.delete(endpoint);
+        }
       },
     },
   };

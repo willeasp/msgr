@@ -90,7 +90,7 @@ const general: Chat = {
   name: 'general' as ChannelName,
   participantIds: [ada, bob.id],
 };
-const text = (content: string, chat = direct): Message => ({
+const text = (content: string, chat: Chat = direct): Message => ({
   kind: 'text',
   id: MessageId('m'),
   chatId: chat.id,

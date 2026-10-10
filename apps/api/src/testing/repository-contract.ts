@@ -14,6 +14,7 @@ import {
   type Message,
   type MessageContent,
 } from '../domain/message.js';
+import type { PushSubscription } from '../domain/push.js';
 import {
   Email,
   SearchTerm,
@@ -477,6 +478,73 @@ export function repositoryContract(
       expect(
         await repositories.messages.findPages([], { limit: 1, offset: 0 })
       ).toEqual([]);
+    });
+  });
+
+  describe('push subscriptions', () => {
+    const browser = (name: string, key = 'a') =>
+      ({
+        endpoint: `https://fcm.googleapis.com/fcm/send/${name}`,
+        p256dh: key.repeat(87),
+        auth: key.repeat(22),
+      }) as PushSubscription;
+    const byEndpoint = <T extends { readonly subscription: PushSubscription }>(
+      found: readonly T[]
+    ) =>
+      [...found].sort((a, b) =>
+        a.subscription.endpoint < b.subscription.endpoint ? -1 : 1
+      );
+
+    it("finds people's browsers by user, skipping everyone else's", async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const linus = await fixtures.user({ name: 'Linus' });
+      const push = repositories.pushSubscriptions;
+      await push.save(ada.id, browser('ada-phone'));
+      await push.save(ada.id, browser('ada-laptop'));
+      await push.save(grace.id, browser('grace-phone'));
+      await push.save(linus.id, browser('linus-phone'));
+
+      const found = await push.findByUserIds([
+        ada.id,
+        grace.id,
+        UserId('missing'),
+      ]);
+
+      expect(byEndpoint(found)).toEqual(
+        byEndpoint([
+          { userId: ada.id, subscription: browser('ada-phone') },
+          { userId: ada.id, subscription: browser('ada-laptop') },
+          { userId: grace.id, subscription: browser('grace-phone') },
+        ])
+      );
+      expect(await push.findByUserIds([])).toEqual([]);
+    });
+
+    it('moves a browser to whoever registers it last, with its newest keys', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const push = repositories.pushSubscriptions;
+      await push.save(ada.id, browser('shared'));
+      await push.save(grace.id, browser('shared', 'b'));
+
+      expect(await push.findByUserIds([ada.id, grace.id])).toEqual([
+        { userId: grace.id, subscription: browser('shared', 'b') },
+      ]);
+    });
+
+    it('forgets a browser only for the user it notifies', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const push = repositories.pushSubscriptions;
+      await push.save(ada.id, browser('ada-phone'));
+
+      await push.remove(browser('ada-phone').endpoint, grace.id);
+      expect(await push.findByUserIds([ada.id])).toHaveLength(1);
+
+      await push.remove(browser('ada-phone').endpoint, ada.id);
+      await push.remove(browser('ada-phone').endpoint, ada.id);
+      expect(await push.findByUserIds([ada.id])).toEqual([]);
     });
   });
 }
