@@ -3,7 +3,9 @@ import { parseConfig } from './config.js';
 import { startServer } from './graphql/server.js';
 import { createPubSubMessageEvents } from './infrastructure/message-events.js';
 import { createPubSubChatEvents } from './infrastructure/chat-events.js';
+import { cachedLinkPreviewer } from './infrastructure/cached-link-previewer.js';
 import { randomInviteCodes } from './infrastructure/invite-codes.js';
+import { createLinkPreviewer } from './infrastructure/link-previewer.js';
 import { createBcryptPasswordHasher } from './infrastructure/password-hasher.js';
 import { PrismaClient } from './infrastructure/prisma/client.js';
 import { prismaRepositories } from './infrastructure/prisma/repositories.js';
@@ -42,8 +44,7 @@ const server = await startServer(
       windowMs: 15 * 60 * 1000,
       clock,
     }),
-    // Wired to the guarded fetcher in the next commit.
-    linkPreviewer: { preview: async () => null },
+    linkPreviewer: cachedLinkPreviewer(createLinkPreviewer(), clock),
   },
   config.value
 );
