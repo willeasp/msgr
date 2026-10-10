@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Drawing } from './drawing.js';
 
 const encode = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
@@ -31,6 +31,13 @@ describe('Drawing.parse', () => {
       const bytes = new Uint8Array(size).fill(1);
       expect(errorFor(encode(bytes))).toMatchObject({ field: 'drawing' });
     }
+  });
+
+  it('refuses text of the wrong length before decoding any of it', () => {
+    const atob = vi.spyOn(globalThis, 'atob');
+    expect(errorFor('A'.repeat(1_000_000))).toMatchObject({ field: 'drawing' });
+    expect(atob).not.toHaveBeenCalled();
+    atob.mockRestore();
   });
 
   it('rejects text that is not canonical base64', () => {

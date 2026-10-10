@@ -11,7 +11,15 @@ export const Drawing = {
   WIDTH: 256,
   HEIGHT: 160,
   BYTES: (256 * 160) / 8,
+  /** Base64 of `BYTES`: 4 characters for every 3 bytes, padded. */
+  ENCODED_LENGTH: 4 * Math.ceil((256 * 160) / 8 / 3),
   parse(raw: string): Result<Drawing, InvalidInput> {
+    const wrongSize = invalidInput(
+      'drawing',
+      `Drawing must be ${Drawing.WIDTH}×${Drawing.HEIGHT} pixels`
+    );
+    // Before decoding, so an oversized string costs nothing.
+    if (raw.length !== Drawing.ENCODED_LENGTH) return err(wrongSize);
     let bytes: string;
     try {
       bytes = atob(raw);
@@ -22,14 +30,7 @@ export const Drawing = {
     if (btoa(bytes) !== raw) {
       return err(invalidInput('drawing', 'Drawing must be base64'));
     }
-    if (bytes.length !== Drawing.BYTES) {
-      return err(
-        invalidInput(
-          'drawing',
-          `Drawing must be ${Drawing.WIDTH}×${Drawing.HEIGHT} pixels`
-        )
-      );
-    }
+    if (bytes.length !== Drawing.BYTES) return err(wrongSize);
     if (!/[^\0]/.test(bytes)) {
       return err(invalidInput('drawing', 'Drawing must not be blank'));
     }

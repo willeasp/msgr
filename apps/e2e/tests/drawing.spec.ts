@@ -30,18 +30,36 @@ async function scribble(
   await page.mouse.up();
 }
 
-/** Whether the canvas's top-left pixel is painted in its CSS background colour. */
+/**
+ * Whether the canvas pixel at a fraction of its size is painted in its CSS
+ * `color` (ink) or `background-color` (paper).
+ */
+const painted = (
+  canvas: Locator,
+  [x, y]: [number, number],
+  colour: 'color' | 'backgroundColor'
+) =>
+  canvas.evaluate(
+    (element: HTMLCanvasElement, { x, y, colour }) => {
+      const pixel = (
+        context: CanvasRenderingContext2D | null,
+        at: [number, number]
+      ) => Array.from(context?.getImageData(...at, 1, 1).data ?? []).join();
+      // Let a canvas turn the CSS colour into pixel values.
+      const probe = document.createElement('canvas').getContext('2d');
+      if (!probe) return false;
+      probe.fillStyle = getComputedStyle(element)[colour];
+      probe.fillRect(0, 0, 1, 1);
+      const at: [number, number] = [
+        Math.floor(x * element.width),
+        Math.floor(y * element.height),
+      ];
+      return pixel(element.getContext('2d'), at) === pixel(probe, [0, 0]);
+    },
+    { x, y, colour }
+  );
 const showsPaperAtTopLeft = (canvas: Locator) =>
-  canvas.evaluate((element: HTMLCanvasElement) => {
-    const pixel = (context: CanvasRenderingContext2D | null) =>
-      Array.from(context?.getImageData(0, 0, 1, 1).data ?? []).join();
-    // Let a canvas turn the CSS colour into pixel values.
-    const probe = document.createElement('canvas').getContext('2d');
-    if (!probe) return false;
-    probe.fillStyle = getComputedStyle(element).backgroundColor;
-    probe.fillRect(0, 0, 1, 1);
-    return pixel(element.getContext('2d')) === pixel(probe);
-  });
+  painted(canvas, [0, 0], 'backgroundColor');
 
 test('a drawing reaches Bob live, and comes back drawn on', async ({
   page,
@@ -109,9 +127,61 @@ test('Undo brings back what Clear wiped, and Cancel asks before discarding', asy
 
   await paintWindow(page).getByRole('button', { name: 'Cancel' }).click();
   await expect(paintWindow(page)).toContainText('Discard this drawing?');
+  await expect(
+    paintWindow(page).getByRole('button', { name: 'Keep Drawing' })
+  ).toBeFocused();
   await paintWindow(page).getByRole('button', { name: 'Keep Drawing' }).click();
   await expect(send).toBeVisible();
   await page.keyboard.press('Escape');
   await paintWindow(page).getByRole('button', { name: 'Discard' }).click();
   await expect(paintWindow(page)).toBeHidden();
+});
+
+test('a second finger on the canvas does not draw', async ({ browser }) => {
+  const context = await browser.newContext({ hasTouch: true });
+  const page = await context.newPage();
+  await page.goto('/login');
+  await signIn(page, 'diana@example.com');
+  await chatsWindow(page).getByText('Project Team', { exact: true }).click();
+  await chatWindow(page, 'Project Team')
+    .getByRole('button', { name: 'Draw…' })
+    .click();
+  const canvas = paintWindow(page).locator('canvas');
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('The paint window has no canvas');
+  // The zoom-open reveals the canvas from its middle out; wait for the edges.
+  await canvas.hover({ position: { x: 0.1 * box.width, y: 0.1 * box.height } });
+  const cdp = await context.newCDPSession(page);
+  // Without room for more than one touch point, Chromium drops the touches.
+  await cdp.send('Emulation.setTouchEmulationEnabled', {
+    enabled: true,
+    maxTouchPoints: 5,
+  });
+  const touch = (
+    type: 'touchStart' | 'touchMove' | 'touchEnd',
+    fingers: [number, number][]
+  ) =>
+    cdp.send('Input.dispatchTouchEvent', {
+      type,
+      touchPoints: fingers.map(([x, y], id) => ({
+        x: box.x + x * box.width,
+        y: box.y + y * box.height,
+        id,
+      })),
+    });
+
+  // One finger draws down the left side while a second rests on the right.
+  await touch('touchStart', [[0.1, 0.1]]);
+  await touch('touchStart', [
+    [0.1, 0.1],
+    [0.9, 0.1],
+  ]);
+  await touch('touchMove', [
+    [0.1, 0.9],
+    [0.9, 0.1],
+  ]);
+  await touch('touchEnd', []);
+
+  expect(await painted(canvas, [0.1, 0.5], 'color')).toBe(true);
+  expect(await painted(canvas, [0.5, 0.5], 'color')).toBe(false);
 });

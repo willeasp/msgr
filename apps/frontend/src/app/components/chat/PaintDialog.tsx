@@ -76,7 +76,12 @@ export function PaintDialog({ chatId, chatTitle, start }: PaintDialogProps) {
   const [confirming, setConfirming] = useState(false);
   // Copies of the bitmap from before each stroke, fill or clear.
   const history = useRef<Uint8Array[]>([]);
-  const stroke = useRef<{ last: Point; ink: boolean } | null>(null);
+  // The pointer drawing the current stroke; other fingers are ignored.
+  const stroke = useRef<{
+    pointerId: number;
+    last: Point;
+    ink: boolean;
+  } | null>(null);
 
   const [sendDrawing, { loading: sending, error }] = useMutation(SEND_DRAWING, {
     onCompleted: () => close(),
@@ -135,7 +140,7 @@ export function PaintDialog({ chatId, chatTitle, start }: PaintDialogProps) {
   const options = (ink: boolean) => ({ ink, pattern: pattern.rows });
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || !e.isPrimary) return;
     // Keep drawing at the edge when the pointer leaves the canvas.
     e.currentTarget.setPointerCapture(e.pointerId);
     const point = at(e);
@@ -146,20 +151,22 @@ export function PaintDialog({ chatId, chatTitle, start }: PaintDialogProps) {
       // As in MacPaint, a pencil stroke that starts on ink draws paper.
       const ink = tool === 'pencil' ? !getPixel(bits, point.x, point.y) : true;
       paintStroke(bits, tool, point, point, options(ink));
-      stroke.current = { last: point, ink };
+      stroke.current = { pointerId: e.pointerId, last: point, ink };
     }
     drew();
   };
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const current = stroke.current;
-    if (!current || tool === 'bucket') return;
+    if (!current || current.pointerId !== e.pointerId || tool === 'bucket') {
+      return;
+    }
     const point = at(e);
     paintStroke(bits, tool, current.last, point, options(current.ink));
     current.last = point;
     drew();
   };
-  const endStroke = () => {
-    stroke.current = null;
+  const endStroke = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (stroke.current?.pointerId === e.pointerId) stroke.current = null;
   };
 
   return (
@@ -221,9 +228,16 @@ export function PaintDialog({ chatId, chatTitle, start }: PaintDialogProps) {
       )}
       {confirming ? (
         <>
-          <p className={styles.question}>Discard this drawing?</p>
+          <p role="alert" className={styles.question}>
+            Discard this drawing?
+          </p>
           <DialogButtons>
-            <Button theme="SECONDARY" onClick={() => setConfirming(false)}>
+            <Button
+              theme="SECONDARY"
+              onClick={() => setConfirming(false)}
+              // Cancel, which had focus, is gone; keeping is the safe answer.
+              autoFocus
+            >
               Keep Drawing
             </Button>
             <Button onClick={() => close()}>Discard</Button>
