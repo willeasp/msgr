@@ -8,3 +8,12 @@ body,
 #root {
   height: 100%;
 }
+
+/*
+Like an installed app, not a page: the screen itself never rubber-bands or
+pulls to refresh, and a window scrolled to its end stops there.
+*/
+html,
+body {
+  overscroll-behavior: none;
+}
