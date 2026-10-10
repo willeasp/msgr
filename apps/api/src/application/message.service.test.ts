@@ -54,7 +54,9 @@ describe('sending a message', () => {
     );
 
     expectOk(
-      await app.services().messages.send(ada, { chatId: chat.id, content: 'hi' })
+      await app
+        .services()
+        .messages.send(ada, { chatId: chat.id, content: 'hi' })
     );
 
     await vi.waitFor(() =>

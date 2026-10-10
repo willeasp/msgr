@@ -24,8 +24,9 @@ export function createNotifier({
       (id) => !watching.isWatching(id, notification.chatId)
     );
     if (recipients.length === 0) return;
-    const browsers =
-      await repositories.pushSubscriptions.findByUserIds(recipients);
+    const browsers = await repositories.pushSubscriptions.findByUserIds(
+      recipients
+    );
     await Promise.all(
       browsers.map(async ({ userId, subscription }) => {
         try {

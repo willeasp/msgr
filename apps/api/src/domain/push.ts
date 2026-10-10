@@ -28,8 +28,7 @@ const PUSH_SERVICES = new Set([
 const isPushService = (host: string) =>
   PUSH_SERVICES.has(host) || host.endsWith('.notify.windows.com');
 
-const base64url = (length: number) =>
-  new RegExp(`^[A-Za-z0-9_-]{${length}}$`);
+const base64url = (length: number) => new RegExp(`^[A-Za-z0-9_-]{${length}}$`);
 const P256DH = base64url(87); // a 65-byte P-256 public key
 const AUTH = base64url(22); // a 16-byte secret
 
@@ -94,8 +93,8 @@ const titleOf = (chat: Chat, counterpart: User) =>
   chat.kind === 'channel'
     ? `#${chat.name}`
     : chat.kind === 'group'
-      ? chat.title
-      : counterpart.name;
+    ? chat.title
+    : counterpart.name;
 
 /** "Bob", or "Bob in #general" when it wasn't a direct chat. */
 export function messageNotification(

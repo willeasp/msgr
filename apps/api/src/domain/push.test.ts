@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  ChatId,
-  type ChannelName,
-  type Chat,
-  type ChatAdded,
-} from './chat.js';
+import { ChatId, type ChannelName, type Chat, type ChatAdded } from './chat.js';
 import type { Drawing } from './drawing.js';
 import { invalidInput } from './errors.js';
 import { MessageId, type Message, type MessageContent } from './message.js';

@@ -45,7 +45,7 @@ export const fakeBrowser = (name: string) =>
     endpoint: `https://fcm.googleapis.com/fcm/send/${name}`,
     p256dh: 'a'.repeat(87),
     auth: 'a'.repeat(22),
-  }) as PushSubscription;
+  } as PushSubscription);
 
 /** Records every push instead of sending it; answers 'gone' for the endpoints in `gone`. */
 export function recordingPushSender(gone: readonly string[] = []) {

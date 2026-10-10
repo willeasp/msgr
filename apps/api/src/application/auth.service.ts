@@ -31,8 +31,7 @@ export interface Welcome extends Session {
 }
 
 export function createAuthService(deps: Dependencies, loaders: Loaders) {
-  const { repositories, passwords, tokens, throttle, clock, chatEvents } =
-    deps;
+  const { repositories, passwords, tokens, throttle, clock, chatEvents } = deps;
   const notifier = createNotifier(deps);
   return {
     /** Every failure looks the same, so the response never reveals which emails exist. */

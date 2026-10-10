@@ -34,7 +34,7 @@ async function team(overrides: Partial<Dependencies> = {}) {
       senderId: sender.id,
       content: content as MessageContent,
       createdAt: new Date(0),
-    }) satisfies Message;
+    } satisfies Message);
   const notifier = createNotifier(app.deps);
   return { ...app, push, ada, grace, linus, chat, message, notifier };
 }

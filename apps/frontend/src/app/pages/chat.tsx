@@ -63,24 +63,24 @@ export function Chat() {
   const notificationsItem = !notifications.pushKey
     ? undefined
     : setup === 'push'
-      ? {
-          label: 'Notifications',
-          checked: notifications.subscribed === true,
-          onClick: () =>
-            void (notifications.subscribed
-              ? notifications.turnOff()
-              : turnOnNotifications()),
-        }
-      : setup === 'install-first'
-        ? {
-            label: 'Notifications…',
-            onClick: () =>
-              open(NotificationsDialog, {
-                setup: 'install-first' as const,
-                onTurnOn: turnOnNotifications,
-              }),
-          }
-        : undefined;
+    ? {
+        label: 'Notifications',
+        checked: notifications.subscribed === true,
+        onClick: () =>
+          void (notifications.subscribed
+            ? notifications.turnOff()
+            : turnOnNotifications()),
+      }
+    : setup === 'install-first'
+    ? {
+        label: 'Notifications…',
+        onClick: () =>
+          open(NotificationsDialog, {
+            setup: 'install-first' as const,
+            onTurnOn: turnOnNotifications,
+          }),
+      }
+    : undefined;
 
   // Offered once the browser has said whether it's subscribed and the push
   // key is in; `offered` keeps it to once per visit.

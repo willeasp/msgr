@@ -487,7 +487,7 @@ export function repositoryContract(
         endpoint: `https://fcm.googleapis.com/fcm/send/${name}`,
         p256dh: key.repeat(87),
         auth: key.repeat(22),
-      }) as PushSubscription;
+      } as PushSubscription);
     const byEndpoint = <T extends { readonly subscription: PushSubscription }>(
       found: readonly T[]
     ) =>

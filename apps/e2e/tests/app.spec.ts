@@ -13,10 +13,7 @@ test('Msgr installs as an app, with a service worker for notifications', async (
     display: 'standalone',
     start_url: '/',
   });
-  for (const { src } of [
-    ...manifest.icons,
-    { src: '/apple-touch-icon.png' },
-  ]) {
+  for (const { src } of [...manifest.icons, { src: '/apple-touch-icon.png' }]) {
     expect((await page.request.get(src)).ok(), src).toBe(true);
   }
 
