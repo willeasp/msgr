@@ -27,7 +27,6 @@
 - **Live.** Messages arrive the moment they're sent, and the chat list reorders itself.
 - **Desktop notifications** and a beep for messages in chats you aren't looking at. Turn them on in the **Special** menu.
 - **Light, dark and seven tints** from the **View** menu, and a layout that works on a phone.
-- **Free to host.** One container on Render's free plan, with Neon's free Postgres.
 
 <p align="center">
   <img src="docs/screenshots/live.png" width="824" alt="Test User and Alice Johnson side by side: each message appears on the other's screen as soon as it is sent">
@@ -90,33 +89,6 @@ Signed in, use **File → Invite a Friend…** and send the link. With nobody si
 npm run invite
 ```
 
-## Deploy for free
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/willeasp/msgr)
-
-Msgr runs as one container: the API serves the built app from its own address, so one session cookie covers both. [Render](https://render.com)'s free web service runs it and [Neon](https://neon.com)'s free Postgres keeps the data (Render's own free database expires after 30 days). Free plans change, so check both pricing pages.
-
-1. **Database.** Create a Neon project and copy its _direct_ connection string (turn connection pooling off); it starts with `postgresql://`.
-2. **App.** In Render, choose **New → Blueprint** and pick this repository; `render.yaml` describes the service. Paste the Neon string as `DATABASE_URL`. Render generates `JWT_SECRET`, and the app learns its own address from Render. Migrations run on every start.
-3. **First invite.** From your machine, against the production database:
-
-   ```bash
-   DATABASE_URL='<neon connection string>' CORS_ORIGIN='https://<your-app>.onrender.com' npm run invite
-   ```
-
-   Open the link, sign up, and invite everyone else from **File → Invite a Friend…**.
-
-> [!NOTE]
-> On the free plan the app sleeps after 15 minutes without visitors: the next visit takes about a minute to wake it, and open tabs reconnect by themselves.
-
-Any host that runs a container works the same way. To try the production image locally:
-
-```bash
-docker build -t msgr .
-docker run -p 4000:4000 -e DATABASE_URL='postgresql://…' \
-  -e JWT_SECRET="$(openssl rand -base64 32)" -e CORS_ORIGIN=http://localhost:4000 msgr
-```
-
 ## How it's built
 
 ```mermaid
@@ -141,6 +113,7 @@ Read more:
 - [CLAUDE.md](CLAUDE.md): conventions, the TDD workflow and gotchas, for anyone changing the code.
 - [CONTEXT.md](CONTEXT.md): the vocabulary: chat, channel, participant, invite.
 - [docs/manual-testing.md](docs/manual-testing.md): a checklist for trying every feature by hand.
+- [docs/deploying.md](docs/deploying.md): running it on a server.
 
 <details>
 <summary><b>Scripts</b></summary>
@@ -187,8 +160,8 @@ apps/
 │       ├── sacred/          # vendored Sacred Computer components
 │       └── skin.css         # the Macintosh skin
 └── e2e/                     # Playwright: browser tests and the README's screenshots
-docs/                        # architecture, decision records, screenshots
-Dockerfile, render.yaml      # one container, deployed for free
+docs/                        # architecture, decision records, deploying, screenshots
+Dockerfile, render.yaml      # the production container, and its Render service
 ```
 
 </details>

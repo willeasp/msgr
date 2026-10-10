@@ -1,10 +1,13 @@
 # Render Blueprint: Msgr as one free web service, built from the Dockerfile.
-# The database lives elsewhere (Neon's free Postgres); see README → Deploy.
+# The database lives elsewhere (Neon's free Postgres); see docs/deploying.md.
 services:
   - type: web
     name: msgr
     runtime: docker
     plan: free
+    # Next to the database. Fixed once the service exists.
+    region: frankfurt
+    autoDeployTrigger: checksPass
     healthCheckPath: /
     # The app's own address comes from Render's RENDER_EXTERNAL_URL.
     envVars:

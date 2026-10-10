@@ -116,7 +116,7 @@ Keep these true; [SECURITY.md](SECURITY.md) explains the model.
 
 ## Deploying
 
-The root `Dockerfile` builds both apps into one image that runs `prisma migrate deploy` and then the API, which serves the app. `render.yaml` deploys it to Render's free plan; the README walks through it. The Prisma CLI is therefore a runtime dependency of `@msgr/api`, not a dev one.
+The root `Dockerfile` builds both apps into one image that runs `prisma migrate deploy` and then the API, which serves the app. `render.yaml` deploys it to Render's free plan, next to a Neon database; [docs/deploying.md](docs/deploying.md) walks through it. The Prisma CLI is therefore a runtime dependency of `@msgr/api`, not a dev one.
 
 ## Adding behaviour (TDD)
 
