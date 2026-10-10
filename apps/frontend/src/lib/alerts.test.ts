@@ -1,12 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  chatAddedNotice,
-  notificationTitle,
   parseAlertPreferences,
   serializeAlertPreferences,
   shouldAlert,
 } from './alerts';
-import { ChatAddedReason, ChatKind } from './__generated__/graphql';
 
 const message = { senderId: 'bob', chatId: 'general' };
 
@@ -43,65 +40,27 @@ describe('shouldAlert', () => {
   });
 });
 
-describe('notificationTitle', () => {
-  it('names the sender, and where they said it unless it was a direct chat', () => {
-    expect(
-      notificationTitle('Bob', { kind: ChatKind.Direct, title: 'Bob' })
-    ).toBe('Bob');
-    expect(
-      notificationTitle('Bob', { kind: ChatKind.Channel, title: '#general' })
-    ).toBe('Bob in #general');
-    expect(
-      notificationTitle('Bob', { kind: ChatKind.Group, title: 'Team' })
-    ).toBe('Bob in Team');
-  });
-});
+// What notifications say is the server's now: apps/api/src/domain/push.ts.
 
 describe('alert preferences', () => {
-  it('beeps but does not notify until asked to', () => {
-    expect(parseAlertPreferences(null)).toEqual({ notify: false, sound: true });
+  it('beeps by default', () => {
+    expect(parseAlertPreferences(null)).toEqual({ sound: true });
   });
 
-  it('round-trips, and ignores anything unreadable', () => {
-    const prefs = { notify: true, sound: false };
-    expect(parseAlertPreferences(serializeAlertPreferences(prefs))).toEqual(
-      prefs
-    );
-    expect(parseAlertPreferences('{"notify":"yes"}')).toEqual({
-      notify: false,
-      sound: true,
-    });
-    expect(parseAlertPreferences('nope')).toEqual({
-      notify: false,
-      sound: true,
-    });
-  });
-});
-
-describe('chatAddedNotice', () => {
-  it('says who joined with your invite', () => {
+  it('reads back what it saved', () => {
     expect(
-      chatAddedNotice({
-        reason: ChatAddedReason.InviteAccepted,
-        by: { name: 'Grace Hopper' },
-        chat: { title: 'Grace Hopper' },
-      })
-    ).toEqual({
-      title: 'Grace Hopper joined Msgr',
-      body: 'They used your invite. Say hello!',
+      parseAlertPreferences(serializeAlertPreferences({ sound: false }))
+    ).toEqual({ sound: false });
+  });
+
+  it('keeps the sound setting from before notifications moved to push', () => {
+    expect(parseAlertPreferences('{"notify":true,"sound":false}')).toEqual({
+      sound: false,
     });
   });
 
-  it('says who added you to which channel', () => {
-    expect(
-      chatAddedNotice({
-        reason: ChatAddedReason.AddedToChannel,
-        by: { name: 'Ada Lovelace' },
-        chat: { title: '#book-club' },
-      })
-    ).toEqual({
-      title: 'Ada Lovelace added you to #book-club',
-      body: 'It’s in your Chats now.',
-    });
+  it('falls back to the default for anything unreadable', () => {
+    expect(parseAlertPreferences('{"sound":"yes"}')).toEqual({ sound: true });
+    expect(parseAlertPreferences('nope')).toEqual({ sound: true });
   });
 });

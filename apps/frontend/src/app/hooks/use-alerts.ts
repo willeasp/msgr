@@ -1,49 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  chatAddedNotice,
-  notificationTitle,
   parseAlertPreferences,
   serializeAlertPreferences,
   shouldAlert,
-  type AlertPreferences,
 } from '../../lib/alerts';
 import { beep } from '../../lib/beep';
-import type {
-  ChatAddedReason,
-  ChatKind,
-} from '../../lib/__generated__/graphql';
 
 const STORAGE_KEY = 'alerts';
 const TITLE = document.title;
 
 export interface ArrivedMessage {
-  /** Null for a drawing. */
-  content?: string | null;
-  sender: { id: string; name: string };
-  chat: { id: string; kind: ChatKind; title: string };
+  sender: { id: string };
+  chat: { id: string };
 }
 
 /**
- * Whether this browser can show notifications: through the service worker,
- * since Android has no `new Notification`.
- */
-export const notificationsSupported =
-  'Notification' in window && 'serviceWorker' in navigator;
-
-/**
- * Gets the viewer's attention for messages they aren't looking at: a beep, a
- * desktop notification that opens the chat, and an unread count in the tab.
+ * Gets the viewer's attention while Msgr is open, for messages they aren't
+ * looking at: a beep, and an unread count in the tab. Notifications come by
+ * push (`useNotifications`), open or not.
  */
 export function useAlerts(viewerId: string | undefined, openChatId?: string) {
   const [prefs, setPrefs] = useState(() =>
     parseAlertPreferences(localStorage.getItem(STORAGE_KEY))
   );
   const unread = useRef(0);
-
-  const save = (next: AlertPreferences) => {
-    localStorage.setItem(STORAGE_KEY, serializeAlertPreferences(next));
-    setPrefs(next);
-  };
 
   // Seen again: clear the count in the tab title.
   useEffect(() => {
@@ -56,41 +36,16 @@ export function useAlerts(viewerId: string | undefined, openChatId?: string) {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
 
-  /** A beep, a count in the tab while it's hidden, and a notification that opens `chatId`. */
-  const ring = useCallback(
-    ({
-      title,
-      body,
-      chatId,
-    }: {
-      title: string;
-      body: string;
-      chatId: string;
-    }) => {
-      if (document.visibilityState !== 'visible') {
-        document.title = `(${++unread.current}) ${TITLE}`;
-      }
-      if (prefs.sound) beep();
-      if (
-        prefs.notify &&
-        notificationsSupported &&
-        Notification.permission === 'granted'
-      ) {
-        // The service worker opens the chat when it's clicked.
-        void navigator.serviceWorker.ready.then((registration) =>
-          registration.showNotification(title, {
-            body,
-            tag: chatId,
-            data: { chatId },
-          })
-        );
-      }
-    },
-    [prefs]
-  );
+  /** A beep, and a count in the tab while it's hidden. */
+  const ring = useCallback(() => {
+    if (document.visibilityState !== 'visible') {
+      document.title = `(${++unread.current}) ${TITLE}`;
+    }
+    if (prefs.sound) beep();
+  }, [prefs]);
 
   const alert = useCallback(
-    ({ content, sender, chat }: ArrivedMessage) => {
+    ({ sender, chat }: ArrivedMessage) => {
       const pageVisible = document.visibilityState === 'visible';
       if (
         shouldAlert(
@@ -98,46 +53,19 @@ export function useAlerts(viewerId: string | undefined, openChatId?: string) {
           { viewerId, openChatId, pageVisible }
         )
       ) {
-        ring({
-          title: notificationTitle(sender.name, chat),
-          body: content ?? 'Sent a drawing.',
-          chatId: chat.id,
-        });
+        ring();
       }
     },
     [ring, viewerId, openChatId]
   );
 
-  /** Always worth telling: someone joined with your invite, or added you somewhere. */
-  const alertChatAdded = useCallback(
-    (event: {
-      reason: ChatAddedReason;
-      by: { name: string };
-      chat: { id: string; title: string };
-    }) => ring({ ...chatAddedNotice(event), chatId: event.chat.id }),
-    [ring]
-  );
-
-  /**
-   * Turning notifications on asks the browser first. Resolves to `false` if
-   * the browser refuses, so the caller can explain where to allow them.
-   */
-  const setNotify = async (notify: boolean): Promise<boolean> => {
-    if (notify && notificationsSupported) {
-      const permission =
-        Notification.permission === 'default'
-          ? await Notification.requestPermission()
-          : Notification.permission;
-      if (permission !== 'granted') return false;
-    }
-    save({ ...prefs, notify });
-    return true;
-  };
-
   const setSound = (sound: boolean) => {
-    save({ ...prefs, sound });
+    const next = { ...prefs, sound };
+    localStorage.setItem(STORAGE_KEY, serializeAlertPreferences(next));
+    setPrefs(next);
     if (sound) beep();
   };
 
-  return { prefs, alert, alertChatAdded, setNotify, setSound };
+  /** Always worth a beep: someone joined with your invite, or added you somewhere. */
+  return { prefs, alert, alertChatAdded: ring, setSound };
 }

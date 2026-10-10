@@ -1,11 +1,26 @@
-// Msgr's service worker: opens the chat a notification is about. Plain
-// JavaScript, served as-is from the site's root so its scope is the whole app.
+// Msgr's service worker: shows pushed notifications and opens the chat they're
+// about. Plain JavaScript, served as-is from the site's root so its scope is
+// the whole app.
 /* eslint-disable no-restricted-globals -- a service worker's global is `self` */
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) =>
   event.waitUntil(self.clients.claim())
 );
+
+self.addEventListener('push', (event) => {
+  // Show every push: iOS takes away the subscription of a site whose pushes show nothing.
+  const { title, body, chatId } = event.data.json();
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      tag: chatId,
+      renotify: true,
+      icon: '/icon-192.png',
+      data: { chatId },
+    })
+  );
+});
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();

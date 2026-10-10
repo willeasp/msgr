@@ -15,11 +15,13 @@ import { JoinChannelDialog } from '../components/chat/JoinChannelDialog';
 import { EmptyChatState } from '../components/chat/EmptyChatState';
 import { NewChatModal } from '../components/chat/NewChatModal';
 import { NotificationsBlockedDialog } from '../components/NotificationsBlockedDialog';
-import { notificationsSupported, useAlerts } from '../hooks/use-alerts';
+import { useAlerts } from '../hooks/use-alerts';
 import { useChatFeed } from '../hooks/use-chat-feed';
 import { useMediaQuery } from '../hooks/use-media-query';
 import { useInstallPrompt } from '../hooks/use-install-prompt';
+import { setup, useNotifications } from '../hooks/use-notifications';
 import { useOpenChatFromNotifications } from '../hooks/use-service-worker';
+import { useWatching } from '../hooks/use-watching';
 import styles from './chat.module.css';
 
 // Below this the Chats window and the open chat take turns on the desktop.
@@ -41,6 +43,25 @@ export function Chat() {
   const alerts = useAlerts(meData?.me?.id, chatId);
   useOpenChatFromNotifications();
   const install = useInstallPrompt();
+  const notifications = useNotifications();
+  useWatching(chatId);
+
+  const turnOnNotifications = async () => {
+    const outcome = await notifications.turnOn();
+    if (outcome !== 'on') open(NotificationsBlockedDialog, { reason: outcome });
+  };
+  const notificationsItem = !notifications.pushKey
+    ? undefined
+    : setup === 'push'
+      ? {
+          label: 'Notifications',
+          checked: notifications.subscribed === true,
+          onClick: () =>
+            void (notifications.subscribed
+              ? notifications.turnOff()
+              : turnOnNotifications()),
+        }
+      : undefined;
   useChatFeed({
     onMessage: alerts.alert,
     onChatAdded: alerts.alertChatAdded,
@@ -98,15 +119,10 @@ export function Chat() {
     <div className={styles.screen}>
       <AppNavigation
         alerts={{
-          ...alerts.prefs,
-          onToggleNotify: notificationsSupported
-            ? async () => {
-                const allowed = await alerts.setNotify(!alerts.prefs.notify);
-                if (!allowed) open(NotificationsBlockedDialog, {});
-              }
-            : undefined,
+          sound: alerts.prefs.sound,
           onToggleSound: () => alerts.setSound(!alerts.prefs.sound),
         }}
+        notifications={notificationsItem}
         onNewChat={startNewChat}
         onNewChannel={newChannel}
         onJoinChannel={joinChannel}

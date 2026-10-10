@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@apollo/client/react';
 import { gql } from '../../lib/__generated__';
 import { ME } from '../auth/protected-route';
 import { useSessionChange } from '../auth/use-session-change';
+import { useForgetBrowser } from '../hooks/use-notifications';
 import { Menu, MenuBar } from './MenuBar';
 import { ThemeMenu } from './ThemeMenu';
 import { PixelText } from './PixelText';
@@ -13,13 +14,9 @@ const LOGOUT_MUTATION = gql(`
 `);
 
 interface AppNavigationProps {
-  alerts: {
-    notify: boolean;
-    sound: boolean;
-    /** Absent where the browser has no desktop notifications. */
-    onToggleNotify?: () => void;
-    onToggleSound: () => void;
-  };
+  alerts: { sound: boolean; onToggleSound: () => void };
+  /** Special → Notifications, where this browser can have them. */
+  notifications?: { label: string; checked?: boolean; onClick: () => void };
   onNewChat: () => void;
   onNewChannel: () => void;
   onJoinChannel: () => void;
@@ -37,6 +34,7 @@ interface AppNavigationProps {
 /** The signed-in menu bar. */
 export function AppNavigation({
   alerts,
+  notifications,
   onNewChat,
   onNewChannel,
   onJoinChannel,
@@ -51,6 +49,7 @@ export function AppNavigation({
   const [logout] = useMutation(LOGOUT_MUTATION, {
     onCompleted: () => changeSession('/login'),
   });
+  const forgetBrowser = useForgetBrowser();
 
   return (
     <MenuBar
@@ -72,22 +71,18 @@ export function AppNavigation({
               ...(onLeaveChannel
                 ? [{ label: 'Leave Channel', onClick: onLeaveChannel }]
                 : []),
-              { label: 'Log Out', onClick: () => logout() },
+              {
+                label: 'Log Out',
+                // While still signed in, so the server lets go of this browser too.
+                onClick: () => void forgetBrowser().then(() => logout()),
+              },
             ]}
           />
           <ThemeMenu />
           <Menu
             title="Special"
             items={[
-              ...(alerts.onToggleNotify
-                ? [
-                    {
-                      label: 'Notifications',
-                      checked: alerts.notify,
-                      onClick: alerts.onToggleNotify,
-                    },
-                  ]
-                : []),
+              ...(notifications ? [notifications] : []),
               {
                 label: 'Alert Sound',
                 checked: alerts.sound,
