@@ -27,6 +27,7 @@ describe('sending a message', () => {
 
     expect(message).toEqual({
       id: message.id,
+      kind: 'text',
       chatId: chat.id,
       senderId: ada.id,
       content: 'hi',

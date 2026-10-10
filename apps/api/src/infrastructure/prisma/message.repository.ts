@@ -1,5 +1,6 @@
 import type { MessageRepository } from '../../application/ports.js';
 import { ChatId } from '../../domain/chat.js';
+import type { Drawing } from '../../domain/drawing.js';
 import {
   MessageId,
   type Message,
@@ -13,6 +14,7 @@ const messageFields = {
   chatId: true,
   senderId: true,
   content: true,
+  drawing: true,
   createdAt: true,
 } satisfies Prisma.MessageSelect;
 
@@ -25,7 +27,7 @@ export function prismaMessageRepository(db: PrismaClient): MessageRepository {
       // One query for every chat: rank each chat's messages newest-first and
       // keep the requested window of ranks.
       const rows = await db.$queryRaw<MessageRow[]>`
-        SELECT "id", "chatId", "senderId", "content", "createdAt"
+        SELECT "id", "chatId", "senderId", "content", "drawing", "createdAt"
         FROM (
           SELECT *, ROW_NUMBER() OVER (
             PARTITION BY "chatId" ORDER BY "createdAt" DESC, "id" DESC
@@ -38,10 +40,15 @@ export function prismaMessageRepository(db: PrismaClient): MessageRepository {
       return rows.map(toMessage);
     },
 
-    async append({ chatId, senderId, content, createdAt }) {
+    async append(message) {
+      const { chatId, senderId, createdAt } = message;
+      const body =
+        message.kind === 'text'
+          ? { content: message.content }
+          : { drawing: message.drawing };
       const [row] = await db.$transaction([
         db.message.create({
-          data: { chatId, senderId, content, createdAt },
+          data: { chatId, senderId, createdAt, ...body },
           select: messageFields,
         }),
         db.chat.update({
@@ -55,10 +62,18 @@ export function prismaMessageRepository(db: PrismaClient): MessageRepository {
   };
 }
 
-const toMessage = (row: MessageRow): Message => ({
-  id: MessageId(row.id),
-  chatId: ChatId(row.chatId),
-  senderId: UserId(row.senderId),
-  content: row.content as MessageContent,
-  createdAt: row.createdAt,
-});
+function toMessage(row: MessageRow): Message {
+  const sent = {
+    id: MessageId(row.id),
+    chatId: ChatId(row.chatId),
+    senderId: UserId(row.senderId),
+    createdAt: row.createdAt,
+  };
+  if (row.content !== null) {
+    return { ...sent, kind: 'text', content: row.content as MessageContent };
+  }
+  if (row.drawing !== null) {
+    return { ...sent, kind: 'drawing', drawing: row.drawing as Drawing };
+  }
+  throw new Error(`Message ${row.id} has neither text nor a drawing`);
+}

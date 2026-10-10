@@ -39,9 +39,13 @@ model Chat {
   updatedAt    DateTime  @updatedAt
 }
 
+/// Exactly one of `content` and `drawing` is set, which says what kind of
+/// message it is (enforced by a CHECK constraint).
 model Message {
   id        String   @id @default(cuid())
-  content   String
+  content   String?
+  /// A 256×160 black-and-white picture in base64; see domain/drawing.ts.
+  drawing   String?
   senderId  String
   sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
   chatId    String

@@ -8,6 +8,7 @@ import {
   type GroupChat,
 } from '../domain/chat.js';
 import { newInvite, type InviteCode } from '../domain/invite.js';
+import { Drawing } from '../domain/drawing.js';
 import type { Message, MessageContent } from '../domain/message.js';
 import {
   Email,
@@ -46,6 +47,7 @@ export function repositoryContract(
 
   const send = (chat: Chat, sender: User, content: string, createdAt: string) =>
     repositories.messages.append({
+      kind: 'text',
       chatId: chat.id,
       senderId: sender.id,
       content: content as MessageContent,
@@ -391,6 +393,31 @@ export function repositoryContract(
       expect(await page(2, 2)).toEqual(sent.slice(1, 3));
       expect(await page(2, 4)).toEqual(sent.slice(0, 1));
       expect(await page(2, 6)).toEqual([]);
+    });
+
+    it('stores a drawing and reads it back unchanged', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const chat = await repositories.chats.saveDirect(pairOf(ada, grace));
+      const text = await send(chat, ada, 'look', '2030-01-01T00:00:00Z');
+      const bytes = new Uint8Array(Drawing.BYTES);
+      bytes[0] = 0xff;
+      const drawing = await repositories.messages.append({
+        kind: 'drawing',
+        chatId: chat.id,
+        senderId: grace.id,
+        drawing: btoa(String.fromCharCode(...bytes)) as Drawing,
+        createdAt: new Date('2030-01-01T00:01:00Z'),
+      });
+
+      expect(drawing).toMatchObject({ kind: 'drawing', senderId: grace.id });
+      expect(drawing).not.toHaveProperty('content');
+      expect(
+        await repositories.messages.findPages([chat.id], {
+          limit: 5,
+          offset: 0,
+        })
+      ).toEqual([text, drawing]);
     });
 
     it('pages many chats in one call', async () => {

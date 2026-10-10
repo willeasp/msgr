@@ -49,6 +49,7 @@ export function createMessageService(
       if (!chat.ok) return chat;
 
       const message = await repositories.messages.append({
+        kind: 'text',
         chatId: chat.value.id,
         senderId: viewer.id,
         content: content.value,
