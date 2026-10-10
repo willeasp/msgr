@@ -18,7 +18,7 @@ jobs:
       # the e2e run makes its own msgr_e2e beside it.
       # From the Docker Official Images mirror, which has no pull rate limit.
       postgres:
-        image: public.ecr.aws/docker/library/postgres:17-alpine
+        image: public.ecr.aws/docker/library/postgres:18-alpine
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: msgr_test

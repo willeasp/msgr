@@ -159,7 +159,7 @@ This runs it the way Render will: one address, migrations on startup,
 security headers.
 
 ```bash
-docker run -d --name msgr-pg -e POSTGRES_PASSWORD=postgres -p 55432:5432 postgres:17-alpine
+docker run -d --name msgr-pg -e POSTGRES_PASSWORD=postgres -p 55432:5432 postgres:18-alpine
 docker build -t msgr .
 docker run --rm -p 8080:4000 \
   -e DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:55432/postgres \

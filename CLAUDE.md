@@ -21,7 +21,7 @@ npx nx test @msgr/api -- src/domain   # one folder / file
 Repository contract tests against Postgres are opt-in (CI always runs them). Point them at a **disposable, migrated** database, since every test truncates it:
 
 ```bash
-docker run -d --name msgr-test-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=msgr_test -p 55432:5432 postgres:17-alpine
+docker run -d --name msgr-test-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=msgr_test -p 55432:5432 postgres:18-alpine
 export TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/msgr_test
 DATABASE_URL=$TEST_DATABASE_URL npm --workspace=@msgr/api exec prisma migrate deploy
 npx nx test @msgr/api
