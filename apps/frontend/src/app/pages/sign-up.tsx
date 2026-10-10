@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { useMutation } from '@apollo/client/react';
+import { useMutation, useQuery } from '@apollo/client/react';
 import { CombinedGraphQLErrors } from '@apollo/client';
-import { useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { gql } from '../../lib/__generated__';
+import { ME } from '../auth/protected-route';
 import { useSessionChange } from '../auth/use-session-change';
 import AlertBanner from '../../sacred/components/AlertBanner';
 import Button from '../../sacred/components/Button';
 import Divider from '../../sacred/components/Divider';
 import Input from '../../sacred/components/Input';
 import { COMPUTER } from '../components/icons';
+import { LoadingState } from '../components/LoadingState';
 import { DialogButtons, MacDialog } from '../components/MacDialog';
 import { MenuBar } from '../components/MenuBar';
 import { Muted } from '../components/Muted';
@@ -43,6 +45,7 @@ function explain(error: unknown): string {
 export function SignUpPage() {
   const { code = '' } = useParams<{ code: string }>();
   const changeSession = useSessionChange();
+  const { data: session, loading: checking } = useQuery(ME);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -67,6 +70,10 @@ export function SignUpPage() {
       // Shown by onError.
     }
   };
+
+  // An invite works once, so someone back on theirs has already joined.
+  if (session?.me) return <Navigate to="/" replace />;
+  if (checking) return <LoadingState label="Connecting" fill />;
 
   return (
     <div className={styles.screen}>
@@ -121,6 +128,9 @@ export function SignUpPage() {
                 <Button type="submit">Join</Button>
               )}
             </DialogButtons>
+            <Muted>
+              Already joined? <Link to="/login">Sign in</Link>.
+            </Muted>
           </form>
         </MacDialog>
       </main>

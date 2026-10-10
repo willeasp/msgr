@@ -62,8 +62,11 @@ keyboard, notifications, layout) is checked here.
 - [ ] **The inviter hears about it:** in the inviter's window, the newcomer's
       chat appears at the top of the list, with a beep and a desktop
       notification: "<name> joined Msgr".
-- [ ] **Spent link:** open the same link again and submit. "This invite has been
-      used or has expired. Ask for a new one."
+- [ ] **Back on your link:** as the newcomer, open the same link again. You're
+      back in your chats, not on the form.
+- [ ] **Spent link:** open the same link in a fresh private window and submit.
+      "This invite has been used or has expired. Ask for a new one." "Already
+      joined? Sign in." goes to the login page.
 - [ ] **Made-up link:** go to `localhost:4200/invite/whatever` and submit. Same
       message.
 - [ ] **Taken email:** with a fresh invite, sign up as `alice@example.com`.
