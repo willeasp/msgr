@@ -18,6 +18,7 @@ import { NotificationsBlockedDialog } from '../components/NotificationsBlockedDi
 import { notificationsSupported, useAlerts } from '../hooks/use-alerts';
 import { useChatFeed } from '../hooks/use-chat-feed';
 import { useMediaQuery } from '../hooks/use-media-query';
+import { useInstallPrompt } from '../hooks/use-install-prompt';
 import { useOpenChatFromNotifications } from '../hooks/use-service-worker';
 import styles from './chat.module.css';
 
@@ -39,6 +40,7 @@ export function Chat() {
   const isNarrow = useMediaQuery(NARROW);
   const alerts = useAlerts(meData?.me?.id, chatId);
   useOpenChatFromNotifications();
+  const install = useInstallPrompt();
   useChatFeed({
     onMessage: alerts.alert,
     onChatAdded: alerts.alertChatAdded,
@@ -112,6 +114,7 @@ export function Chat() {
         onAddPeople={addPeople}
         onCloseChat={chatId ? closeChat : undefined}
         onLeaveChannel={leaveOpenChannel}
+        onInstall={install}
       />
       <main className={styles.desktop}>
         {isNarrow ? (

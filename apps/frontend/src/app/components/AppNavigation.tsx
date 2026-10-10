@@ -30,6 +30,8 @@ interface AppNavigationProps {
   onCloseChat?: () => void;
   /** Present while a channel is open. */
   onLeaveChannel?: () => void;
+  /** Present while the browser offers to install Msgr. */
+  onInstall?: () => void;
 }
 
 /** The signed-in menu bar. */
@@ -42,6 +44,7 @@ export function AppNavigation({
   onAddPeople,
   onCloseChat,
   onLeaveChannel,
+  onInstall,
 }: AppNavigationProps) {
   const changeSession = useSessionChange();
   const { data } = useQuery(ME);
@@ -90,6 +93,9 @@ export function AppNavigation({
                 checked: alerts.sound,
                 onClick: alerts.onToggleSound,
               },
+              ...(onInstall
+                ? [{ label: 'Install Msgr…', onClick: onInstall }]
+                : []),
             ]}
           />
         </>
