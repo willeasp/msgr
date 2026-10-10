@@ -1,8 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Drawing } from '../domain/drawing.js';
 import type { Message } from '../domain/message.js';
 import { Page } from '../domain/page.js';
-import { createTestApp, expectOk, nextEvent } from '../testing/harness.js';
+import {
+  createTestApp,
+  expectOk,
+  fakeBrowser,
+  nextEvent,
+  recordingPushSender,
+} from '../testing/harness.js';
 
 async function team() {
   const app = createTestApp();
@@ -34,6 +40,31 @@ describe('sending a message', () => {
       content: 'hi',
       createdAt: sentAt,
     });
+  });
+
+  it("pushes it to the other participants' browsers, without waiting for them", async () => {
+    const push = recordingPushSender();
+    const app = createTestApp({ pushSender: push.sender });
+    const ada = await app.fixtures.user({ name: 'Ada' });
+    const grace = await app.fixtures.user({ name: 'Grace' });
+    const chat = await app.fixtures.groupChat('Team', [ada, grace]);
+    await app.deps.repositories.pushSubscriptions.save(
+      grace.id,
+      fakeBrowser('grace-phone')
+    );
+
+    expectOk(
+      await app.services().messages.send(ada, { chatId: chat.id, content: 'hi' })
+    );
+
+    await vi.waitFor(() =>
+      expect(push.sent).toEqual([
+        {
+          endpoint: fakeBrowser('grace-phone').endpoint,
+          notification: { title: 'Ada in Team', body: 'hi', chatId: chat.id },
+        },
+      ])
+    );
   });
 
   it('delivers it live to every participant and nobody else', async () => {

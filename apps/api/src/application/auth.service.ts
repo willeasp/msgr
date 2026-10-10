@@ -19,6 +19,7 @@ import {
   type User,
 } from '../domain/user.js';
 import type { Loaders } from './loaders.js';
+import { createNotifier } from './notifier.js';
 import type { Dependencies } from './ports.js';
 
 export type AuthService = ReturnType<typeof createAuthService>;
@@ -29,17 +30,10 @@ export interface Welcome extends Session {
   readonly chat: DirectChat | null;
 }
 
-export function createAuthService(
-  {
-    repositories,
-    passwords,
-    tokens,
-    throttle,
-    clock,
-    chatEvents,
-  }: Dependencies,
-  loaders: Loaders
-) {
+export function createAuthService(deps: Dependencies, loaders: Loaders) {
+  const { repositories, passwords, tokens, throttle, clock, chatEvents } =
+    deps;
+  const notifier = createNotifier(deps);
   return {
     /** Every failure looks the same, so the response never reveals which emails exist. */
     async login(input: {
@@ -109,10 +103,10 @@ export function createAuthService(
         const pair = directPair(invitedBy, user.id);
         if (!pair.ok) throw new Error(`${user.id} cannot have invited itself`);
         chat = await repositories.chats.saveDirect(pair.value);
-        await chatEvents.publish(
-          { chat, by: user.id, reason: 'invite-accepted' },
-          invitedBy
-        );
+        const event = { chat, by: user.id, reason: 'invite-accepted' } as const;
+        await chatEvents.publish(event, invitedBy);
+        // Not awaited: signing up needn't wait for push services.
+        void notifier.chatAdded(event, user, invitedBy);
       }
       return ok({ user, token: await tokens.issue(user.id), chat });
     },

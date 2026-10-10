@@ -10,14 +10,15 @@ import { Page } from '../domain/page.js';
 import { ok, type Result } from '../domain/result.js';
 import type { User } from '../domain/user.js';
 import type { Loaders } from './loaders.js';
+import { createNotifier } from './notifier.js';
 import type { Dependencies } from './ports.js';
 
 export type MessageService = ReturnType<typeof createMessageService>;
 
-export function createMessageService(
-  { repositories, events, clock }: Dependencies,
-  loaders: Loaders
-) {
+export function createMessageService(deps: Dependencies, loaders: Loaders) {
+  const { repositories, events, clock } = deps;
+  const notifier = createNotifier(deps);
+
   /** Stores the message, then delivers it live to every participant. */
   async function post(
     viewer: User,
@@ -34,6 +35,8 @@ export function createMessageService(
       createdAt: clock(),
     });
     await events.publish(message, chat.value.participantIds);
+    // Not awaited: the sender needn't wait for push services.
+    void notifier.message(message, chat.value, viewer);
     return ok(message);
   }
 

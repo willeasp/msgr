@@ -1,8 +1,16 @@
-import { describe, expect, it } from 'vitest';
-import { createTestApp, expectOk, nextEvent } from '../testing/harness.js';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  createTestApp,
+  expectOk,
+  fakeBrowser,
+  nextEvent,
+  recordingPushSender,
+} from '../testing/harness.js';
 
-async function threePeople() {
-  const app = createTestApp();
+async function threePeople(
+  overrides: Parameters<typeof createTestApp>[0] = {}
+) {
+  const app = createTestApp(overrides);
   const ada = await app.fixtures.user({ name: 'Ada' });
   const grace = await app.fixtures.user({ name: 'Grace' });
   const linus = await app.fixtures.user({ name: 'Linus' });
@@ -183,6 +191,33 @@ describe('adding people to a channel', () => {
       by: ada.id,
       reason: 'added-to-channel',
     });
+  });
+
+  it("pushes the news to each newcomer's browsers", async () => {
+    const push = recordingPushSender();
+    const { deps, services, ada, grace } = await threePeople({
+      pushSender: push.sender,
+    });
+    await deps.repositories.pushSubscriptions.save(
+      grace.id,
+      fakeBrowser('grace-phone')
+    );
+    const books = expectOk(await services().chats.joinChannel(ada, 'books'));
+
+    expectOk(await services().chats.addToChannel(ada, books.id, [grace.id]));
+
+    await vi.waitFor(() =>
+      expect(push.sent).toEqual([
+        {
+          endpoint: fakeBrowser('grace-phone').endpoint,
+          notification: {
+            title: 'Ada added you to #books',
+            body: 'It’s in your Chats now.',
+            chatId: books.id,
+          },
+        },
+      ])
+    );
   });
 
   it('says nothing to someone who was already there', async () => {

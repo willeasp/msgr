@@ -7,7 +7,7 @@ import type {
   PushSender,
 } from '../application/ports.js';
 import type { LinkPreview } from '../domain/link-preview.js';
-import type { Notification } from '../domain/push.js';
+import type { Notification, PushSubscription } from '../domain/push.js';
 import { createScope } from '../application/scope.js';
 import type { InviteCode } from '../domain/invite.js';
 import type { Result } from '../domain/result.js';
@@ -38,6 +38,14 @@ export const fakeLinkPreviewer = (
 
 /** The key the test app hands browsers, as a server with push on would. */
 export const TEST_PUSH_KEY = `B${'k'.repeat(86)}`;
+
+/** A browser subscribed at Google's push service: `fakeBrowser('ada-phone')`. */
+export const fakeBrowser = (name: string) =>
+  ({
+    endpoint: `https://fcm.googleapis.com/fcm/send/${name}`,
+    p256dh: 'a'.repeat(87),
+    auth: 'a'.repeat(22),
+  }) as PushSubscription;
 
 /** Records every push instead of sending it; answers 'gone' for the endpoints in `gone`. */
 export function recordingPushSender(gone: readonly string[] = []) {

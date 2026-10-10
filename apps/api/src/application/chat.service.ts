@@ -16,14 +16,14 @@ import {
 import { err, ok, type Result } from '../domain/result.js';
 import { UserId, type User } from '../domain/user.js';
 import type { Loaders } from './loaders.js';
+import { createNotifier } from './notifier.js';
 import type { Dependencies } from './ports.js';
 
 export type ChatService = ReturnType<typeof createChatService>;
 
-export function createChatService(
-  { repositories, chatEvents }: Dependencies,
-  loaders: Loaders
-) {
+export function createChatService(deps: Dependencies, loaders: Loaders) {
+  const { repositories, chatEvents } = deps;
+  const notifier = createNotifier(deps);
   return {
     listFor(viewer: User): Promise<Chat[]> {
       return repositories.chats.findByParticipant(viewer.id);
@@ -97,13 +97,17 @@ export function createChatService(
       for (const person of newcomers) {
         channel = await repositories.chats.joinChannel(channel.name, person.id);
       }
+      const event: ChatAdded = {
+        chat: channel,
+        by: viewer.id,
+        reason: 'added-to-channel',
+      };
       await Promise.all(
-        newcomers.map((person) =>
-          chatEvents.publish(
-            { chat: channel, by: viewer.id, reason: 'added-to-channel' },
-            person.id
-          )
-        )
+        newcomers.map((person) => {
+          // Not awaited: adding people needn't wait for push services.
+          void notifier.chatAdded(event, viewer, person.id);
+          return chatEvents.publish(event, person.id);
+        })
       );
       return ok(channel);
     },

@@ -6,9 +6,11 @@ import { newInvite, type InviteCode } from '../domain/invite.js';
 import {
   createTestApp,
   expectOk,
+  fakeBrowser,
   fakeHash,
   fakePasswordHasher,
   nextEvent,
+  recordingPushSender,
 } from '../testing/harness.js';
 
 async function appWithAda() {
@@ -126,6 +128,30 @@ describe('signUp', () => {
       by: welcome.user.id,
       reason: 'invite-accepted',
     });
+  });
+
+  it("pushes the news to the inviter's browsers", async () => {
+    const push = recordingPushSender();
+    const { deps, ada, signUp } = await invited({ pushSender: push.sender });
+    await deps.repositories.pushSubscriptions.save(
+      ada.id,
+      fakeBrowser('ada-phone')
+    );
+
+    const welcome = expectOk(await signUp());
+
+    await vi.waitFor(() =>
+      expect(push.sent).toEqual([
+        {
+          endpoint: fakeBrowser('ada-phone').endpoint,
+          notification: {
+            title: 'Grace Hopper joined Msgr',
+            body: 'They used your invite. Say hello!',
+            chatId: welcome.chat?.id,
+          },
+        },
+      ])
+    );
   });
 
   it('starts no chat for the very first account, which nobody invited', async () => {
