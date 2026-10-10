@@ -7,14 +7,21 @@ interface MacDialogProps {
   title: string;
   /** Opened through Sacred's modal stack, rather than placed on a page. */
   modal?: boolean;
+  /** As wide as its contents need, rather than a column of text. */
+  wide?: boolean;
   children: React.ReactNode;
 }
 
 /** A dialog box: Sacred's double-bordered card on a raised sheet of paper. */
-export function MacDialog({ title, modal = false, children }: MacDialogProps) {
+export function MacDialog({
+  title,
+  modal = false,
+  wide = false,
+  children,
+}: MacDialogProps) {
   return (
     <div
-      className={styles.dialog}
+      className={wide ? `${styles.dialog} ${styles.wide}` : styles.dialog}
       role={modal ? 'dialog' : 'region'}
       aria-modal={modal || undefined}
       aria-label={title}

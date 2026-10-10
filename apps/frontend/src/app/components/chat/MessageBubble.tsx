@@ -1,4 +1,5 @@
 import { formatTime } from '../../../lib/utils/time';
+import ActionButton from '../../../sacred/components/ActionButton';
 import Message from '../../../sacred/components/Message';
 import MessageViewer from '../../../sacred/components/MessageViewer';
 import { DrawingPicture } from './DrawingPicture';
@@ -46,10 +47,7 @@ export function MessageBubble({
       )}
       <Bubble>
         {drawing != null ? (
-          <DrawingPicture
-            drawing={drawing}
-            onDrawOnIt={onDrawOnIt && (() => onDrawOnIt(drawing))}
-          />
+          <DrawingPicture drawing={drawing} />
         ) : (
           <span
             className={styles.content}
@@ -59,6 +57,14 @@ export function MessageBubble({
           </span>
         )}
       </Bubble>
+      {/* Under the bubble, not in it: the viewer's bubbles are inverted. */}
+      {drawing != null && onDrawOnIt && (
+        <div className={isCurrentUser ? styles.metaOwn : styles.meta}>
+          <ActionButton onClick={() => onDrawOnIt(drawing)}>
+            Draw on It
+          </ActionButton>
+        </div>
+      )}
     </>
   );
 }

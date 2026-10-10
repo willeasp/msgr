@@ -2,9 +2,11 @@ import { useQuery } from '@apollo/client/react';
 import { gql } from '../../../lib/__generated__';
 import { ChatKind } from '../../../lib/__generated__/graphql';
 import ActionButton from '../../../sacred/components/ActionButton';
+import { useModals } from '../../../sacred/components/page/ModalContext';
 import { MacWindow } from '../MacWindow';
 import { MessageInput } from './MessageInput';
 import { MessageList } from './MessageList';
+import { PaintDialog } from './PaintDialog';
 import styles from './ChatWindow.module.css';
 
 export const GET_CHAT_DATA = gql(`
@@ -41,6 +43,11 @@ export function ChatWindow({
     variables: { chatId },
   });
   const chat = data?.chat;
+  const title = chat?.title ?? (loading ? 'Loading…' : 'Chat');
+  const { open } = useModals();
+  // A blank canvas, or Draw on It with a drawing from the chat.
+  const draw = (start?: string) =>
+    open(PaintDialog, { chatId, chatTitle: title, start });
   const count = chat?.participants.length ?? 0;
   const [one, many] =
     chat?.kind === ChatKind.Channel
@@ -49,7 +56,7 @@ export function ChatWindow({
 
   return (
     <MacWindow
-      title={chat?.title ?? (loading ? 'Loading…' : 'Chat')}
+      title={title}
       onClose={onClose}
       info={
         chat && (
@@ -68,8 +75,12 @@ export function ChatWindow({
       }
       fill
     >
-      <MessageList chatId={chatId} currentUserId={currentUserId} />
-      <MessageInput chatId={chatId} />
+      <MessageList
+        chatId={chatId}
+        currentUserId={currentUserId}
+        onDrawOnIt={draw}
+      />
+      <MessageInput chatId={chatId} onDraw={() => draw()} />
     </MacWindow>
   );
 }

@@ -4,6 +4,7 @@
   flex-wrap: wrap;
   gap: 2ch;
   align-items: flex-end;
+  justify-content: flex-end;
   padding: calc(var(--line) * 0.5) 2ch calc(var(--line) * 0.5) 1ch;
   border-top: 1px solid var(--ink);
 }
@@ -17,9 +18,10 @@
   white-space: nowrap;
 }
 
-/* A text field that grows with the message, up to eight lines. */
+/* A text field that grows with the message, up to eight lines. Too narrow
+   beside the buttons, it takes the row and they wrap below it. */
 .field {
-  flex: 1;
+  flex: 1 1 24ch;
   min-width: 0;
   max-height: calc(var(--line) * 8 + 8px);
   overflow-y: auto;

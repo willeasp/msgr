@@ -22,6 +22,11 @@
   }
 }
 
+.wide {
+  width: max-content;
+  max-width: calc(100vw - 4ch);
+}
+
 .message {
   display: flex;
   gap: 2ch;

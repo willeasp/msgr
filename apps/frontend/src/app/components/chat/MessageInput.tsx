@@ -26,9 +26,11 @@ const SEND_MESSAGE = gql(`
 
 interface MessageInputProps {
   chatId: string;
+  /** Opens the paint window. */
+  onDraw: () => void;
 }
 
-export function MessageInput({ chatId }: MessageInputProps) {
+export function MessageInput({ chatId, onDraw }: MessageInputProps) {
   const [messageInput, setMessageInput] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
   const inputId = useId();
@@ -112,6 +114,9 @@ export function MessageInput({ chatId }: MessageInputProps) {
           autoFocus
         />
       </div>
+      <Button theme="SECONDARY" type="button" onClick={onDraw}>
+        Draw…
+      </Button>
       {sendingMessage ? (
         <Button isDisabled>Sending</Button>
       ) : (
