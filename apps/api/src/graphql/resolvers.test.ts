@@ -1,7 +1,14 @@
 import { graphql, parse, subscribe, type ExecutionResult } from 'graphql';
 import { describe, expect, it, vi } from 'vitest';
+import type { Dependencies } from '../application/ports.js';
+import type { Url } from '../domain/link.js';
 import type { User } from '../domain/user.js';
-import { createTestApp, fakeHash, nextEvent } from '../testing/harness.js';
+import {
+  createTestApp,
+  fakeHash,
+  fakeLinkPreviewer,
+  nextEvent,
+} from '../testing/harness.js';
 import { createContext } from './context.js';
 import { schema } from './server.js';
 
@@ -41,8 +48,8 @@ async function feed(app: TestApp, viewer: User, query: string) {
   return stream;
 }
 
-async function world() {
-  const app = createTestApp();
+async function world(overrides: Partial<Dependencies> = {}) {
+  const app = createTestApp(overrides);
   const ada = await app.fixtures.user({
     name: 'Ada',
     email: 'ada@example.com',
@@ -452,6 +459,45 @@ describe('messages', () => {
 
     expect(codeOf(result)).toBe('BAD_USER_INPUT');
     expect(result.errors?.[0]?.extensions['field']).toBe('drawing');
+  });
+
+  it('previews the first link in a message', async () => {
+    const { app, ada, team } = await world({
+      linkPreviewer: fakeLinkPreviewer([
+        {
+          url: 'https://example.com/page' as Url,
+          site: 'Example',
+          title: 'An example page',
+          description: null,
+          thumbnail: null,
+        },
+      ]),
+    });
+    const sent = await execute(
+      app,
+      `mutation ($chatId: ID!) {
+        sendMessage(input: { chatId: $chatId, content: "see https://example.com/page" }) { id }
+      }`,
+      { as: ada, variables: { chatId: team.id } }
+    );
+    const id = (sent.data as { sendMessage: { id: string } }).sendMessage.id;
+
+    const result = await execute(
+      app,
+      'query ($id: ID!) { linkPreview(messageId: $id) { url site title description thumbnail } }',
+      { as: ada, variables: { id } }
+    );
+
+    expect(result.errors).toBeUndefined();
+    expect(result.data).toEqual({
+      linkPreview: {
+        url: 'https://example.com/page',
+        site: 'Example',
+        title: 'An example page',
+        description: null,
+        thumbnail: null,
+      },
+    });
   });
 
   it('rejects blank text as bad input', async () => {

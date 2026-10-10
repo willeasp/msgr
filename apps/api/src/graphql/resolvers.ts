@@ -31,6 +31,8 @@ export const resolvers: Resolvers = {
     },
     messages: async (_, args, ctx) =>
       unwrap(await ctx.services.messages.list(requireViewer(ctx), args)),
+    linkPreview: (_, { messageId }, ctx) =>
+      ctx.services.linkPreviews.forMessage(requireViewer(ctx), messageId),
     channels: (_, __, ctx) => {
       requireViewer(ctx);
       return ctx.services.chats.listChannels();

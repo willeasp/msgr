@@ -8,6 +8,8 @@ import type {
   DirectPair,
 } from '../domain/chat.js';
 import type { Invite, InviteCode } from '../domain/invite.js';
+import type { LinkPreview } from '../domain/link-preview.js';
+import type { Url } from '../domain/link.js';
 import type { Message, MessageId, NewMessage } from '../domain/message.js';
 import type { Page } from '../domain/page.js';
 import type { Result } from '../domain/result.js';
@@ -123,6 +125,11 @@ export interface ChatEvents {
 
 export type Clock = () => Date;
 
+/** Reads a page for its card. Never throws: anything a site gets wrong is null. */
+export interface LinkPreviewer {
+  preview(url: Url): Promise<LinkPreview | null>;
+}
+
 /** A fresh, unguessable invite code. */
 export type InviteCodes = () => InviteCode;
 
@@ -142,4 +149,5 @@ export interface Dependencies {
   readonly clock: Clock;
   readonly inviteCodes: InviteCodes;
   readonly throttle: Throttle;
+  readonly linkPreviewer: LinkPreviewer;
 }

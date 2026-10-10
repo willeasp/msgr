@@ -2,8 +2,10 @@ import type {
   Clock,
   Dependencies,
   InviteCodes,
+  LinkPreviewer,
   PasswordHasher,
 } from '../application/ports.js';
+import type { LinkPreview } from '../domain/link-preview.js';
 import { createScope } from '../application/scope.js';
 import type { InviteCode } from '../domain/invite.js';
 import type { Result } from '../domain/result.js';
@@ -23,6 +25,13 @@ export const fakePasswordHasher: PasswordHasher = {
   hash: async (password) => fakeHash(password),
   verify: async (password, hash) => hash === fakeHash(password),
 };
+
+/** Previews only these pages, without fetching anything; null for any other. */
+export const fakeLinkPreviewer = (
+  previews: readonly LinkPreview[] = []
+): LinkPreviewer => ({
+  preview: async (url) => previews.find((known) => known.url === url) ?? null,
+});
 
 /** Valid, predictable invite codes: `invite0000000000000001`, then `…02`. */
 export function sequentialInviteCodes(): InviteCodes {
@@ -78,6 +87,7 @@ export function createTestApp(overrides: Partial<Dependencies> = {}) {
     clock,
     inviteCodes: sequentialInviteCodes(),
     throttle: createMemoryThrottle({ limit: 10, windowMs: 60_000, clock }),
+    linkPreviewer: fakeLinkPreviewer(),
     ...overrides,
   };
   return {

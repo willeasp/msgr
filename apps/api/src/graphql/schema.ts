@@ -89,6 +89,17 @@ export const typeDefs = /* GraphQL */ `
     createdAt: DateTime!
   }
 
+  "A card for a link: what the page says about itself, as our server read it."
+  type LinkPreview {
+    url: String!
+    "The site's name, e.g. Wikipedia."
+    site: String!
+    title: String!
+    description: String
+    "The page's picture as a 64×64 black-and-white thumbnail: rows top to bottom, 8 pixels a byte with the leftmost in the high bit, 1 for ink, in base64. Null without one."
+    thumbnail: String
+  }
+
   input SendMessageInput {
     chatId: ID!
     content: String!
@@ -112,6 +123,8 @@ export const typeDefs = /* GraphQL */ `
     messages(chatId: ID!, limit: Int, offset: Int): [Message!]!
     "Every channel, by name, joined or not."
     channels: [ChannelListing!]!
+    "A card for the first link in a message the viewer can see, or null."
+    linkPreview(messageId: ID!): LinkPreview
     "Whether an invite can still sign someone up. Used, expired and made-up codes all say false. Needs no sign-in."
     inviteRedeemable(code: String!): Boolean!
   }

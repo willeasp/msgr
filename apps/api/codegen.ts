@@ -15,6 +15,7 @@ const config: CodegenConfig = {
           Chat: '../../domain/chat.js#Chat',
           ChatAdded: '../../domain/chat.js#ChatAdded',
           Invite: '../../domain/invite.js#Invite',
+          LinkPreview: '../../domain/link-preview.js#LinkPreview',
           Message: '../../domain/message.js#Message',
           SignUpPayload: '../../application/auth.service.js#Welcome',
           User: '../../domain/user.js#User',

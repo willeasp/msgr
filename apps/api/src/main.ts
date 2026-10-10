@@ -42,6 +42,8 @@ const server = await startServer(
       windowMs: 15 * 60 * 1000,
       clock,
     }),
+    // Wired to the guarded fetcher in the next commit.
+    linkPreviewer: { preview: async () => null },
   },
   config.value
 );

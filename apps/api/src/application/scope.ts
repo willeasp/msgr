@@ -1,6 +1,10 @@
 import { createAuthService, type AuthService } from './auth.service.js';
 import { createChatService, type ChatService } from './chat.service.js';
 import { createInviteService, type InviteService } from './invite.service.js';
+import {
+  createLinkPreviewService,
+  type LinkPreviewService,
+} from './link-preview.service.js';
 import { createLoaders, type LoaderOptions, type Loaders } from './loaders.js';
 import {
   createMessageService,
@@ -15,6 +19,7 @@ export interface Services {
   readonly chats: ChatService;
   readonly messages: MessageService;
   readonly invites: InviteService;
+  readonly linkPreviews: LinkPreviewService;
 }
 
 /** One operation's worth of application: services and loaders sharing one cache. */
@@ -33,6 +38,7 @@ export function createScope(deps: Dependencies, options: LoaderOptions): Scope {
       chats: createChatService(deps, loaders),
       messages: createMessageService(deps, loaders),
       invites: createInviteService(deps),
+      linkPreviews: createLinkPreviewService(deps, loaders),
     },
   };
 }
