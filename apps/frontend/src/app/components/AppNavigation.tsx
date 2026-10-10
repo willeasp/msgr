@@ -73,8 +73,12 @@ export function AppNavigation({
                 : []),
               {
                 label: 'Log Out',
-                // While still signed in, so the server lets go of this browser too.
-                onClick: () => void forgetBrowser().then(() => logout()),
+                // While still signed in, so the server lets go of this browser
+                // too; a failure there never keeps anyone signed in.
+                onClick: () =>
+                  void forgetBrowser()
+                    .catch(() => undefined)
+                    .then(() => logout()),
               },
             ]}
           />

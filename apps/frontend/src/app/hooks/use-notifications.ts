@@ -37,8 +37,9 @@ export const dismissOffer = () => localStorage.setItem(DISMISSED, 'true');
 /** This browser's push subscription, if it has one. */
 async function browserSubscription(): Promise<PushSubscription | null> {
   if (setup !== 'push') return null;
-  const registration = await navigator.serviceWorker.ready;
-  return registration.pushManager.getSubscription();
+  // Not `ready`, which never settles where the service worker couldn't install.
+  const registration = await navigator.serviceWorker.getRegistration();
+  return (await registration?.pushManager.getSubscription()) ?? null;
 }
 
 function asInput(subscription: PushSubscription) {
@@ -91,6 +92,8 @@ export function useNotifications() {
       return 'blocked';
     }
     try {
+      // Without a service worker, `ready` would never settle.
+      if (!(await navigator.serviceWorker.getRegistration())) return 'failed';
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,

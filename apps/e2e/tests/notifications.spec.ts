@@ -63,3 +63,21 @@ test('on an iPhone in Safari, the offer says how to install Msgr first', async (
   await chooseMenu(page, 'Special', 'Notifications…');
   await expect(offer).toContainText('add Msgr to your Home Screen');
 });
+
+test('Log Out works where the service worker cannot install', async ({
+  browser,
+}) => {
+  const context = await browser.newContext();
+  // Firefox's private windows, for one, refuse service workers.
+  await context.addInitScript(() => {
+    ServiceWorkerContainer.prototype.register = () =>
+      Promise.reject(new Error('Service workers are off'));
+  });
+  const page = await context.newPage();
+  await page.goto('/');
+  await signIn(page, 'bob@example.com');
+
+  await chooseMenu(page, 'File', 'Log Out');
+
+  await expect(page).toHaveURL(/\/login$/);
+});
