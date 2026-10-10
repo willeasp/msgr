@@ -14,6 +14,7 @@ import { DialogButtons, MacDialog } from '../MacDialog';
 import { Muted } from '../Muted';
 import { GET_CHATS } from './ChatSidebar';
 import styles from './NewChatModal.module.css';
+import { PixelText } from '../PixelText';
 
 export const SEARCH_USERS = gql(`
   query SearchUsers($query: String!) {
@@ -92,7 +93,9 @@ export function NewChatModal() {
                 }
               >
                 <RowSpaceBetween style={{ width: '100%', gap: '2ch' }}>
-                  <span className={styles.name}>{user.name}</span>
+                  <span className={styles.name}>
+                    <PixelText text={user.name} />
+                  </span>
                   <Muted>{user.email}</Muted>
                 </RowSpaceBetween>
               </ActionListItem>

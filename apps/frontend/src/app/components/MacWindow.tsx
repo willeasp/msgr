@@ -1,5 +1,6 @@
 import Window from '../../sacred/components/Window';
 import styles from './MacWindow.module.css';
+import { PixelText } from './PixelText';
 
 interface MacWindowProps {
   title: string;
@@ -35,7 +36,9 @@ export function MacWindow({
             aria-label={`Close ${title}`}
           />
         )}
-        <h2 className={styles.title}>{title}</h2>
+        <h2 className={styles.title}>
+          <PixelText text={title} />
+        </h2>
       </header>
       {info && <div className={styles.info}>{info}</div>}
       <div className={styles.body}>{children}</div>

@@ -8,6 +8,7 @@ import { MessageInput } from './MessageInput';
 import { MessageList } from './MessageList';
 import { PaintDialog } from './PaintDialog';
 import styles from './ChatWindow.module.css';
+import { PixelText } from '../PixelText';
 
 export const GET_CHAT_DATA = gql(`
   query GetChatData($chatId: ID!) {
@@ -65,7 +66,9 @@ export function ChatWindow({
               {count} {count === 1 ? one : many}
             </span>
             <span className={styles.names}>
-              {chat.participants.map(({ name }) => name).join(', ')}
+              <PixelText
+                text={chat.participants.map(({ name }) => name).join(', ')}
+              />
             </span>
             {onAddPeople && (
               <ActionButton onClick={onAddPeople}>Add People…</ActionButton>

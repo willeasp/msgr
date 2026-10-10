@@ -14,6 +14,7 @@ import { Muted } from '../Muted';
 import { GET_CHAT_DATA } from './ChatWindow';
 import { SEARCH_USERS } from './NewChatModal';
 import styles from './NewChatModal.module.css';
+import { PixelText } from '../PixelText';
 
 const ADD_TO_CHANNEL = gql(`
   mutation AddToChannel($chatId: ID!, $userIds: [ID!]!) {
@@ -86,7 +87,9 @@ export function AddPeopleDialog({ chatId }: { chatId: string }) {
                   }}
                 >
                   <RowSpaceBetween style={{ width: '100%', gap: '2ch' }}>
-                    <span className={styles.name}>{user.name}</span>
+                    <span className={styles.name}>
+                      <PixelText text={user.name} />
+                    </span>
                     <Muted>{inChannel ? 'In the channel' : user.email}</Muted>
                   </RowSpaceBetween>
                 </ActionListItem>

@@ -4,6 +4,7 @@ import { ME } from '../auth/protected-route';
 import { useSessionChange } from '../auth/use-session-change';
 import { Menu, MenuBar } from './MenuBar';
 import { ThemeMenu } from './ThemeMenu';
+import { PixelText } from './PixelText';
 
 const LOGOUT_MUTATION = gql(`
   mutation Logout {
@@ -93,7 +94,7 @@ export function AppNavigation({
           />
         </>
       }
-      status={data?.me?.name}
+      status={data?.me && <PixelText text={data.me.name} />}
     />
   );
 }

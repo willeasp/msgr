@@ -2,6 +2,7 @@ import CardDouble from '../../sacred/components/CardDouble';
 import { PixelIcon } from './PixelIcon';
 import type { Bitmap } from '../../lib/pixels';
 import styles from './MacDialog.module.css';
+import { PixelText } from './PixelText';
 
 interface MacDialogProps {
   title: string;
@@ -26,7 +27,7 @@ export function MacDialog({
       aria-modal={modal || undefined}
       aria-label={title}
     >
-      <CardDouble title={title}>{children}</CardDouble>
+      <CardDouble title={<PixelText text={title} />}>{children}</CardDouble>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import RowEllipsis from '../../../sacred/components/RowEllipsis';
 import RowSpaceBetween from '../../../sacred/components/RowSpaceBetween';
 import { Muted } from '../Muted';
 import styles from './ChatListItem.module.css';
+import { PixelText } from '../PixelText';
 
 interface ChatListItemProps {
   chat: {
@@ -34,7 +35,9 @@ export function ChatListItem({ chat, isSelected }: ChatListItemProps) {
         <Indent>
           <RowSpaceBetween>
             <RowEllipsis>
-              <span className={styles.title}>{chat.title}</span>
+              <span className={styles.title}>
+                <PixelText text={chat.title} />
+              </span>
             </RowEllipsis>
             {latestMessage && (
               <time className={styles.time} dateTime={latestMessage.createdAt}>
@@ -44,9 +47,13 @@ export function ChatListItem({ chat, isSelected }: ChatListItemProps) {
           </RowSpaceBetween>
           <RowEllipsis>
             <Muted>
-              {latestMessage
-                ? latestMessage.content ?? 'Drawing'
-                : 'No messages yet'}
+              <PixelText
+                text={
+                  latestMessage
+                    ? latestMessage.content ?? 'Drawing'
+                    : 'No messages yet'
+                }
+              />
             </Muted>
           </RowEllipsis>
         </Indent>

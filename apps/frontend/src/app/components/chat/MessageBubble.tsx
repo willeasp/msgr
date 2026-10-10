@@ -4,6 +4,8 @@ import Message from '../../../sacred/components/Message';
 import MessageViewer from '../../../sacred/components/MessageViewer';
 import { DrawingPicture } from './DrawingPicture';
 import styles from './MessageBubble.module.css';
+import { isOnlyEmoji } from '../../../lib/emoji';
+import { PixelText } from '../PixelText';
 
 interface MessageBubbleProps {
   message: {
@@ -32,13 +34,14 @@ export function MessageBubble({
 }: MessageBubbleProps) {
   const Bubble = isCurrentUser ? MessageViewer : Message;
   const { drawing } = message;
+  const content = message.content ?? '';
 
   return (
     <>
       {showMeta && (
         <div className={isCurrentUser ? styles.metaOwn : styles.meta}>
           <span className={styles.sender}>
-            {isCurrentUser ? 'You' : message.sender.name}
+            {isCurrentUser ? 'You' : <PixelText text={message.sender.name} />}
           </span>
           <time className={styles.time} dateTime={message.createdAt}>
             {formatTime(message.createdAt)}
@@ -53,7 +56,7 @@ export function MessageBubble({
             className={styles.content}
             title={new Date(message.createdAt).toLocaleString()}
           >
-            {message.content}
+            <PixelText text={content} size={isOnlyEmoji(content) ? 32 : 16} />
           </span>
         )}
       </Bubble>
