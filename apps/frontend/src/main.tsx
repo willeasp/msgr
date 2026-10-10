@@ -14,8 +14,10 @@ import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { createClient } from 'graphql-ws';
 import { ModalProvider } from './sacred/components/page/ModalContext';
 import { applyTheme, loadTheme } from './lib/theme';
+import { registerServiceWorker } from './app/hooks/use-service-worker';
 
 applyTheme(loadTheme());
+registerServiceWorker();
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement

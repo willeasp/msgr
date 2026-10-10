@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   chatAddedNotice,
   notificationTitle,
@@ -24,15 +23,18 @@ export interface ArrivedMessage {
   chat: { id: string; kind: ChatKind; title: string };
 }
 
-/** Whether this browser can show desktop notifications at all. */
-export const notificationsSupported = 'Notification' in window;
+/**
+ * Whether this browser can show notifications: through the service worker,
+ * since Android has no `new Notification`.
+ */
+export const notificationsSupported =
+  'Notification' in window && 'serviceWorker' in navigator;
 
 /**
  * Gets the viewer's attention for messages they aren't looking at: a beep, a
  * desktop notification that opens the chat, and an unread count in the tab.
  */
 export function useAlerts(viewerId: string | undefined, openChatId?: string) {
-  const navigate = useNavigate();
   const [prefs, setPrefs] = useState(() =>
     parseAlertPreferences(localStorage.getItem(STORAGE_KEY))
   );
@@ -74,15 +76,17 @@ export function useAlerts(viewerId: string | undefined, openChatId?: string) {
         notificationsSupported &&
         Notification.permission === 'granted'
       ) {
-        const notification = new Notification(title, { body, tag: chatId });
-        notification.onclick = () => {
-          window.focus();
-          navigate(`/${chatId}`);
-          notification.close();
-        };
+        // The service worker opens the chat when it's clicked.
+        void navigator.serviceWorker.ready.then((registration) =>
+          registration.showNotification(title, {
+            body,
+            tag: chatId,
+            data: { chatId },
+          })
+        );
       }
     },
-    [prefs, navigate]
+    [prefs]
   );
 
   const alert = useCallback(

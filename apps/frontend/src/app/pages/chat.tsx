@@ -18,6 +18,7 @@ import { NotificationsBlockedDialog } from '../components/NotificationsBlockedDi
 import { notificationsSupported, useAlerts } from '../hooks/use-alerts';
 import { useChatFeed } from '../hooks/use-chat-feed';
 import { useMediaQuery } from '../hooks/use-media-query';
+import { useOpenChatFromNotifications } from '../hooks/use-service-worker';
 import styles from './chat.module.css';
 
 // Below this the Chats window and the open chat take turns on the desktop.
@@ -37,6 +38,7 @@ export function Chat() {
   const { open } = useModals();
   const isNarrow = useMediaQuery(NARROW);
   const alerts = useAlerts(meData?.me?.id, chatId);
+  useOpenChatFromNotifications();
   useChatFeed({
     onMessage: alerts.alert,
     onChatAdded: alerts.alertChatAdded,
