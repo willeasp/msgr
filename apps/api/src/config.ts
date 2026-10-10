@@ -91,7 +91,15 @@ export function parseConfig(
     staticDir: env['STATIC_DIR'] || null,
     push:
       publicKey && privateKey
-        ? { publicKey, privateKey, subject: corsOrigin }
+        ? {
+            publicKey,
+            privateKey,
+            // How push services reach whoever runs this: an https address or
+            // a mailto:. They refuse http ones, like development's.
+            subject: corsOrigin.startsWith('https://')
+              ? corsOrigin
+              : 'mailto:msgr@localhost',
+          }
         : null,
   });
 }

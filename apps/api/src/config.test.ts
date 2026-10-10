@@ -63,11 +63,11 @@ describe('parseConfig', () => {
     });
   });
 
-  it('pushes with the development keys locally, signed as the app’s address', () => {
+  it('pushes with the development keys locally, signed with a mailto: since push services refuse http addresses', () => {
     const config = parseConfig({});
     expect(config.ok && config.value.push).toMatchObject({
       publicKey: expect.stringMatching(/^B[A-Za-z0-9_-]{86}$/),
-      subject: 'http://localhost:4200',
+      subject: 'mailto:msgr@localhost',
     });
   });
 
