@@ -80,7 +80,12 @@ export async function startServer(
           cache: false,
         }),
     },
-    new WebSocketServer({ server: httpServer, path: PATH })
+    // Sockets carry subscriptions, a few hundred bytes; messages go over HTTP.
+    new WebSocketServer({
+      server: httpServer,
+      path: PATH,
+      maxPayload: 64 * 1024,
+    })
   );
 
   const apollo = new ApolloServer<Context>({

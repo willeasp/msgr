@@ -1,6 +1,7 @@
 import type { MessageRepository } from '../../application/ports.js';
 import { ChatId } from '../../domain/chat.js';
 import {
+  MessageBody,
   MessageId,
   type Message,
   type MessageContent,
@@ -82,11 +83,14 @@ function toMessage(row: MessageRow): Message {
     senderId: UserId(row.senderId),
     createdAt: row.createdAt,
   };
-  const content = row.content as MessageContent | null;
-  const picture = pictureOf(row);
-  if (content !== null) return { ...sent, content, picture };
-  if (picture !== null) return { ...sent, content, picture };
-  throw new Error(`Message ${row.id} has neither text nor a picture`);
+  const body = MessageBody.of(
+    row.content as MessageContent | null,
+    pictureOf(row)
+  );
+  if (!body.ok) {
+    throw new Error(`Message ${row.id} has neither text nor a picture`);
+  }
+  return { ...sent, ...body.value };
 }
 
 /** Checked when it was sent, and held to its size by a CHECK since. */

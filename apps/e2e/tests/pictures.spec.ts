@@ -1,10 +1,10 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { anotherPerson, chatWindow, chatsWindow, signIn } from './support';
 
-// A 400×200 photo, black on the left and white on the right, drawn in the
-// browser so the test needs no files: its bytes, and those of a broken PNG.
-const photo = (page: Page) =>
-  page.evaluate(async () => {
+// A 400×200 photo, `left` on the left and white on the right, drawn in the
+// browser so the test needs no files.
+const photo = (page: Page, left = '#000') =>
+  page.evaluate(async (left) => {
     const canvas = document.createElement('canvas');
     canvas.width = 400;
     canvas.height = 200;
@@ -12,14 +12,14 @@ const photo = (page: Page) =>
     if (!context) throw new Error('No canvas');
     context.fillStyle = '#fff';
     context.fillRect(0, 0, 400, 200);
-    context.fillStyle = '#000';
+    context.fillStyle = left;
     context.fillRect(0, 0, 200, 200);
     const blob = await new Promise<Blob | null>((done) =>
       canvas.toBlob(done, 'image/png')
     );
     if (!blob) throw new Error('No PNG');
     return [...new Uint8Array(await blob.arrayBuffer())];
-  });
+  }, left);
 
 /** Hands `target` a pasted or dropped file, as the browser would. */
 const give = (
@@ -122,4 +122,57 @@ test('pasting or dropping a photo attaches it; a broken one is refused', async (
     'That file isn’t a picture this browser can open.'
   );
   await expect(preview).toHaveCount(0);
+
+  // White on white would arrive blank, which no message may be.
+  await give(field, 'paste', await photo(page, '#fff'));
+  await expect(chat.getByRole('alert')).toHaveText(
+    'That picture comes out blank: nothing in it is dark.'
+  );
+
+  // Attaching a drawing instead clears the complaint.
+  await chat.getByRole('button', { name: 'Draw…' }).click();
+  await page.getByRole('img', { name: 'Canvas' }).click();
+  await page.getByRole('button', { name: 'Attach' }).click();
+  await expect(preview).toBeVisible();
+  await expect(chat.getByRole('alert')).toHaveCount(0);
+});
+
+test('a picture is sent once however fast Enter is pressed, and kept if sending fails', async ({
+  browser,
+}) => {
+  const page = await anotherPerson(browser);
+  await page.goto('/login');
+  await signIn(page, 'charlie@example.com');
+  await chatsWindow(page).getByText('Test User', { exact: true }).click();
+  const chat = chatWindow(page, 'Test User');
+  const field = chat.getByRole('textbox', { name: 'Message' });
+  const preview = chat.getByRole('button', { name: 'Edit picture' });
+  const pictures = chat.getByRole('img', { name: 'Picture' });
+  const before = await pictures.count();
+
+  // The server refuses once: the alert says so, and nothing is lost.
+  await page.route('**/graphql', (route) =>
+    route.request().postDataJSON()?.operationName === 'SendMessage'
+      ? route.fulfill({
+          json: { errors: [{ message: 'The server is having a moment.' }] },
+        })
+      : route.fallback()
+  );
+  await give(field, 'paste', await photo(page));
+  await field.fill('once');
+  await field.press('Enter');
+  await expect(chat.getByRole('alert')).toHaveText(
+    'The server is having a moment.'
+  );
+  await expect(preview).toBeVisible();
+  await expect(field).toHaveValue('once');
+  await page.unroute('**/graphql');
+
+  await field.press('Enter');
+  await field.press('Enter');
+  await expect(preview).toHaveCount(0);
+  await expect(pictures).toHaveCount(before + 1);
+  await page.waitForTimeout(500);
+  await expect(pictures).toHaveCount(before + 1);
+  await expect(chat.getByRole('alert')).toHaveCount(0);
 });

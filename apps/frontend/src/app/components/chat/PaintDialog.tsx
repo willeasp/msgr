@@ -13,11 +13,10 @@ import type { Bitmap } from '../../../lib/pixels';
 import Button from '../../../sacred/components/Button';
 import { useModals } from '../../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../../sacred/modules/hotkeys';
-import { useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
+import { pixelSize, useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
 import { BRUSH, BUCKET, ERASER, PENCIL } from '../icons';
 import { DialogButtons, MacDialog } from '../MacDialog';
 import { PixelIcon } from '../PixelIcon';
-import { pixelSize } from './MessagePicture';
 import styles from './PaintDialog.module.css';
 
 type Tool = Brush | 'bucket';

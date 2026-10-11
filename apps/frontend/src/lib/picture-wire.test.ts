@@ -1,7 +1,7 @@
 import { blank, getPixel, setPixel, toBase64 } from '@msgr/bitmap';
 import { deflateRawSync, inflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { fromWire, toWire } from './picture-wire';
+import { fromWire, pictureBits, toWire } from './picture-wire';
 
 const picture = () => {
   const bits = blank(13, 7);
@@ -34,5 +34,15 @@ describe('pictures on the wire', () => {
     expect(
       await fromWire({ ...wire, bits: toBase64(Uint8Array.of(9)) })
     ).toBeNull();
+  });
+
+  it('inflates each picture once, telling apart equal bytes of different shapes', async () => {
+    const bits = toBase64(deflateRawSync(new Uint8Array(20).fill(0xff)));
+    const wide = { width: 16, height: 10, bits };
+    const tall = { width: 8, height: 20, bits };
+
+    expect(await pictureBits(wide)).toMatchObject({ width: 16, height: 10 });
+    expect(await pictureBits(tall)).toMatchObject({ width: 8, height: 20 });
+    expect(await pictureBits(wide)).toBe(await pictureBits({ ...wide }));
   });
 });

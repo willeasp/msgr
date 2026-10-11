@@ -1,7 +1,11 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, type CSSProperties } from 'react';
 import type { Bits } from '@msgr/bitmap';
 import { inkRuns } from '../../lib/paint';
 import { THEME_CHANGED } from '../../lib/theme';
+
+/** A canvas's size for CSS, which scales its pixels (2× in chats, 1× on phones). */
+export const pixelSize = ({ width, height }: Pick<Bits, 'width' | 'height'>) =>
+  ({ '--width': width, '--height': height } as CSSProperties);
 
 /**
  * Paints `bits` on the returned canvas in the canvas's own CSS `color` on its

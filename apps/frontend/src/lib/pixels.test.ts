@@ -50,10 +50,13 @@ describe('identicon', () => {
 
 describe('bitmapOf', () => {
   it('turns packed bits, leftmost in the high bit, into rows', () => {
-    expect(bitmapOf(new Uint8Array([0b1000_0001, 0xff]), 8)).toEqual([
-      '#......#',
-      '########',
-    ]);
+    expect(
+      bitmapOf({ width: 8, height: 2, bytes: Uint8Array.of(0b1000_0001, 0xff) })
+    ).toEqual(['#......#', '########']);
+    // Rows padded to whole bytes: 9 pixels take 2.
+    expect(
+      bitmapOf({ width: 9, height: 2, bytes: Uint8Array.of(0, 0x80, 0x80, 0) })
+    ).toEqual(['........#', '#........']);
   });
 });
 

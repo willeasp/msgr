@@ -43,7 +43,9 @@ picture's stated size (1 to 320 a side) only as a claim: it refuses a payload
 longer than any honest picture of that size before decoding it, inflates it with
 a hard cap at exactly the size's bytes, so a small DEFLATE bomb never expands in
 memory, refuses a blank one, and stores its own compression, never the sender's
-bytes. Browsers inflate under the same cap.
+bytes. Browsers inflate under the same cap. WebSocket messages, which only
+ever carry subscriptions, are capped at 64 KB; messages go over HTTP, where
+bodies are capped at 100 KB.
 
 **Link previews.** Our server, not the reader's browser, fetches a page to
 preview a link, so linked sites never see readers' addresses. Because anyone can

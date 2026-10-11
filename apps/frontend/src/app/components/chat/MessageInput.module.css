@@ -9,7 +9,7 @@
   border-top: 1px solid var(--ink);
 }
 
-.label {
+.hidden {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -35,7 +35,7 @@
   }
 }
 
-/* A /command that didn't work, on its own line above the field. */
+/* A /command, photo or send that didn't work, on its own line above the field. */
 .error {
   flex-basis: 100%;
   padding: 0 1ch;

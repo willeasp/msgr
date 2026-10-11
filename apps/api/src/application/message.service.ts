@@ -5,7 +5,7 @@ import {
   MessageContent,
   type Message,
 } from '../domain/message.js';
-import { Picture } from '../domain/picture.js';
+import { Picture, type RawPicture } from '../domain/picture.js';
 import { Page } from '../domain/page.js';
 import { ok, type Result } from '../domain/result.js';
 import type { User } from '../domain/user.js';
@@ -67,7 +67,7 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
       input: {
         readonly chatId: string;
         readonly content?: string | null;
-        readonly picture?: Parameters<typeof Picture.parse>[0] | null;
+        readonly picture?: RawPicture | null;
       }
     ): Promise<Result<Message, InvalidInput | NotFound>> {
       const content =

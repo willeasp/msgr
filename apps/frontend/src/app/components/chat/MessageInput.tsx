@@ -7,10 +7,9 @@ import { gql } from '../../../lib/__generated__';
 import { toWire } from '../../../lib/picture-wire';
 import Button from '../../../sacred/components/Button';
 import TextArea from '../../../sacred/components/TextArea';
-import { GET_CHAT_MESSAGES } from './MessageList';
-import { useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
+import { pixelSize, useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
 import { useMediaQuery } from '../../hooks/use-media-query';
-import { pixelSize } from './MessagePicture';
+import { GET_CHAT_MESSAGES } from './MessageList';
 import { firstImage } from './picture-from-file';
 import { useJoinChannel } from './use-join-channel';
 import styles from './MessageInput.module.css';
@@ -42,16 +41,16 @@ const SEND_MESSAGE = gql(`
 
 interface MessageInputProps {
   chatId: string;
-  /** Opens the paint window. */
-  onDraw: () => void;
   /** The picture going with the message, if any; sent with or without text. */
   attachment: Bits | null;
-  onAttachmentChange: (attachment: Bits | null) => void;
-  /** Opens the attachment in the paint window. */
-  onEditAttachment: () => void;
-  /** Attaches a photo picked, pasted or dropped; `attachError` if it can't. */
-  onAttachFile: (file: File) => void;
+  /** Why the last photo couldn't be attached. */
   attachError: string | null;
+  /** Opens the paint window, on a blank canvas or on `start`. */
+  onDraw: (start?: Bits) => void;
+  /** Attaches a photo picked, pasted or dropped. */
+  onAttachFile: (file: File) => void;
+  /** Takes off this attachment, once sent or removed. */
+  onDetach: (picture: Bits) => void;
 }
 
 /** The attached picture, small, above the field: click it to paint on it. */
@@ -77,12 +76,11 @@ function Attachment({ bits, onEdit }: { bits: Bits; onEdit: () => void }) {
 
 export function MessageInput({
   chatId,
-  onDraw,
   attachment,
-  onAttachmentChange,
-  onEditAttachment,
-  onAttachFile,
   attachError,
+  onDraw,
+  onAttachFile,
+  onDetach,
 }: MessageInputProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [messageInput, setMessageInput] = useState('');
@@ -93,43 +91,40 @@ export function MessageInput({
   // On a phone, opening a chat is for reading; the keyboard waits for a tap.
   const hasMouse = useMediaQuery('(pointer: fine)');
 
-  // The attachment as sent, and as it is now: a newer one isn't cleared.
-  const sentPicture = useRef<Bits | null>(null);
-  const attached = useRef(attachment);
-  attached.current = attachment;
+  // Compressing the picture, before the mutation's own loading begins.
+  const [preparing, setPreparing] = useState(false);
 
-  const [sendMessage, { loading: sendingMessage }] = useMutation(SEND_MESSAGE, {
-    // Keeps anything typed, or attached, while it was sending.
-    onCompleted: (_, options) => {
-      const sent = options?.variables?.content;
-      if (sent) setMessageInput((now) => (now.trim() === sent ? '' : now));
-      if (sentPicture.current && sentPicture.current === attached.current) {
-        onAttachmentChange(null);
-      }
-      sentPicture.current = null;
-    },
-    update: (cache, { data }) => {
-      if (!data?.sendMessage) return;
+  const [sendMessage, { loading, error: sendError }] = useMutation(
+    SEND_MESSAGE,
+    {
+      // Keeps anything typed while it was sending.
+      onCompleted: (_, options) => {
+        const sent = options?.variables?.content;
+        if (sent) setMessageInput((now) => (now.trim() === sent ? '' : now));
+      },
+      update: (cache, { data }) => {
+        if (!data?.sendMessage) return;
 
-      // Update cache with the new message
-      cache.updateQuery(
-        {
-          query: GET_CHAT_MESSAGES,
-          variables: { chatId },
-        },
-        (existing) =>
-          existing && {
-            // The feed may have delivered it already.
-            messages: [...withMessage(existing.messages, data.sendMessage)],
-          }
-      );
-    },
-  });
+        // Update cache with the new message
+        cache.updateQuery(
+          {
+            query: GET_CHAT_MESSAGES,
+            variables: { chatId },
+          },
+          (existing) =>
+            existing && {
+              // The feed may have delivered it already.
+              messages: [...withMessage(existing.messages, data.sendMessage)],
+            }
+        );
+      },
+    }
+  );
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const content = messageInput.trim();
-    if ((!content && !attachment) || sendingMessage) return;
+    if ((!content && !attachment) || preparing || loading) return;
 
     // "/join #general" joins a channel instead of being sent.
     const command = attachment ? null : parseCommand(messageInput);
@@ -140,14 +135,22 @@ export function MessageInput({
       return;
     }
 
-    sentPicture.current = attachment;
-    await sendMessage({
-      variables: {
-        chatId,
-        content: content || null,
-        picture: attachment ? await toWire(attachment) : null,
-      },
-    });
+    const sent = attachment;
+    setPreparing(true);
+    try {
+      const { data } = await sendMessage({
+        variables: {
+          chatId,
+          content: content || null,
+          picture: sent ? await toWire(sent) : null,
+        },
+      });
+      if (sent && data) onDetach(sent);
+    } catch {
+      // Shown from `sendError`; the message and its picture stay to retry.
+    } finally {
+      setPreparing(false);
+    }
   };
 
   // Enter sends; Shift+Enter (or an IME composition) adds a line.
@@ -170,26 +173,24 @@ export function MessageInput({
         onAttachFile(file);
       }}
     >
-      <label htmlFor={inputId} className={styles.label}>
+      <label htmlFor={inputId} className={styles.hidden}>
         Message
       </label>
       {attachment && (
         <div className={styles.attached}>
-          <Attachment bits={attachment} onEdit={onEditAttachment} />
-          <Button theme="SECONDARY" onClick={() => onAttachmentChange(null)}>
+          <Attachment bits={attachment} onEdit={() => onDraw(attachment)} />
+          <Button theme="SECONDARY" onClick={() => onDetach(attachment)}>
             Remove
           </Button>
         </div>
       )}
-      {attachError && (
-        <p role="alert" className={styles.error}>
-          {attachError}
-        </p>
-      )}
-      {commandError && (
-        <p role="alert" className={styles.error}>
-          {commandError}
-        </p>
+      {[attachError, commandError, sendError?.message].map(
+        (problem) =>
+          problem && (
+            <p key={problem} role="alert" className={styles.error}>
+              {problem}
+            </p>
+          )
       )}
       <div className={styles.field}>
         <TextArea
@@ -211,7 +212,7 @@ export function MessageInput({
         ref={fileRef}
         type="file"
         accept="image/*"
-        className={styles.label}
+        className={styles.hidden}
         tabIndex={-1}
         aria-hidden
         onChange={(e) => {
@@ -227,10 +228,10 @@ export function MessageInput({
       >
         Picture…
       </Button>
-      <Button theme="SECONDARY" type="button" onClick={onDraw}>
+      <Button theme="SECONDARY" type="button" onClick={() => onDraw()}>
         Draw…
       </Button>
-      {sendingMessage ? (
+      {preparing || loading ? (
         <Button isDisabled>Sending</Button>
       ) : (
         <Button type="submit">Send</Button>

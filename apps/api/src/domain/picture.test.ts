@@ -2,7 +2,7 @@ import { blank, setPixel, toBase64 } from '@msgr/bitmap';
 import { deflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { zlibPictureCodec } from '../infrastructure/zlib-picture-codec.js';
-import { Picture } from './picture.js';
+import { Picture, type RawPicture } from './picture.js';
 
 const inked = (width: number, height: number) => {
   const bits = blank(width, height);
@@ -14,7 +14,7 @@ const wire = (width: number, height: number, bytes: Uint8Array) => ({
   height,
   bits: toBase64(deflateRawSync(bytes)),
 });
-const errorFor = (raw: Parameters<typeof Picture.parse>[0]) => {
+const errorFor = (raw: RawPicture) => {
   const result = Picture.parse(raw, zlibPictureCodec);
   return result.ok ? null : result.error.reason;
 };
@@ -75,10 +75,24 @@ describe('Picture.parse', () => {
     ).toBe('Picture does not match its size');
   });
 
-  it('rejects a blank picture', () => {
+  it('rejects a blank picture, ink past its right edge included', () => {
     expect(errorFor(wire(8, 8, new Uint8Array(8)))).toBe(
       'Picture must not be blank'
     );
+    expect(errorFor(wire(1, 1, Uint8Array.of(0x01)))).toBe(
+      'Picture must not be blank'
+    );
+  });
+
+  it('keeps no ink past its right edge', () => {
+    const result = Picture.parse(
+      wire(9, 1, Uint8Array.of(0, 0xff)),
+      zlibPictureCodec
+    );
+    if (!result.ok) throw new Error(result.error.reason);
+    expect([
+      ...(zlibPictureCodec.inflate(result.value.deflated, 2) ?? []),
+    ]).toEqual([0, 0x80]);
   });
 
   it('names the picture as the field at fault', () => {

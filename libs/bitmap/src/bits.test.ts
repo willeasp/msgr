@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   blank,
+  clearPadding,
   byteLength,
   fitWithin,
   getPixel,
@@ -18,6 +19,19 @@ describe('bits', () => {
     expect([...bits.bytes]).toEqual([0x80, 0, 0, 0x08]);
     expect(getPixel(bits, 12, 1)).toBe(true);
     expect(getPixel(bits, 11, 1)).toBe(false);
+  });
+
+  it('clears the bits past the right edge, which no pixel owns', () => {
+    const bits = {
+      width: 9,
+      height: 2,
+      bytes: Uint8Array.of(0xff, 0xff, 0xff, 0xff),
+    };
+    clearPadding(bits);
+    expect([...bits.bytes]).toEqual([0xff, 0x80, 0xff, 0x80]);
+    const one = { width: 1, height: 1, bytes: Uint8Array.of(0x01) };
+    clearPadding(one);
+    expect(isBlank(one)).toBe(true);
   });
 
   it('ignores pixels off the canvas', () => {

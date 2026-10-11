@@ -1,3 +1,5 @@
+import { getPixel, type Bits } from '@msgr/bitmap';
+
 /**
  * 1-bit pixel art, drawn as SVG so it stays crisp at any size.
  * A bitmap is rows of characters: `#` is ink, anything else is clear.
@@ -64,17 +66,13 @@ export function identicon(seed: string): string {
   return `data:image/svg+xml,${encoded}`;
 }
 
-/** Packed bits, rows top to bottom and the leftmost pixel in a byte's high bit, as a Bitmap. */
-export function bitmapOf(bits: Uint8Array, width: number): Bitmap {
-  const rowBytes = width / 8;
-  return Array.from({ length: bits.length / rowBytes }, (_, y) =>
-    Array.from({ length: width }, (_, x) =>
-      ((bits[y * rowBytes + (x >> 3)] ?? 0) & (0x80 >> (x & 7))) !== 0
-        ? '#'
-        : '.'
+/** A packed picture as a Bitmap, row by row. */
+export const bitmapOf = (bits: Bits): Bitmap =>
+  Array.from({ length: bits.height }, (_, y) =>
+    Array.from({ length: bits.width }, (_, x) =>
+      getPixel(bits, x, y) ? '#' : '.'
     ).join('')
   );
-}
 
 /** A square bitmap as a CSS mask image: paint through it with currentColor. */
 export function svgMask(bitmap: Bitmap): string {

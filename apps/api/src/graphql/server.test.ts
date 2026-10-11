@@ -185,6 +185,22 @@ describe('server', () => {
     }
   });
 
+  it('closes a WebSocket that sends more than a subscription needs', async () => {
+    const socket = new WebSocket(
+      server.url.replace(/^http/, 'ws'),
+      'graphql-transport-ws',
+      { headers: { origin: APP_ORIGIN } }
+    );
+    await new Promise((resolve) => socket.once('open', resolve));
+    const closed = new Promise<number>((resolve) =>
+      socket.once('close', resolve)
+    );
+
+    socket.send('x'.repeat(256 * 1024));
+
+    expect(await closed).toBe(1009);
+  });
+
   it('serves the app, and its client-side routes, from the same address', async () => {
     const site = server.url.replace(/\/graphql$/, '');
     const get = async (path: string) => {

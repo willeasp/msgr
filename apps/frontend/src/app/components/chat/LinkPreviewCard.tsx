@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { useQuery } from '@apollo/client/react';
+import { fromBase64 } from '@msgr/bitmap';
 import { gql } from '../../../lib/__generated__';
 import { bitmapOf, svgMask } from '../../../lib/pixels';
 import { DOCUMENT } from '../icons';
@@ -44,12 +45,11 @@ export function LinkPreviewCard({ messageId }: { messageId: string }) {
           style={
             {
               '--thumbnail': svgMask(
-                bitmapOf(
-                  Uint8Array.from(atob(preview.thumbnail), (c) =>
-                    c.charCodeAt(0)
-                  ),
-                  THUMBNAIL_SIZE
-                )
+                bitmapOf({
+                  width: THUMBNAIL_SIZE,
+                  height: THUMBNAIL_SIZE,
+                  bytes: fromBase64(preview.thumbnail) ?? new Uint8Array(),
+                })
               ),
             } as CSSProperties
           }

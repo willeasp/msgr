@@ -15,7 +15,7 @@ export function toBase64(bytes: Uint8Array): string {
 }
 
 /** The bytes, or null unless `text` is canonical base64: one spelling per value. */
-export function fromBase64(text: string): Uint8Array | null {
+export function fromBase64(text: string): Uint8Array<ArrayBuffer> | null {
   let decoded: string;
   try {
     decoded = atob(text);

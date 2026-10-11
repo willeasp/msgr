@@ -48,15 +48,9 @@
   font-size: 12px;
 }
 
-/* At 2×, 1× on a phone; pixels stay square at either. */
+/* Drawn like a picture in the chat, at 2× (1× on a phone). */
 .canvas {
-  display: block;
-  width: calc(var(--width) * 2px);
-  height: calc(var(--height) * 2px);
-  color: var(--ink);
-  background: var(--paper);
-  box-shadow: 0 0 0 1px var(--ink);
-  image-rendering: pixelated;
+  composes: picture from './MessagePicture.module.css';
   cursor: crosshair;
   /* Dragging draws, rather than scrolling the page. */
   touch-action: none;
@@ -94,11 +88,6 @@
 
   .tools {
     grid-auto-flow: column;
-  }
-
-  .canvas {
-    width: calc(var(--width) * 1px);
-    height: calc(var(--height) * 1px);
   }
 
   .patterns {

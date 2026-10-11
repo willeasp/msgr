@@ -1,15 +1,14 @@
 import { useState } from 'react';
 import { useQuery } from '@apollo/client/react';
-import type { Bits } from '@msgr/bitmap';
-import type { WirePicture } from '../../../lib/picture-wire';
+import { isBlank, type Bits } from '@msgr/bitmap';
 import { gql } from '../../../lib/__generated__';
 import { ChatKind } from '../../../lib/__generated__/graphql';
+import { pictureBits, type WirePicture } from '../../../lib/picture-wire';
 import ActionButton from '../../../sacred/components/ActionButton';
 import { useModals } from '../../../sacred/components/page/ModalContext';
 import { MacWindow } from '../MacWindow';
 import { MessageInput } from './MessageInput';
 import { MessageList } from './MessageList';
-import { pictureBits } from './MessagePicture';
 import { PaintDialog } from './PaintDialog';
 import { firstImage, pictureFromFile } from './picture-from-file';
 import styles from './ChatWindow.module.css';
@@ -53,20 +52,32 @@ export function ChatWindow({
   const { open } = useModals();
   // The picture going with the next message: drawn, or picked from a file.
   const [attachment, setAttachment] = useState<Bits | null>(null);
+  const [attachError, setAttachError] = useState<string | null>(null);
+  const attach = (bits: Bits) => {
+    setAttachment(bits);
+    setAttachError(null);
+  };
+  // Only the picture that was sent or removed; one attached since stays.
+  const detach = (picture: Bits) => {
+    setAttachment((now) => (now === picture ? null : now));
+    setAttachError(null);
+  };
+  const attachFile = async (file: File) => {
+    const bits = await pictureFromFile(file);
+    if (!bits) {
+      setAttachError('That file isn’t a picture this browser can open.');
+    } else if (isBlank(bits)) {
+      setAttachError('That picture comes out blank: nothing in it is dark.');
+    } else {
+      attach(bits);
+    }
+  };
   // A blank canvas, the attachment, or a picture from the chat to draw on.
   const draw = (start?: Bits) =>
-    open(PaintDialog, { chatTitle: title, start, onAttach: setAttachment });
+    open(PaintDialog, { chatTitle: title, start, onAttach: attach });
   const drawOn = async (picture: WirePicture) => {
     const bits = await pictureBits(picture);
     if (bits) draw(bits);
-  };
-  const [attachError, setAttachError] = useState<string | null>(null);
-  const attachFile = async (file: File) => {
-    const bits = await pictureFromFile(file);
-    setAttachError(
-      bits ? null : 'That file isn’t a picture this browser can open.'
-    );
-    if (bits) setAttachment(bits);
   };
   const count = chat?.participants.length ?? 0;
   const [one, many] =
@@ -117,15 +128,11 @@ export function ChatWindow({
         />
         <MessageInput
           chatId={chatId}
-          onDraw={() => draw()}
           attachment={attachment}
           attachError={attachError}
+          onDraw={draw}
           onAttachFile={(file) => void attachFile(file)}
-          onAttachmentChange={(bits) => {
-            setAttachment(bits);
-            setAttachError(null);
-          }}
-          onEditAttachment={() => attachment && draw(attachment)}
+          onDetach={detach}
         />
       </div>
     </MacWindow>
