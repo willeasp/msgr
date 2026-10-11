@@ -1,5 +1,11 @@
-import { expect, test, type Browser } from '@playwright/test';
-import { chooseMenu, menuBar, signIn } from './support';
+import { devices, expect, test, type Browser } from '@playwright/test';
+import {
+  chatsWindow,
+  chatWindow,
+  chooseMenu,
+  menuBar,
+  signIn,
+} from './support';
 
 /** A browser that has never been offered notifications, nor asked for them. */
 async function newDevice(browser: Browser, init?: () => void) {
@@ -80,4 +86,27 @@ test('Log Out works where the service worker cannot install', async ({
   await chooseMenu(page, 'File', 'Log Out');
 
   await expect(page).toHaveURL(/\/login$/);
+});
+
+test('on a phone, going back from a chat a notification opened shows the chats', async ({
+  browser,
+}) => {
+  const phone = await browser.newContext({ ...devices['Pixel 7'] });
+  const page = await phone.newPage();
+  await page.goto('/');
+  await signIn(page, 'charlie@example.com');
+  await chatsWindow(page).getByText('#general').click();
+  const chat = page.url();
+
+  // A tapped notification opens a fresh window straight onto its chat.
+  const opened = await phone.newPage();
+  await opened.goto(chat);
+  await expect(chatWindow(opened, '#general')).toBeVisible();
+  // A phone doesn't raise the keyboard just for reading.
+  await expect(
+    opened.getByRole('textbox', { name: 'Message' })
+  ).not.toBeFocused();
+
+  await opened.goBack();
+  await expect(chatsWindow(opened)).toBeVisible();
 });

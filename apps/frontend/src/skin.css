@@ -334,9 +334,34 @@ a:focus {
 :root .srcl-TextArea__placeholder,
 :root .srcl-TextArea__focused .srcl-TextArea__placeholder {
   background: transparent;
-  color: var(--ink);
+  /* Faded by colour, not opacity, so the insertion point below stays solid. */
+  color: color-mix(in srgb, var(--ink) 45%, var(--paper));
   font-style: normal;
-  opacity: 0.45;
+}
+
+/* Sacred draws no insertion point in an empty field; draw it before the placeholder. */
+:root .srcl-Input__focused .srcl-Input__placeholder::before,
+:root .srcl-TextArea__focused .srcl-TextArea__placeholder::before {
+  content: '';
+  display: inline-block;
+  min-width: 1ch;
+  height: calc(var(--font-size) * var(--theme-line-height-base));
+  vertical-align: bottom;
+  background: var(--ink);
+  animation: insertion-point 1s step-start infinite;
+}
+
+@keyframes insertion-point {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root .srcl-Input__placeholder::before,
+  :root .srcl-TextArea__placeholder::before {
+    animation: none;
+  }
 }
 
 /* Speech bubbles: theirs outlined on the left, yours inverted on the right. */

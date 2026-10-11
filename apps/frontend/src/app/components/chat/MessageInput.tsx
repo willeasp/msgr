@@ -6,6 +6,7 @@ import { gql } from '../../../lib/__generated__';
 import Button from '../../../sacred/components/Button';
 import TextArea from '../../../sacred/components/TextArea';
 import { GET_CHAT_MESSAGES } from './MessageList';
+import { useMediaQuery } from '../../hooks/use-media-query';
 import { useJoinChannel } from './use-join-channel';
 import styles from './MessageInput.module.css';
 
@@ -36,10 +37,14 @@ export function MessageInput({ chatId, onDraw }: MessageInputProps) {
   const inputId = useId();
   const [commandError, setCommandError] = useState<string | null>(null);
   const { join } = useJoinChannel();
+  // On a phone, opening a chat is for reading; the keyboard waits for a tap.
+  const hasMouse = useMediaQuery('(pointer: fine)');
 
   const [sendMessage, { loading: sendingMessage }] = useMutation(SEND_MESSAGE, {
-    onCompleted: () => {
-      setMessageInput('');
+    // Keeps anything typed while it was sending.
+    onCompleted: (_, options) => {
+      const sent = options?.variables?.content;
+      setMessageInput((now) => (now === sent ? '' : now));
     },
     update: (cache, { data }) => {
       if (!data?.sendMessage) return;
@@ -108,10 +113,10 @@ export function MessageInput({ chatId, onDraw }: MessageInputProps) {
           }}
           onKeyDown={handleKeyDown}
           placeholder="Write a message"
-          readOnly={sendingMessage}
           rows={1}
+          enterKeyHint="send"
           isBlink
-          autoFocus
+          autoFocus={hasMouse}
         />
       </div>
       <Button theme="SECONDARY" type="button" onClick={onDraw}>
