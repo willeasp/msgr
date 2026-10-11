@@ -273,6 +273,71 @@ test('two people chatting, live', async ({ browser }) => {
   writeFileSync(saveAs('live.png'), movie);
 });
 
+// Bernard Gotfryd's photo of the Macintosh 128K, January 1984: public domain,
+// from the Library of Congress (gtfy.01855), via Wikimedia Commons.
+const MACINTOSH = fileURLToPath(
+  new URL('./macintosh-1984.jpg', import.meta.url)
+);
+// Its 64×64 thumbnail, dithered as the server would for a link to it.
+const MACINTOSH_THUMBNAIL =
+  '2223//////9szM/u3d3//qaza4ABEAE+szZpm3Zntn3dzZ0ySZiS3UzZti3u73095mZmj////L6zttm////+vjyZmy0kkSZ9ze1mLZJMml/TJ22c22bKvnbZmZ5B8Ga+nNzWLZX5Fl/nN3etklySf2nJmYzKHqqennrMvmKfpr/zpveNkLeWf029Myycf0pe3MvNrslpyz+zat2cmkmWf7c9My+WMzJe3NXtrHW2Sz9n1q2dnZvef7k7N5zmSCZf3uvZp/v//l9mzNsv///+f7m3Z55NSZCf3zbdkSEmTZ9l2tsltrJkf7zbM6ySmZaf223vkklMmb9nbZszbWZlP72294ySM3zf2ba3pJLf3l9m222mbJAzP/7bbxklLYmfm22znZNkzN/ttt+kmJJmX2222ZJkmzM/2223MxZkmZ/++22M003M/7e//ztts3Zv9+237b2////c2223ts//37d223tv8md/bbe7Tfm9vz97ve/9t22z397ttrb3en7fd3bd/93af/933/9JJIW//Y2zIkkmZZ//pCQittt+//czTb2227b2383b3dvt/8E7/b5233//mS627f///+5m+//////tuBLf///723/5kffbv27/22xNv97t/7b/uAHv53e3/7b5I3+93Ozb/92Z//u7397bd/f7zu92dvf+fts=';
+
+test('a photo and a link, in a chat', async ({ browser }) => {
+  // Taller than the desktop: a photo is drawn at 2×, up to 640 pixels.
+  const page = await screen(browser, {
+    email: 'diana@example.com',
+    viewport: { width: 1280, height: 1080 },
+  });
+  // Answers for the server, which fetches no real pages in a test.
+  await page.route('**/graphql', (route) =>
+    route.request().postDataJSON()?.operationName === 'LinkPreview'
+      ? route.fulfill({
+          json: {
+            data: {
+              linkPreview: {
+                __typename: 'LinkPreview',
+                url: 'https://en.wikipedia.org/wiki/Macintosh_128K',
+                site: 'Wikipedia',
+                title: 'Macintosh 128K',
+                description:
+                  'The original Apple Macintosh personal computer, released in January 1984.',
+                thumbnail: MACINTOSH_THUMBNAIL,
+              },
+            },
+          },
+        })
+      : route.fallback()
+  );
+  await openChat(page, 'Project Team', "Let's have our kickoff meeting");
+  const chat = chatWindow(page, 'Project Team');
+  const box = page.getByLabel('Message', { exact: true });
+  const send = async (words: string) => {
+    await box.focus();
+    await page.keyboard.type(words);
+    await page.keyboard.press('Enter');
+    await expect(box).toHaveValue('');
+  };
+
+  const chooser = page.waitForEvent('filechooser');
+  await chat.getByRole('button', { name: 'Picture…' }).click();
+  await (await chooser).setFiles(MACINTOSH);
+  await expect(
+    chat.getByRole('button', { name: 'Edit picture' })
+  ).toBeVisible();
+  await send('Found where it all started.');
+  await expect(chat.getByRole('img', { name: 'Picture' })).toBeVisible();
+  await send('More about it: https://en.wikipedia.org/wiki/Macintosh_128K');
+  await expect(
+    chat.getByRole('link', { name: /Macintosh 128K/ })
+  ).toBeVisible();
+  // The card arrives after the chat has scrolled to its newest message.
+  await chat
+    .getByRole('log', { name: 'Messages' })
+    .evaluate((log) => log.scrollTo({ top: log.scrollHeight }));
+
+  await capture(page, 'pictures.png');
+});
+
 /** Two screens side by side with a clear gap, drawn on a canvas. */
 async function sideBySide(stage: Page, left: Buffer, right: Buffer) {
   const url = await stage.evaluate(
