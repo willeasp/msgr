@@ -37,6 +37,14 @@ Content-Security-Policy that allows scripts, styles and connections only from
 that origin and forbids framing, plus `X-Content-Type-Options: nosniff` and
 `Referrer-Policy: same-origin`. Messages are rendered as text, never HTML.
 
+**Pictures.** A photo is shrunk and dithered to 1 bit on the sender's device;
+only that is uploaded, never the original or its metadata. The server takes a
+picture's stated size (1 to 320 a side) only as a claim: it refuses a payload
+longer than any honest picture of that size before decoding it, inflates it with
+a hard cap at exactly the size's bytes, so a small DEFLATE bomb never expands in
+memory, refuses a blank one, and stores its own compression, never the sender's
+bytes. Browsers inflate under the same cap.
+
 **Link previews.** Our server, not the reader's browser, fetches a page to
 preview a link, so linked sites never see readers' addresses. Because anyone can
 post a link, the fetcher is fenced in against server-side request forgery:

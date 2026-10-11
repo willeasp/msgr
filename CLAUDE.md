@@ -72,7 +72,7 @@ const chat = visibleTo(await loaders.chat.load(ChatId(input.chatId)), viewer.id)
 if (!chat.ok) return chat;
 ```
 
-**Make illegal states unrepresentable.** `Chat = DirectChat | GroupChat | ChannelChat`: a direct chat has exactly two participants and no title; a channel has a name. Switch on `kind`; don't test `participants.length === 2`. The DB enforces the same invariant: exactly one of `directKey`, `title` and `channelName` is set (CHECK constraint), and `directKey` and `channelName` are unique. Likewise `Message = TextMessage | DrawingMessage`, with exactly one of `content` and `drawing` set.
+**Make illegal states unrepresentable.** `Chat = DirectChat | GroupChat | ChannelChat`: a direct chat has exactly two participants and no title; a channel has a name. Switch on `kind`; don't test `participants.length === 2`. The DB enforces the same invariant: exactly one of `directKey`, `title` and `channelName` is set (CHECK constraint), and `directKey` and `channelName` are unique. Likewise a message's body is `{ content, picture: Picture | null } | { content: null, picture }`: text, a picture, or both, never neither; the DB checks the same.
 
 **Resolvers stay one-liners.** No Prisma, no rules, no hand-built objects in `graphql/`. Codegen `mappers` let resolvers return domain entities directly.
 
@@ -92,7 +92,7 @@ apps/frontend/src/
   app/pages/       routes: chat (the desktop), login, sign-up (/invite/:code), not-found
   app/components/  Mac chrome (MenuBar, MacWindow, MacDialog, PixelIcon), chat/ windows and dialogs
   app/hooks/       useChatFeed (the live subscriptions), useAlerts, useNotifications, useWatching, useInstallPrompt, useClock, useMediaQuery
-  lib/             pure logic, each with a test: theme, alerts, push, commands, chat-list, pixels, paint, emoji, links
+  lib/             pure logic, each with a test: theme, alerts, push, commands, chat-list, pixels, paint, emoji, links, photo, picture-wire
   sacred/          vendored Sacred Computer components (read its README first)
   skin.css         the Macintosh skin over them
 ```
@@ -150,4 +150,5 @@ Test through interfaces, not internals: assert on what a service, operation or r
 - Playwright's Chromium can't reach a push service, and headless it says `Notification.permission` is `"denied"` whatever it's granted. The e2e fakes the permission and covers the offer; real delivery works in Playwright's Firefox, through Mozilla's push service, with the prefs `dom.push.serverURL: 'wss://push.services.mozilla.com/'` and `permissions.default.desktop-notification: 1`. Phones are tested by hand (`docs/manual-testing.md`, section 7).
 - The e2e config presets `notifications-dismissed` for every browser, so the notifications offer stays out of the way. To see the offer, make a context with `storageState: { cookies: [], origins: [] }`, as `notifications.spec.ts` does.
 - The chat list's identicons come from chat ids, which change with every seed, so `npm run screenshots` always changes those avatars a little. Commit new pictures only when something else changed.
+- `libs/bitmap` (`@msgr/bitmap`) holds what the API and the app share about 1-bit pictures: the bit layout, Atkinson's dithering and strict base64. Keep it pure, with neither DOM nor Node types. Tests and Vite read its source through an alias; the API's unbundled build runs its compiled `dist`, so `nx` builds it first and the image copies it. A picture travels and is stored raw-DEFLATEd: the browser compresses with `CompressionStream`, and the server inflates under an exact cap (`zlib-picture-codec.ts`) and compresses again itself.
 - Emoji are dithered from each device's own font (`lib/emoji.ts`, drawn by `PixelText`), so they differ a little between a Mac and a phone. They are dithered at 32×32 (`SIZE`) and drawn 16 px tall. To replace one that comes out badly, add a 16×16 bitmap to `lib/emoji-art.ts`. Text that people write goes through `PixelText` wherever it's shown.

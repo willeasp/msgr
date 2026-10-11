@@ -111,11 +111,17 @@ keyboard, notifications, layout) is checked here.
 - [ ] **Drawing:** Draw… opens "Drawing for _chat_". Try each tool: the pencil
       (starting on black, it draws white), the brush and the paint bucket in a
       few patterns, and the eraser. Undo (⌘Z or Ctrl+Z) steps back through
-      strokes, fills and Clear. Send is greyed out while the canvas is blank.
-- [ ] **Sending a drawing:** it arrives live in the other window, the chat list
-      previews it as "Drawing", and a notification says "Sent a drawing."
-- [ ] **Draw on It:** under any drawing, opens it in the paint window; sending
-      adds a new message and leaves the original as it was.
+      strokes, fills and Clear. Attach is greyed out while the canvas is blank.
+- [ ] **Sending a picture:** Attach puts it above the message box; click it to
+      paint on it again, or Remove it. Send it alone and with text: it arrives
+      live in the other window, the chat list previews a picture alone as
+      "Picture", and a notification says "Sent a picture."
+- [ ] **Photos:** Picture… a big landscape photo, a portrait one and a PNG with
+      transparency; paste one; drop one on the conversation. Each arrives
+      dithered at its own shape, at most 320 pixels a side. A file that isn't a
+      picture the browser can open says so.
+- [ ] **Draw on It:** under any picture, opens it in the paint window at its
+      size; attaching and sending adds a new message and leaves the original.
 - [ ] **Discarding:** Cancel or Esc on a canvas you've drawn on asks "Discard
       this drawing?"; Keep Drawing returns to it.
 - [ ] **Drawings and themes:** switch to Dark and a tint; drawings already in
