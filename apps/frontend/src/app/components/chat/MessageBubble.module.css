@@ -1,19 +1,52 @@
-.meta,
-.metaOwn {
+/* A message: the sender's face in front, then the bubble, its time beside it.
+   Theirs on the left, the viewer's mirrored on the right. */
+.theirs,
+.own {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 1ch;
   margin-bottom: 4px;
 }
 
-/* Inset by the 1ch speech-bubble tail, so labels line up with bubbles. */
-.meta {
-  padding-left: 1ch;
+.own {
+  flex-direction: row-reverse;
 }
 
-.metaOwn {
-  justify-content: flex-end;
-  padding-right: 1ch;
+/* A new run starts a little apart from the last. */
+.first {
+  margin-top: calc(var(--line) * 0.5);
+}
+
+.face {
+  flex-shrink: 0;
+  width: 32px;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.own .body {
+  align-items: flex-end;
+}
+
+.line {
+  display: flex;
+  align-items: flex-end;
+  gap: 1ch;
+  max-width: 100%;
+
+  & > * {
+    min-width: 0;
+  }
+}
+
+.own .line {
+  flex-direction: row-reverse;
 }
 
 .sender {
@@ -21,7 +54,9 @@
 }
 
 .time {
+  flex-shrink: 0;
   opacity: 0.6;
+  white-space: nowrap;
 }
 
 .content {

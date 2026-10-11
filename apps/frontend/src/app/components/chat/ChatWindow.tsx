@@ -138,6 +138,7 @@ export function ChatWindow({
         <MessageList
           chatId={chatId}
           currentUserId={currentUserId}
+          showNames={!!chat && chat.kind !== ChatKind.Direct}
           onDrawOnIt={drawOn}
         />
         <MessageInput

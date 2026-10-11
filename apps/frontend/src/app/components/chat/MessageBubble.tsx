@@ -21,8 +21,10 @@ interface MessageBubbleProps {
     createdAt: string;
   };
   isCurrentUser: boolean;
-  /** Label the bubble with its sender and time; off for follow-ups in a run. */
+  /** The first of a run from one sender: it shows their face and the time. */
   showMeta: boolean;
+  /** Name the sender above the run: in groups and channels, not direct chats. */
+  showName: boolean;
   /** Opens the paint window on a picture; offered under each one. */
   onDrawOnIt?: (picture: WirePicture) => void;
 }
@@ -32,6 +34,7 @@ export function MessageBubble({
   message,
   isCurrentUser,
   showMeta,
+  showName,
   onDrawOnIt,
 }: MessageBubbleProps) {
   const Bubble = isCurrentUser ? MessageViewer : Message;
@@ -40,60 +43,67 @@ export function MessageBubble({
   const content = message.content ?? '';
 
   return (
-    <>
-      {showMeta && (
-        <div className={isCurrentUser ? styles.metaOwn : styles.meta}>
-          <Face person={message.sender} />
+    <div
+      className={`${isCurrentUser ? styles.own : styles.theirs} ${
+        showMeta ? styles.first : ''
+      }`}
+    >
+      {/* Follow-ups keep the face's place, so a run lines up. */}
+      <div className={styles.face}>
+        {showMeta && <Face person={message.sender} />}
+      </div>
+      <div className={styles.body}>
+        {showMeta && showName && !isCurrentUser && (
           <span className={styles.sender}>
-            {isCurrentUser ? 'You' : <PixelText text={message.sender.name} />}
-          </span>
-          <time className={styles.time} dateTime={message.createdAt}>
-            {formatTime(message.createdAt, now)}
-          </time>
-        </div>
-      )}
-      {firstLink(content) && (
-        <div className={isCurrentUser ? styles.metaOwn : styles.meta}>
-          <LinkPreviewCard messageId={message.id} />
-        </div>
-      )}
-      <Bubble>
-        {picture && <MessagePicture picture={picture} />}
-        {content && (
-          <span
-            className={styles.content}
-            title={new Date(message.createdAt).toLocaleString()}
-          >
-            {isOnlyEmoji(content) ? (
-              <PixelText text={content} size={32} />
-            ) : (
-              splitLinks(content).map((piece, i) =>
-                'link' in piece ? (
-                  <a
-                    key={i}
-                    className={styles.link}
-                    href={piece.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {piece.link}
-                  </a>
-                ) : (
-                  <PixelText key={i} text={piece.text} />
-                )
-              )
-            )}
+            <PixelText text={message.sender.name} />
           </span>
         )}
-      </Bubble>
-      {/* Under the bubble, not in it: the viewer's bubbles are inverted. */}
-      {picture && onDrawOnIt && (
-        <div className={isCurrentUser ? styles.metaOwn : styles.meta}>
-          <ActionButton onClick={() => onDrawOnIt(picture)}>
-            Draw on It
-          </ActionButton>
+        {firstLink(content) && <LinkPreviewCard messageId={message.id} />}
+        <div className={styles.line}>
+          <Bubble>
+            {picture && <MessagePicture picture={picture} />}
+            {content && (
+              <span
+                className={styles.content}
+                title={new Date(message.createdAt).toLocaleString()}
+              >
+                {isOnlyEmoji(content) ? (
+                  <PixelText text={content} size={32} />
+                ) : (
+                  splitLinks(content).map((piece, i) =>
+                    'link' in piece ? (
+                      <a
+                        key={i}
+                        className={styles.link}
+                        href={piece.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {piece.link}
+                      </a>
+                    ) : (
+                      <PixelText key={i} text={piece.text} />
+                    )
+                  )
+                )}
+              </span>
+            )}
+          </Bubble>
+          {showMeta && (
+            <time className={styles.time} dateTime={message.createdAt}>
+              {formatTime(message.createdAt, now)}
+            </time>
+          )}
         </div>
-      )}
-    </>
+        {/* Under the bubble, not in it: the viewer's bubbles are inverted. */}
+        {picture && onDrawOnIt && (
+          <div className={styles.under}>
+            <ActionButton onClick={() => onDrawOnIt(picture)}>
+              Draw on It
+            </ActionButton>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

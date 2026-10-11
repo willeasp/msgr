@@ -34,12 +34,15 @@ export const GET_CHAT_MESSAGES = gql(`
 interface MessageListProps {
   chatId: string;
   currentUserId: string | undefined;
+  /** Name each run's sender: in groups and channels, not direct chats. */
+  showNames: boolean;
   onDrawOnIt?: (picture: WirePicture) => void;
 }
 
 export function MessageList({
   chatId,
   currentUserId,
+  showNames,
   onDrawOnIt,
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -92,6 +95,7 @@ export function MessageList({
           message={message}
           isCurrentUser={message.sender.id === currentUserId}
           showMeta={messages[index - 1]?.sender.id !== message.sender.id}
+          showName={showNames}
           onDrawOnIt={onDrawOnIt}
         />
       ))}

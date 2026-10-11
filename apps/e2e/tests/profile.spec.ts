@@ -118,3 +118,24 @@ test('a drawn face, then the pattern back once it is removed', async ({
   await chooseMenu(page, 'File', 'Profile…');
   await expect(face(page)).not.toHaveAttribute('data-picture');
 });
+
+test('faces lead each run; only chats of more than two name the sender', async ({
+  page,
+}) => {
+  await page.goto('/login');
+  await signIn(page, 'alice@example.com');
+  const log = (title: string) =>
+    chatWindow(page, title).getByRole('log', { name: 'Messages' });
+
+  // In #general others are named above their runs, the viewer never.
+  await chatsWindow(page).getByText('#general', { exact: true }).click();
+  await expect(log('#general').getByText('Charlie Brown')).toBeVisible();
+  await expect(log('#general').getByText('You', { exact: true })).toHaveCount(
+    0
+  );
+
+  // A direct chat needs no names: each run is just a face and its bubbles.
+  await chatsWindow(page).getByText('Test User', { exact: true }).click();
+  await expect(log('Test User').getByText('Test User')).toHaveCount(0);
+  await expect(log('Test User').locator('img').first()).toBeVisible();
+});
