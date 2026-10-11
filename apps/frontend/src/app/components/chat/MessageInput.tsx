@@ -11,6 +11,7 @@ import { GET_CHAT_MESSAGES } from './MessageList';
 import { useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
 import { useMediaQuery } from '../../hooks/use-media-query';
 import { pixelSize } from './MessagePicture';
+import { firstImage } from './picture-from-file';
 import { useJoinChannel } from './use-join-channel';
 import styles from './MessageInput.module.css';
 
@@ -48,6 +49,9 @@ interface MessageInputProps {
   onAttachmentChange: (attachment: Bits | null) => void;
   /** Opens the attachment in the paint window. */
   onEditAttachment: () => void;
+  /** Attaches a photo picked, pasted or dropped; `attachError` if it can't. */
+  onAttachFile: (file: File) => void;
+  attachError: string | null;
 }
 
 /** The attached picture, small, above the field: click it to paint on it. */
@@ -77,7 +81,10 @@ export function MessageInput({
   attachment,
   onAttachmentChange,
   onEditAttachment,
+  onAttachFile,
+  attachError,
 }: MessageInputProps) {
+  const fileRef = useRef<HTMLInputElement>(null);
   const [messageInput, setMessageInput] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
   const inputId = useId();
@@ -152,7 +159,17 @@ export function MessageInput({
   };
 
   return (
-    <form ref={formRef} onSubmit={handleSendMessage} className={styles.root}>
+    <form
+      ref={formRef}
+      onSubmit={handleSendMessage}
+      className={styles.root}
+      onPaste={(e) => {
+        const file = firstImage(e.clipboardData.files);
+        if (!file) return;
+        e.preventDefault();
+        onAttachFile(file);
+      }}
+    >
       <label htmlFor={inputId} className={styles.label}>
         Message
       </label>
@@ -163,6 +180,11 @@ export function MessageInput({
             Remove
           </Button>
         </div>
+      )}
+      {attachError && (
+        <p role="alert" className={styles.error}>
+          {attachError}
+        </p>
       )}
       {commandError && (
         <p role="alert" className={styles.error}>
@@ -185,6 +207,26 @@ export function MessageInput({
           autoFocus={hasMouse}
         />
       </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className={styles.label}
+        tabIndex={-1}
+        aria-hidden
+        onChange={(e) => {
+          const file = firstImage(e.target.files);
+          e.target.value = '';
+          if (file) onAttachFile(file);
+        }}
+      />
+      <Button
+        theme="SECONDARY"
+        type="button"
+        onClick={() => fileRef.current?.click()}
+      >
+        Picture…
+      </Button>
       <Button theme="SECONDARY" type="button" onClick={onDraw}>
         Draw…
       </Button>

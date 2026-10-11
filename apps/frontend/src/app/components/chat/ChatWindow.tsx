@@ -11,6 +11,7 @@ import { MessageInput } from './MessageInput';
 import { MessageList } from './MessageList';
 import { pictureBits } from './MessagePicture';
 import { PaintDialog } from './PaintDialog';
+import { firstImage, pictureFromFile } from './picture-from-file';
 import styles from './ChatWindow.module.css';
 import { PixelText } from '../PixelText';
 
@@ -59,6 +60,14 @@ export function ChatWindow({
     const bits = await pictureBits(picture);
     if (bits) draw(bits);
   };
+  const [attachError, setAttachError] = useState<string | null>(null);
+  const attachFile = async (file: File) => {
+    const bits = await pictureFromFile(file);
+    setAttachError(
+      bits ? null : 'That file isn’t a picture this browser can open.'
+    );
+    if (bits) setAttachment(bits);
+  };
   const count = chat?.participants.length ?? 0;
   const [one, many] =
     chat?.kind === ChatKind.Channel
@@ -88,18 +97,37 @@ export function ChatWindow({
       }
       fill
     >
-      <MessageList
-        chatId={chatId}
-        currentUserId={currentUserId}
-        onDrawOnIt={drawOn}
-      />
-      <MessageInput
-        chatId={chatId}
-        onDraw={() => draw()}
-        attachment={attachment}
-        onAttachmentChange={setAttachment}
-        onEditAttachment={() => attachment && draw(attachment)}
-      />
+      {/* A picture dropped anywhere on the chat is attached. */}
+      <div
+        className={styles.dropZone}
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes('Files')) e.preventDefault();
+        }}
+        onDrop={(e) => {
+          const file = firstImage(e.dataTransfer.files);
+          if (!file) return;
+          e.preventDefault();
+          void attachFile(file);
+        }}
+      >
+        <MessageList
+          chatId={chatId}
+          currentUserId={currentUserId}
+          onDrawOnIt={drawOn}
+        />
+        <MessageInput
+          chatId={chatId}
+          onDraw={() => draw()}
+          attachment={attachment}
+          attachError={attachError}
+          onAttachFile={(file) => void attachFile(file)}
+          onAttachmentChange={(bits) => {
+            setAttachment(bits);
+            setAttachError(null);
+          }}
+          onEditAttachment={() => attachment && draw(attachment)}
+        />
+      </div>
     </MacWindow>
   );
 }

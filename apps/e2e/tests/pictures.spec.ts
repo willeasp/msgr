@@ -1,0 +1,125 @@
+import { expect, test, type Locator, type Page } from '@playwright/test';
+import { anotherPerson, chatWindow, chatsWindow, signIn } from './support';
+
+// A 400×200 photo, black on the left and white on the right, drawn in the
+// browser so the test needs no files: its bytes, and those of a broken PNG.
+const photo = (page: Page) =>
+  page.evaluate(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 200;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('No canvas');
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, 400, 200);
+    context.fillStyle = '#000';
+    context.fillRect(0, 0, 200, 200);
+    const blob = await new Promise<Blob | null>((done) =>
+      canvas.toBlob(done, 'image/png')
+    );
+    if (!blob) throw new Error('No PNG');
+    return [...new Uint8Array(await blob.arrayBuffer())];
+  });
+
+/** Hands `target` a pasted or dropped file, as the browser would. */
+const give = (
+  target: Locator,
+  how: 'paste' | 'drop',
+  bytes: number[],
+  type = 'image/png'
+) =>
+  target.evaluate(
+    (node, { how, bytes, type }) => {
+      const files = new DataTransfer();
+      files.items.add(new File([new Uint8Array(bytes)], 'photo', { type }));
+      const init = { bubbles: true, cancelable: true };
+      node.dispatchEvent(
+        how === 'paste'
+          ? new ClipboardEvent('paste', { ...init, clipboardData: files })
+          : new DragEvent('drop', { ...init, dataTransfer: files })
+      );
+    },
+    { how, bytes, type }
+  );
+
+/** Whether the canvas shows its ink colour at (x, y). */
+const inkAt = (canvas: Locator, x: number, y: number) =>
+  canvas.evaluate(
+    (node: HTMLCanvasElement, [x, y]) => {
+      const [r, g, b] =
+        node.getContext('2d')?.getImageData(x, y, 1, 1).data ?? [];
+      return getComputedStyle(node).color === `rgb(${r}, ${g}, ${b})`;
+    },
+    [x, y] as const
+  );
+
+test('a photo goes with a message, dithered on the way, at its own shape', async ({
+  page,
+  browser,
+}) => {
+  const bob = await anotherPerson(browser);
+  await page.goto('/login');
+  await signIn(page, 'diana@example.com');
+  await bob.goto('/login');
+  await signIn(bob, 'bob@example.com');
+  await chatsWindow(page).getByText('Project Team', { exact: true }).click();
+  await chatsWindow(bob).getByText('Project Team', { exact: true }).click();
+  const chat = chatWindow(page, 'Project Team');
+
+  const chooser = page.waitForEvent('filechooser');
+  await chat.getByRole('button', { name: 'Picture…' }).click();
+  await (
+    await chooser
+  ).setFiles({
+    name: 'coast.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(await photo(page)),
+  });
+
+  // Shrunk to 320 on its long side, keeping its shape, and paintable.
+  await chat.getByRole('button', { name: 'Edit picture' }).click();
+  const canvas = page
+    .getByRole('dialog', { name: /^Drawing for / })
+    .getByRole('img', { name: 'Canvas' });
+  await expect(canvas).toHaveAttribute('width', '320');
+  await expect(canvas).toHaveAttribute('height', '160');
+  await page.getByRole('button', { name: 'Attach' }).click();
+
+  await chat.getByRole('textbox', { name: 'Message' }).fill('the coast');
+  await chat.getByRole('button', { name: 'Send', exact: true }).click();
+
+  const bobsChat = chatWindow(bob, 'Project Team');
+  await expect(bobsChat.getByText('the coast')).toBeVisible();
+  const received = bobsChat.getByRole('img', { name: 'Picture' }).last();
+  await expect(received).toHaveAttribute('width', '320');
+  await expect.poll(() => inkAt(received, 40, 80)).toBe(true);
+  expect(await inkAt(received, 280, 80)).toBe(false);
+});
+
+test('pasting or dropping a photo attaches it; a broken one is refused', async ({
+  browser,
+}) => {
+  const page = await anotherPerson(browser);
+  await page.goto('/login');
+  await signIn(page, 'alice@example.com');
+  await chatsWindow(page).getByText('Test User', { exact: true }).click();
+  const chat = chatWindow(page, 'Test User');
+  const field = chat.getByRole('textbox', { name: 'Message' });
+  const preview = chat.getByRole('button', { name: 'Edit picture' });
+  const bytes = await photo(page);
+
+  await give(field, 'paste', bytes);
+  await expect(preview).toBeVisible();
+  await chat.getByRole('button', { name: 'Remove' }).click();
+  await expect(preview).toHaveCount(0);
+
+  await give(chat.getByRole('log', { name: 'Messages' }), 'drop', bytes);
+  await expect(preview).toBeVisible();
+  await chat.getByRole('button', { name: 'Remove' }).click();
+
+  await give(field, 'paste', [1, 2, 3]);
+  await expect(chat.getByRole('alert')).toHaveText(
+    'That file isn’t a picture this browser can open.'
+  );
+  await expect(preview).toHaveCount(0);
+});

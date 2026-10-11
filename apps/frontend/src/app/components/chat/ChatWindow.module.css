@@ -5,3 +5,8 @@
   text-align: right;
   text-overflow: ellipsis;
 }
+
+/* Catches dropped files without a box of its own, so the window's layout is unchanged. */
+.dropZone {
+  display: contents;
+}
