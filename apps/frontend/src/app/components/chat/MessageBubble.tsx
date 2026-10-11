@@ -50,6 +50,11 @@ export function MessageBubble({
           </time>
         </div>
       )}
+      {drawing == null && firstLink(content) && (
+        <div className={isCurrentUser ? styles.metaOwn : styles.meta}>
+          <LinkPreviewCard messageId={message.id} />
+        </div>
+      )}
       <Bubble>
         {drawing != null ? (
           <DrawingPicture drawing={drawing} />
@@ -80,11 +85,6 @@ export function MessageBubble({
           </span>
         )}
       </Bubble>
-      {drawing == null && firstLink(content) && (
-        <div className={isCurrentUser ? styles.metaOwn : styles.meta}>
-          <LinkPreviewCard messageId={message.id} />
-        </div>
-      )}
       {/* Under the bubble, not in it: the viewer's bubbles are inverted. */}
       {drawing != null && onDrawOnIt && (
         <div className={isCurrentUser ? styles.metaOwn : styles.meta}>

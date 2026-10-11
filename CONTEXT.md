@@ -63,7 +63,7 @@ A window into a chat's history, counted back from the newest message and returne
 The live stream of every message posted to any chat the viewer participates in, including the viewer's own messages.
 
 **Link preview**:
-The card under a message for the first link in it: the page's site, title, description and a dithered thumbnail, as our server read the page.
+The card above a message for the first link in it: the page's site, title, description and a dithered thumbnail, as our server read the page.
 _Avoid_: Unfurl, embed
 
 **Chat added**:

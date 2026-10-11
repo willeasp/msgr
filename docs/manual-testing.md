@@ -100,7 +100,7 @@ keyboard, notifications, layout) is checked here.
       write in it. Opening it shows the new message.
 - [ ] **New chat:** a brand-new chat says "No messages yet. Say hello."
 - [ ] **Links:** a link in a message is underlined in the bubble's colour and
-      opens in a new tab. The first link gets a card under the bubble: the
+      opens in a new tab. The first link gets a card above the bubble: the
       site, the title, two lines of description and the page's picture
       dithered to 64×64 (a document icon without one). Try a Wikipedia article
       and a GitHub page; a page that can't be previewed just stays a link.

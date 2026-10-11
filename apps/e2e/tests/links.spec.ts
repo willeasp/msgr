@@ -84,6 +84,13 @@ test('links open in a new tab, and the first gets a card', async ({
     const picture = card.locator(':scope > :first-child');
     expect((await picture.boundingBox())?.width).toBe(64);
     expect(await maskOf(picture)).toContain('data:image/svg+xml');
+
+    // Just above the message it belongs to.
+    const cardBox = await card.boundingBox();
+    const linkBox = await link.boundingBox();
+    expect((cardBox?.y ?? 0) + (cardBox?.height ?? 0)).toBeLessThan(
+      linkBox?.y ?? 0
+    );
   }
 
   // A focused link shows where it is, even in the viewer's inverted bubble.

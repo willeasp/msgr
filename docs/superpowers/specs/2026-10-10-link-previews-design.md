@@ -4,7 +4,7 @@ _Design, agreed 2026-10-10. The third old-school project, after drawings and pix
 
 ## Goal
 
-Links in messages become underlined links, and the first link in a message gets a small card under its bubble: the site's name, the page's title, two lines of description, and the page's picture dithered to a 64×64 thumbnail, like a Finder icon. A page without a picture gets a document icon instead.
+Links in messages become underlined links, and the first link in a message gets a small card just above its bubble: the site's name, the page's title, two lines of description, and the page's picture dithered to a 64×64 thumbnail, like a Finder icon. A page without a picture gets a document icon instead.
 
 Our server fetches the pages. A browser can't: other sites don't let JavaScript on our page read their responses (CORS), nor read the pixels of their images, and fetching from every reader's browser would show each linked site the reader's IP address. That is also how Slack and Discord do it.
 
@@ -186,4 +186,4 @@ Two requests for the same URL at once share one fetch. The clock is the app's `C
 - SECURITY.md gets a section on the fetcher's guards.
 - CLAUDE.md gets one line on the `LinkPreviewer` port, and `links` joins the `lib/` list.
 - manual-testing.md gets bullets for links and cards.
-- CONTEXT.md gets **Link preview**: "The card under a message for the first link in it: the page's site, title, description and a dithered thumbnail, as our server read it."
+- CONTEXT.md gets **Link preview**: "The card above a message for the first link in it: the page's site, title, description and a dithered thumbnail, as our server read it."

@@ -1,10 +1,10 @@
-/* A small framed card under the bubble: inverted while pointed at, like a button. */
+/* A small framed card just above the bubble: inverted while pointed at, like a button. */
 .card {
   display: flex;
   gap: 1ch;
   align-items: flex-start;
   max-width: 340px;
-  margin: 4px 0 8px;
+  margin: 4px 0;
   padding: 6px;
   border: 1px solid var(--ink);
   background: var(--paper);
