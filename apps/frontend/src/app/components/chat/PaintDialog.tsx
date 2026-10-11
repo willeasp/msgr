@@ -2,18 +2,13 @@ import { useRef, useState } from 'react';
 import { useMutation } from '@apollo/client/react';
 import { withMessage } from '../../../lib/chat-list';
 import { gql } from '../../../lib/__generated__';
+import { fromBase64, getPixel, isBlank, toBase64 } from '@msgr/bitmap';
 import {
-  HEIGHT,
   PATTERNS,
-  WIDTH,
-  blank,
   fill,
-  fromBase64,
-  getPixel,
-  isBlank,
+  newDrawing,
   paintStroke,
   swatch,
-  toBase64,
   type Brush,
   type Point,
 } from '../../../lib/paint';
@@ -26,6 +21,7 @@ import { BRUSH, BUCKET, ERASER, PENCIL } from '../icons';
 import { DialogButtons, MacDialog } from '../MacDialog';
 import { PixelIcon } from '../PixelIcon';
 import { GET_CHAT_MESSAGES } from './MessageList';
+import { pixelSize } from './MessagePicture';
 import styles from './PaintDialog.module.css';
 
 const SEND_DRAWING = gql(`
@@ -65,7 +61,12 @@ interface PaintDialogProps {
 /** MacPaint, more or less: draws a picture and sends it to the chat. */
 export function PaintDialog({ chatId, chatTitle, start }: PaintDialogProps) {
   const { close } = useModals();
-  const [bits] = useState(() => (start ? fromBase64(start) : blank()));
+  const [bits] = useState(() => {
+    const bits = newDrawing();
+    const bytes = start ? fromBase64(start) : null;
+    if (bytes?.length === bits.bytes.length) bits.bytes.set(bytes);
+    return bits;
+  });
   const { ref, repaint } = useBitmapCanvas(bits);
   const [tool, setTool] = useState<Tool>('pencil');
   const [pattern, setPattern] = useState<(typeof PATTERNS)[number]>(
@@ -104,23 +105,26 @@ export function PaintDialog({ chatId, chatTitle, start }: PaintDialogProps) {
     setEmpty(isBlank(bits));
   };
   const checkpoint = () => {
-    history.current = [...history.current.slice(1 - UNDO_STEPS), bits.slice()];
+    history.current = [
+      ...history.current.slice(1 - UNDO_STEPS),
+      bits.bytes.slice(),
+    ];
   };
   const undo = () => {
     const before = history.current.pop();
     if (!before) return;
-    bits.set(before);
+    bits.bytes.set(before);
     drew();
   };
   const clear = () => {
     checkpoint();
-    bits.fill(0);
+    bits.bytes.fill(0);
     drew();
   };
   const cancel = () => (changed ? setConfirming(true) : close());
   const send = () => {
     // A failure shows from `error`, and the drawing stays.
-    sendDrawing({ variables: { chatId, drawing: toBase64(bits) } }).catch(
+    sendDrawing({ variables: { chatId, drawing: toBase64(bits.bytes) } }).catch(
       () => undefined
     );
   };
@@ -133,8 +137,8 @@ export function PaintDialog({ chatId, chatTitle, start }: PaintDialogProps) {
   const at = (e: React.PointerEvent<HTMLCanvasElement>): Point => {
     const box = e.currentTarget.getBoundingClientRect();
     return {
-      x: Math.floor(((e.clientX - box.left) / box.width) * WIDTH),
-      y: Math.floor(((e.clientY - box.top) / box.height) * HEIGHT),
+      x: Math.floor(((e.clientX - box.left) / box.width) * bits.width),
+      y: Math.floor(((e.clientY - box.top) / box.height) * bits.height),
     };
   };
   const options = (ink: boolean) => ({ ink, pattern: pattern.rows });
@@ -195,9 +199,10 @@ export function PaintDialog({ chatId, chatTitle, start }: PaintDialogProps) {
         </div>
         <canvas
           ref={ref}
-          width={WIDTH}
-          height={HEIGHT}
+          width={bits.width}
+          height={bits.height}
           className={styles.canvas}
+          style={pixelSize(bits)}
           role="img"
           aria-label="Canvas"
           onPointerDown={onPointerDown}

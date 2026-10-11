@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { HEIGHT, WIDTH, inkRuns } from '../../lib/paint';
+import type { Bits } from '@msgr/bitmap';
+import { inkRuns } from '../../lib/paint';
 import { THEME_CHANGED } from '../../lib/theme';
 
 /**
@@ -7,7 +8,7 @@ import { THEME_CHANGED } from '../../lib/theme';
  * `background-color` (the theme's ink and paper), and again whenever the
  * theme changes. Call `repaint` after changing `bits` in place.
  */
-export function useBitmapCanvas(bits: Uint8Array) {
+export function useBitmapCanvas(bits: Bits) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   const repaint = useCallback(() => {
@@ -16,7 +17,7 @@ export function useBitmapCanvas(bits: Uint8Array) {
     if (!canvas || !context) return;
     const { color, backgroundColor } = getComputedStyle(canvas);
     context.fillStyle = backgroundColor;
-    context.fillRect(0, 0, WIDTH, HEIGHT);
+    context.fillRect(0, 0, bits.width, bits.height);
     context.fillStyle = color;
     for (const [x, y, length] of inkRuns(bits)) {
       context.fillRect(x, y, length, 1);

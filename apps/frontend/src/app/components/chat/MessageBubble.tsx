@@ -5,7 +5,7 @@ import MessageViewer from '../../../sacred/components/MessageViewer';
 import { isOnlyEmoji } from '../../../lib/emoji';
 import { firstLink, splitLinks } from '../../../lib/links';
 import { PixelText } from '../PixelText';
-import { DrawingPicture } from './DrawingPicture';
+import { MessagePicture } from './MessagePicture';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import styles from './MessageBubble.module.css';
 
@@ -57,7 +57,7 @@ export function MessageBubble({
       )}
       <Bubble>
         {drawing != null ? (
-          <DrawingPicture drawing={drawing} />
+          <MessagePicture drawing={drawing} />
         ) : (
           <span
             className={styles.content}

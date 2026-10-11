@@ -1,20 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import { blank, getPixel, setPixel } from '@msgr/bitmap';
 import {
-  HEIGHT,
   PATTERNS,
-  WIDTH,
-  blank,
   fill,
-  fromBase64,
-  getPixel,
   inkRuns,
-  isBlank,
   line,
+  newDrawing,
   paintStroke,
   patternInk,
-  setPixel,
   swatch,
-  toBase64,
   type Pattern,
 } from './paint';
 
@@ -27,39 +21,30 @@ const black = pattern('Black');
 const grey = pattern('Grey');
 
 describe('the bitmap', () => {
-  it('sets and reads pixels, leftmost in the high bit', () => {
-    const bits = blank();
-    setPixel(bits, 0, 0, true);
-    setPixel(bits, 9, 1, true);
-    expect(bits[0]).toBe(0b1000_0000);
-    expect(bits[WIDTH / 8 + 1]).toBe(0b0100_0000);
-    expect(getPixel(bits, 9, 1)).toBe(true);
-    expect(isBlank(bits)).toBe(false);
+  it('starts a drawing blank at 256×160', () => {
+    expect(newDrawing()).toMatchObject({ width: 256, height: 160 });
+    expect(inkRuns(newDrawing())).toEqual([]);
   });
 
-  it('ignores pixels off the canvas', () => {
-    const bits = blank();
-    for (const [x, y] of [
-      [-1, 0],
-      [WIDTH, 0],
-      [0, -1],
-      [0, HEIGHT],
-    ] as const) {
-      setPixel(bits, x, y, true);
-      expect(getPixel(bits, x, y)).toBe(false);
-    }
-    expect(isBlank(bits)).toBe(true);
-  });
-
-  it('round-trips through base64', () => {
-    const bits = blank();
-    setPixel(bits, 255, 159, true);
-    expect(fromBase64(toBase64(bits))).toEqual(bits);
-    expect(toBase64(bits)).toHaveLength(6828);
+  it('paints a picture of any size, up to its edges', () => {
+    const bits = blank(13, 7);
+    fill(bits, 0, 0, black);
+    expect(inkRuns(bits)).toEqual(
+      Array.from({ length: 7 }, (_, y) => [0, y, 13])
+    );
+    paintStroke(
+      bits,
+      'eraser',
+      { x: 12, y: 6 },
+      { x: 12, y: 6 },
+      { ink: false, pattern: black }
+    );
+    expect(getPixel(bits, 12, 6)).toBe(false);
+    expect(getPixel(bits, 7, 1)).toBe(true);
   });
 
   it('lists runs of ink row by row', () => {
-    const bits = blank();
+    const bits = newDrawing();
     paintStroke(
       bits,
       'pencil',
@@ -97,7 +82,7 @@ describe('strokes', () => {
   });
 
   it('lets the pencil draw paper, for a stroke that starts on ink', () => {
-    const bits = blank();
+    const bits = newDrawing();
     paintStroke(
       bits,
       'pencil',
@@ -125,7 +110,7 @@ describe('strokes', () => {
   });
 
   it('anchors patterns to the canvas, so strokes join seamlessly', () => {
-    const bits = blank();
+    const bits = newDrawing();
     for (const x of [20, 22]) {
       paintStroke(
         bits,
@@ -144,7 +129,7 @@ describe('strokes', () => {
   });
 
   it('brushes a round dab, without its corners', () => {
-    const bits = blank();
+    const bits = newDrawing();
     paintStroke(
       bits,
       'brush',
@@ -162,7 +147,7 @@ describe('strokes', () => {
   });
 
   it('rubs out an 8×8 square', () => {
-    const bits = blank();
+    const bits = newDrawing();
     fill(bits, 0, 0, black);
     paintStroke(
       bits,
@@ -183,7 +168,7 @@ describe('strokes', () => {
 
 describe('the bucket', () => {
   it('stops at a one-pixel diagonal line', () => {
-    const bits = blank();
+    const bits = newDrawing();
     paintStroke(
       bits,
       'pencil',
@@ -200,10 +185,10 @@ describe('the bucket', () => {
   });
 
   it('fills in a pattern, and finishes when nothing changes', () => {
-    const bits = blank();
+    const bits = newDrawing();
     fill(bits, 0, 0, black);
     fill(bits, 0, 0, black);
-    expect(inkRuns(bits)).toHaveLength(HEIGHT);
+    expect(inkRuns(bits)).toHaveLength(160);
     fill(bits, 0, 0, grey);
     expect(getPixel(bits, 0, 0)).toBe(patternInk(grey, 0, 0));
     expect(getPixel(bits, 1, 0)).toBe(patternInk(grey, 1, 0));

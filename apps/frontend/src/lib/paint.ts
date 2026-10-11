@@ -1,13 +1,13 @@
+import { blank, getPixel, setPixel, type Bits } from '@msgr/bitmap';
 import type { Bitmap } from './pixels';
 
-/**
- * The paint window's canvas, 1 bit a pixel, in the API's `Drawing` layout:
- * rows top to bottom, 8 pixels a byte with the leftmost in the high bit, 1 for
- * ink. Tools change it in place; callers copy it for undo.
+/*
+ * The paint window's tools, on a picture of any size in the shared `Bits`
+ * layout. They change it in place; callers copy its bytes for undo.
  */
-export const WIDTH = 256;
-export const HEIGHT = 160;
-const ROW_BYTES = WIDTH / 8;
+
+/** A new drawing's canvas: MacPaint's proportions, at half its size. */
+export const newDrawing = (): Bits => blank(256, 160);
 
 export interface Point {
   readonly x: number;
@@ -33,33 +33,6 @@ export const PATTERNS = [
 ] as const satisfies readonly { name: string; rows: Pattern }[];
 
 export type Brush = 'pencil' | 'brush' | 'eraser';
-
-export const blank = (): Uint8Array => new Uint8Array(ROW_BYTES * HEIGHT);
-
-const onCanvas = (x: number, y: number) =>
-  x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT;
-
-export function getPixel(bits: Uint8Array, x: number, y: number): boolean {
-  if (!onCanvas(x, y)) return false;
-  return ((bits[y * ROW_BYTES + (x >> 3)] ?? 0) & (0x80 >> (x & 7))) !== 0;
-}
-
-/** Off the canvas, does nothing. */
-export function setPixel(
-  bits: Uint8Array,
-  x: number,
-  y: number,
-  ink: boolean
-): void {
-  if (!onCanvas(x, y)) return;
-  const i = y * ROW_BYTES + (x >> 3);
-  const mask = 0x80 >> (x & 7);
-  const byte = bits[i] ?? 0;
-  bits[i] = ink ? byte | mask : byte & ~mask;
-}
-
-export const isBlank = (bits: Uint8Array): boolean =>
-  bits.every((byte) => byte === 0);
 
 /** Patterns are anchored to the canvas, so overlapping strokes line up. */
 export const patternInk = (pattern: Pattern, x: number, y: number): boolean =>
@@ -97,7 +70,7 @@ const DAB = Array.from({ length: 25 }, (_, i) => ({
 
 /** One stretch of a stroke: the brush's stamp at every point along it. */
 export function paintStroke(
-  bits: Uint8Array,
+  bits: Bits,
   brush: Brush,
   from: Point,
   to: Point,
@@ -126,36 +99,32 @@ export function paintStroke(
  * The paint bucket: the 4-connected area of the colour at (x, y), painted in
  * `pattern`. A one-pixel diagonal line holds it in, as MacPaint's did.
  */
-export function fill(
-  bits: Uint8Array,
-  x: number,
-  y: number,
-  pattern: Pattern
-): void {
-  if (!onCanvas(x, y)) return;
+export function fill(bits: Bits, x: number, y: number, pattern: Pattern): void {
+  const { width, height } = bits;
+  if (x < 0 || x >= width || y < 0 || y >= height) return;
   const target = getPixel(bits, x, y);
   // Painted pixels may keep the target colour, so track visits apart.
-  const seen = new Uint8Array(WIDTH * HEIGHT);
-  const stack = [y * WIDTH + x];
+  const seen = new Uint8Array(width * height);
+  const stack = [y * width + x];
   for (let i = stack.pop(); i !== undefined; i = stack.pop()) {
-    const px = i % WIDTH;
-    const py = Math.floor(i / WIDTH);
+    const px = i % width;
+    const py = Math.floor(i / width);
     if (seen[i] || getPixel(bits, px, py) !== target) continue;
     seen[i] = 1;
     setPixel(bits, px, py, patternInk(pattern, px, py));
     if (px > 0) stack.push(i - 1);
-    if (px < WIDTH - 1) stack.push(i + 1);
-    if (py > 0) stack.push(i - WIDTH);
-    if (py < HEIGHT - 1) stack.push(i + WIDTH);
+    if (px < width - 1) stack.push(i + 1);
+    if (py > 0) stack.push(i - width);
+    if (py < height - 1) stack.push(i + width);
   }
 }
 
 /** Each row's runs of ink, as [x, y, length], for drawing with fillRect. */
-export function inkRuns(bits: Uint8Array): [number, number, number][] {
+export function inkRuns(bits: Bits): [number, number, number][] {
   const runs: [number, number, number][] = [];
-  for (let y = 0; y < HEIGHT; y++) {
+  for (let y = 0; y < bits.height; y++) {
     let start = -1;
-    for (let x = 0; x <= WIDTH; x++) {
+    for (let x = 0; x <= bits.width; x++) {
       const ink = getPixel(bits, x, y);
       if (ink && start < 0) start = x;
       if (!ink && start >= 0) {
@@ -166,12 +135,6 @@ export function inkRuns(bits: Uint8Array): [number, number, number][] {
   }
   return runs;
 }
-
-export const toBase64 = (bits: Uint8Array): string =>
-  btoa(String.fromCharCode(...bits));
-
-export const fromBase64 = (text: string): Uint8Array =>
-  Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
 
 /** A pattern tiled to `width`×`height`, for a swatch drawn by PixelIcon. */
 export const swatch = (
