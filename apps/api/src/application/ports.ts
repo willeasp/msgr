@@ -14,6 +14,7 @@ import type { Message, MessageId, NewMessage } from '../domain/message.js';
 import type { Page } from '../domain/page.js';
 import type { Notification, PushSubscription } from '../domain/push.js';
 import type { Result } from '../domain/result.js';
+import type { PictureCodec } from '../domain/picture.js';
 import type {
   Credentials,
   Email,
@@ -183,6 +184,7 @@ export interface Dependencies {
   readonly inviteCodes: InviteCodes;
   readonly throttle: Throttle;
   readonly linkPreviewer: LinkPreviewer;
+  readonly pictures: PictureCodec;
   readonly pushSender: PushSender;
   /** The VAPID public key browsers subscribe with; null while push is off. */
   readonly pushKey: string | null;

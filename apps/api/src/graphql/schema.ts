@@ -77,13 +77,13 @@ export const typeDefs = /* GraphQL */ `
     chatId: ID!
   }
 
-  "Text or a drawing: exactly one of content and drawing is set."
+  "Text, a picture, or both: at least one of content and picture is set."
   type Message {
     id: ID!
-    "The text; null for a drawing."
+    "The text; null for a picture alone."
     content: String
-    "A 256×160 black-and-white picture: rows top to bottom, 8 pixels a byte with the leftmost in the high bit, 1 for ink, in base64. Null for text."
-    drawing: String
+    "A picture, drawn or dithered from a photo; null for text alone."
+    picture: Picture
     sender: User!
     chat: Chat!
     createdAt: DateTime!
@@ -100,14 +100,26 @@ export const typeDefs = /* GraphQL */ `
     thumbnail: String
   }
 
-  input SendMessageInput {
-    chatId: ID!
-    content: String!
+  "A black-and-white picture, 1 to 320 pixels a side."
+  type Picture {
+    width: Int!
+    height: Int!
+    "Rows top to bottom, each padded to whole bytes, 8 pixels a byte with the leftmost in the high bit, 1 for ink; compressed with raw DEFLATE, in base64."
+    bits: String!
   }
 
-  input SendDrawingInput {
+  "As Picture: the server checks its bits inflate to exactly its size."
+  input PictureInput {
+    width: Int!
+    height: Int!
+    bits: String!
+  }
+
+  "Text, a picture, or both."
+  input SendMessageInput {
     chatId: ID!
-    drawing: String!
+    content: String
+    picture: PictureInput
   }
 
   "Where one browser receives Web Push, from its PushSubscription.toJSON()."
@@ -148,8 +160,6 @@ export const typeDefs = /* GraphQL */ `
     "The viewer's direct chat with a user, created on first contact."
     findOrCreateChat(participantId: ID!): Chat!
     sendMessage(input: SendMessageInput!): Message!
-    "Sends a drawing, made in the paint window, as a message."
-    sendDrawing(input: SendDrawingInput!): Message!
     "Joins the channel called name, creating it if nobody has yet."
     joinChannel(name: String!): Chat!
     "Leaves a channel. Direct and group chats cannot be left."

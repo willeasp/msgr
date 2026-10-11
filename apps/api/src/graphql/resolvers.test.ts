@@ -12,6 +12,8 @@ import {
   TEST_PUSH_KEY,
 } from '../testing/harness.js';
 import { createContext } from './context.js';
+import { toBase64 } from '@msgr/bitmap';
+import { examplePicture, pictureInput } from '../testing/pictures.js';
 import { schema } from './server.js';
 
 type TestApp = ReturnType<typeof createTestApp>;
@@ -422,45 +424,65 @@ describe('messages', () => {
     sendMessage(input: { chatId: $chatId, content: $content }) { content }
   }`;
 
-  const sendDrawing = `mutation ($chatId: ID!, $drawing: String!) {
-    sendDrawing(input: { chatId: $chatId, drawing: $drawing }) { content drawing }
+  const sendPicture = `mutation ($chatId: ID!, $content: String, $picture: PictureInput) {
+    sendMessage(input: { chatId: $chatId, content: $content, picture: $picture }) {
+      content
+      picture { width height bits }
+    }
   }`;
-  const picture = (ink: boolean) => {
-    const bytes = new Uint8Array(256 * 20);
-    if (ink) bytes[7] = 1;
-    return btoa(String.fromCharCode(...bytes));
-  };
 
-  it('sends a drawing, read back with no text', async () => {
+  it('sends a picture, alone or with text, and reads it back', async () => {
     const { app, ada, team } = await world();
-    const drawing = picture(true);
+    const picture = pictureInput(13, 7);
+    const kept = {
+      width: 13,
+      height: 7,
+      bits: toBase64(examplePicture(13, 7).deflated),
+    };
 
-    const sent = await execute(app, sendDrawing, {
+    const alone = await execute(app, sendPicture, {
       as: ada,
-      variables: { chatId: team.id, drawing },
+      variables: { chatId: team.id, picture },
+    });
+    const captioned = await execute(app, sendPicture, {
+      as: ada,
+      variables: { chatId: team.id, content: 'look', picture },
     });
     const read = await execute(
       app,
-      'query ($id: ID!) { messages(chatId: $id) { content drawing sender { name } } }',
+      'query ($id: ID!) { messages(chatId: $id) { content picture { width height bits } } }',
       { as: ada, variables: { id: team.id } }
     );
 
-    expect(sent.data).toEqual({ sendDrawing: { content: null, drawing } });
+    expect(alone.data).toEqual({
+      sendMessage: { content: null, picture: kept },
+    });
+    expect(captioned.data).toEqual({
+      sendMessage: { content: 'look', picture: kept },
+    });
     expect(read.data).toEqual({
-      messages: [{ content: null, drawing, sender: { name: 'Ada' } }],
+      messages: [
+        { content: null, picture: kept },
+        { content: 'look', picture: kept },
+      ],
     });
   });
 
-  it('rejects a blank drawing as bad input', async () => {
+  it('rejects a bad picture, or a message with nothing in it, as bad input', async () => {
     const { app, ada, team } = await world();
 
-    const result = await execute(app, sendDrawing, {
-      as: ada,
-      variables: { chatId: team.id, drawing: picture(false) },
-    });
-
-    expect(codeOf(result)).toBe('BAD_USER_INPUT');
-    expect(result.errors?.[0]?.extensions['field']).toBe('drawing');
+    for (const [variables, field] of [
+      [{ picture: { ...pictureInput(), width: 0 } }, 'picture'],
+      [{ picture: pictureInput(8, 1, 5) }, 'picture'],
+      [{}, 'content'],
+    ] as const) {
+      const result = await execute(app, sendPicture, {
+        as: ada,
+        variables: { chatId: team.id, ...variables },
+      });
+      expect(codeOf(result)).toBe('BAD_USER_INPUT');
+      expect(result.errors?.[0]?.extensions['field']).toBe(field);
+    }
   });
 
   it('previews the first link in a message', async () => {

@@ -3,6 +3,7 @@ import { useQuery } from '@apollo/client/react';
 import { gql } from '../../../lib/__generated__';
 import { LoadingState } from '../LoadingState';
 import { Muted } from '../Muted';
+import type { WirePicture } from '../../../lib/picture-wire';
 import { MessageBubble } from './MessageBubble';
 import styles from './MessageList.module.css';
 
@@ -11,7 +12,11 @@ export const GET_CHAT_MESSAGES = gql(`
     messages(chatId: $chatId, limit: 50) {
       id
       content
-      drawing
+      picture {
+        width
+        height
+        bits
+      }
       sender {
         id
         name
@@ -24,7 +29,7 @@ export const GET_CHAT_MESSAGES = gql(`
 interface MessageListProps {
   chatId: string;
   currentUserId: string | undefined;
-  onDrawOnIt?: (drawing: string) => void;
+  onDrawOnIt?: (picture: WirePicture) => void;
 }
 
 export function MessageList({

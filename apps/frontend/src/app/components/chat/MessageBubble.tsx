@@ -5,6 +5,7 @@ import MessageViewer from '../../../sacred/components/MessageViewer';
 import { isOnlyEmoji } from '../../../lib/emoji';
 import { firstLink, splitLinks } from '../../../lib/links';
 import { PixelText } from '../PixelText';
+import type { WirePicture } from '../../../lib/picture-wire';
 import { MessagePicture } from './MessagePicture';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import styles from './MessageBubble.module.css';
@@ -13,7 +14,7 @@ interface MessageBubbleProps {
   message: {
     id: string;
     content?: string | null;
-    drawing?: string | null;
+    picture?: WirePicture | null;
     sender: {
       id: string;
       name: string;
@@ -23,8 +24,8 @@ interface MessageBubbleProps {
   isCurrentUser: boolean;
   /** Label the bubble with its sender and time; off for follow-ups in a run. */
   showMeta: boolean;
-  /** Opens the paint window on a drawing; offered under each one. */
-  onDrawOnIt?: (drawing: string) => void;
+  /** Opens the paint window on a picture; offered under each one. */
+  onDrawOnIt?: (picture: WirePicture) => void;
 }
 
 /** The viewer's own messages sit right in the accent colour, others' left. */
@@ -35,7 +36,7 @@ export function MessageBubble({
   onDrawOnIt,
 }: MessageBubbleProps) {
   const Bubble = isCurrentUser ? MessageViewer : Message;
-  const { drawing } = message;
+  const { picture } = message;
   const content = message.content ?? '';
 
   return (
@@ -50,15 +51,14 @@ export function MessageBubble({
           </time>
         </div>
       )}
-      {drawing == null && firstLink(content) && (
+      {firstLink(content) && (
         <div className={isCurrentUser ? styles.metaOwn : styles.meta}>
           <LinkPreviewCard messageId={message.id} />
         </div>
       )}
       <Bubble>
-        {drawing != null ? (
-          <MessagePicture drawing={drawing} />
-        ) : (
+        {picture && <MessagePicture picture={picture} />}
+        {content && (
           <span
             className={styles.content}
             title={new Date(message.createdAt).toLocaleString()}
@@ -86,9 +86,9 @@ export function MessageBubble({
         )}
       </Bubble>
       {/* Under the bubble, not in it: the viewer's bubbles are inverted. */}
-      {drawing != null && onDrawOnIt && (
+      {picture && onDrawOnIt && (
         <div className={isCurrentUser ? styles.metaOwn : styles.meta}>
-          <ActionButton onClick={() => onDrawOnIt(drawing)}>
+          <ActionButton onClick={() => onDrawOnIt(picture)}>
             Draw on It
           </ActionButton>
         </div>

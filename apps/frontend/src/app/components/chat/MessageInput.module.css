@@ -42,3 +42,36 @@
   background: var(--ink);
   color: var(--paper);
 }
+
+/* The attached picture, on its own line above the field. */
+.attached {
+  display: flex;
+  flex-basis: 100%;
+  gap: 2ch;
+  align-items: flex-end;
+}
+
+.attachment {
+  display: block;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 1px dotted var(--ink);
+    outline-offset: 3px;
+  }
+}
+
+/* At 1×, and no taller than three lines of text. */
+.preview {
+  display: block;
+  width: auto;
+  height: min(calc(var(--height) * 1px), calc(var(--line) * 3));
+  aspect-ratio: var(--width) / var(--height);
+  color: var(--ink);
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--ink);
+  image-rendering: pixelated;
+}

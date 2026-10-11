@@ -28,11 +28,11 @@ async function team(overrides: Partial<Dependencies> = {}) {
   await subscriptions.save(linus.id, browser('linus-phone'));
   const message = (sender: User, content: string, to: Chat = chat) =>
     ({
-      kind: 'text',
       id: MessageId('m'),
       chatId: to.id,
       senderId: sender.id,
       content: content as MessageContent,
+      picture: null,
       createdAt: new Date(0),
     } satisfies Message);
   const notifier = createNotifier(app.deps);

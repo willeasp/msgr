@@ -107,7 +107,7 @@ export function messageNotification(
       chat.kind === 'direct'
         ? sender.name
         : `${sender.name} in ${titleOf(chat, sender)}`,
-    body: message.kind === 'text' ? cut(message.content) : 'Sent a drawing.',
+    body: message.content ? cut(message.content) : 'Sent a picture.',
     chatId: chat.id,
   };
 }

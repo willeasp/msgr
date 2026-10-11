@@ -1,8 +1,5 @@
 import { useRef, useState } from 'react';
-import { useMutation } from '@apollo/client/react';
-import { withMessage } from '../../../lib/chat-list';
-import { gql } from '../../../lib/__generated__';
-import { fromBase64, getPixel, isBlank, toBase64 } from '@msgr/bitmap';
+import { getPixel, isBlank, type Bits } from '@msgr/bitmap';
 import {
   PATTERNS,
   fill,
@@ -20,24 +17,8 @@ import { useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
 import { BRUSH, BUCKET, ERASER, PENCIL } from '../icons';
 import { DialogButtons, MacDialog } from '../MacDialog';
 import { PixelIcon } from '../PixelIcon';
-import { GET_CHAT_MESSAGES } from './MessageList';
 import { pixelSize } from './MessagePicture';
 import styles from './PaintDialog.module.css';
-
-const SEND_DRAWING = gql(`
-  mutation SendDrawing($chatId: ID!, $drawing: String!) {
-    sendDrawing(input: { chatId: $chatId, drawing: $drawing }) {
-      id
-      content
-      drawing
-      sender {
-        id
-        name
-      }
-      createdAt
-    }
-  }
-`);
 
 type Tool = Brush | 'bucket';
 
@@ -51,22 +32,20 @@ const TOOLS = [
 const UNDO_STEPS = 20;
 
 interface PaintDialogProps {
-  chatId: string;
   /** The chat's title, for the window's own. */
   chatTitle: string;
-  /** A drawing to start from, for Draw on It. */
-  start?: string;
+  /** A picture to start from, at its own size; left as it is. */
+  start?: Bits;
+  /** Takes the finished picture, to attach to the message being written. */
+  onAttach: (bits: Bits) => void;
 }
 
-/** MacPaint, more or less: draws a picture and sends it to the chat. */
-export function PaintDialog({ chatId, chatTitle, start }: PaintDialogProps) {
+/** MacPaint, more or less: draws a picture to attach to a message. */
+export function PaintDialog({ chatTitle, start, onAttach }: PaintDialogProps) {
   const { close } = useModals();
-  const [bits] = useState(() => {
-    const bits = newDrawing();
-    const bytes = start ? fromBase64(start) : null;
-    if (bytes?.length === bits.bytes.length) bits.bytes.set(bytes);
-    return bits;
-  });
+  const [bits] = useState<Bits>(() =>
+    start ? { ...start, bytes: start.bytes.slice() } : newDrawing()
+  );
   const { ref, repaint } = useBitmapCanvas(bits);
   const [tool, setTool] = useState<Tool>('pencil');
   const [pattern, setPattern] = useState<(typeof PATTERNS)[number]>(
@@ -83,21 +62,6 @@ export function PaintDialog({ chatId, chatTitle, start }: PaintDialogProps) {
     last: Point;
     ink: boolean;
   } | null>(null);
-
-  const [sendDrawing, { loading: sending, error }] = useMutation(SEND_DRAWING, {
-    onCompleted: () => close(),
-    update: (cache, { data }) => {
-      if (!data?.sendDrawing) return;
-      cache.updateQuery(
-        { query: GET_CHAT_MESSAGES, variables: { chatId } },
-        (existing) =>
-          existing && {
-            // The feed may have delivered it already.
-            messages: [...withMessage(existing.messages, data.sendDrawing)],
-          }
-      );
-    },
-  });
 
   const drew = () => {
     repaint();
@@ -122,11 +86,9 @@ export function PaintDialog({ chatId, chatTitle, start }: PaintDialogProps) {
     drew();
   };
   const cancel = () => (changed ? setConfirming(true) : close());
-  const send = () => {
-    // A failure shows from `error`, and the drawing stays.
-    sendDrawing({ variables: { chatId, drawing: toBase64(bits.bytes) } }).catch(
-      () => undefined
-    );
+  const attach = () => {
+    onAttach(bits);
+    close();
   };
 
   useHotkeys('Escape', () => (confirming ? setConfirming(false) : cancel()), {
@@ -226,11 +188,6 @@ export function PaintDialog({ chatId, chatTitle, start }: PaintDialogProps) {
           </button>
         ))}
       </div>
-      {error && (
-        <p role="alert" className={styles.error}>
-          {error.message}
-        </p>
-      )}
       {confirming ? (
         <>
           <p role="alert" className={styles.question}>
@@ -253,12 +210,10 @@ export function PaintDialog({ chatId, chatTitle, start }: PaintDialogProps) {
           <Button theme="SECONDARY" onClick={cancel}>
             Cancel
           </Button>
-          {sending ? (
-            <Button isDisabled>Sending</Button>
-          ) : empty ? (
-            <Button isDisabled>Send</Button>
+          {empty ? (
+            <Button isDisabled>Attach</Button>
           ) : (
-            <Button onClick={send}>Send</Button>
+            <Button onClick={attach}>Attach</Button>
           )}
         </DialogButtons>
       )}

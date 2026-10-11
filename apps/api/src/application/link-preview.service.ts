@@ -22,7 +22,7 @@ export function createLinkPreviewService(
       messageId: string
     ): Promise<LinkPreview | null> {
       const message = await loaders.message.load(MessageId(messageId));
-      if (message?.kind !== 'text') return null;
+      if (!message?.content) return null;
       const chat = visibleTo(
         await loaders.chat.load(message.chatId),
         viewer.id

@@ -61,7 +61,7 @@ const painted = (
 const showsPaperAtTopLeft = (canvas: Locator) =>
   painted(canvas, [0, 0], 'backgroundColor');
 
-test('a drawing reaches Bob live, and comes back drawn on', async ({
+test('a drawing goes with a message to Bob, live, and comes back drawn on', async ({
   page,
   browser,
 }) => {
@@ -78,15 +78,24 @@ test('a drawing reaches Bob live, and comes back drawn on', async ({
     .click();
   await expect(paintWindow(page)).toHaveAccessibleName('Drawing for Bob Smith');
   await scribble(page, [0.1, 0.2], [0.9, 0.8]);
-  await paintWindow(page).getByRole('button', { name: 'Send' }).click();
+  await paintWindow(page).getByRole('button', { name: 'Attach' }).click();
   await expect(paintWindow(page)).toBeHidden();
 
-  const bobsChat = chatWindow(bob, 'Test User');
-  const received = bobsChat.getByRole('img', { name: 'Drawing' });
-  await expect(received).toHaveCount(1);
+  // Attached, it waits in the composer, and opens again in Paint.
+  const composer = chatWindow(page, 'Bob Smith');
+  await composer.getByRole('button', { name: 'Edit picture' }).click();
+  await expect(paintWindow(page)).toBeVisible();
+  await paintWindow(page).getByRole('button', { name: 'Attach' }).click();
+  await composer.getByRole('textbox', { name: 'Message' }).fill('look at this');
+  await composer.getByRole('button', { name: 'Send', exact: true }).click();
   await expect(
-    chatsWindow(bob).getByText('Drawing', { exact: true })
-  ).toBeVisible();
+    composer.getByRole('button', { name: 'Edit picture' })
+  ).toHaveCount(0);
+
+  const bobsChat = chatWindow(bob, 'Test User');
+  const received = bobsChat.getByRole('img', { name: 'Picture' });
+  await expect(received).toHaveCount(1);
+  await expect(bobsChat.getByText('look at this')).toBeVisible();
 
   // The picture follows the theme, repainted in the dark paper.
   expect(await showsPaperAtTopLeft(received)).toBe(true);
@@ -97,11 +106,16 @@ test('a drawing reaches Bob live, and comes back drawn on', async ({
   await paintWindow(bob).getByRole('button', { name: 'Brush' }).click();
   await paintWindow(bob).getByRole('button', { name: 'Bricks' }).click();
   await scribble(bob, [0.9, 0.1], [0.1, 0.9]);
-  await paintWindow(bob).getByRole('button', { name: 'Send' }).click();
+  await paintWindow(bob).getByRole('button', { name: 'Attach' }).click();
+  await bobsChat.getByRole('button', { name: 'Send', exact: true }).click();
 
+  // On its own, with no text: the chat list says what it was.
   await expect(
-    chatWindow(page, 'Bob Smith').getByRole('img', { name: 'Drawing' })
+    chatWindow(page, 'Bob Smith').getByRole('img', { name: 'Picture' })
   ).toHaveCount(2);
+  await expect(
+    chatsWindow(page).getByText('Picture', { exact: true })
+  ).toBeVisible();
 });
 
 test('Undo brings back what Clear wiped, and Cancel asks before discarding', async ({
@@ -114,8 +128,8 @@ test('Undo brings back what Clear wiped, and Cancel asks before discarding', asy
   await chatWindow(page, 'Test User')
     .getByRole('button', { name: 'Draw…' })
     .click();
-  // A blank canvas can't be sent: Send is only a greyed-out label.
-  const send = paintWindow(page).getByRole('button', { name: 'Send' });
+  // A blank canvas can't be attached: Attach is only a greyed-out label.
+  const send = paintWindow(page).getByRole('button', { name: 'Attach' });
   await expect(send).toHaveCount(0);
 
   await scribble(page, [0.2, 0.5], [0.8, 0.5]);

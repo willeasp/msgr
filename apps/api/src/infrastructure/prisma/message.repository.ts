@@ -1,11 +1,11 @@
 import type { MessageRepository } from '../../application/ports.js';
 import { ChatId } from '../../domain/chat.js';
-import type { Drawing } from '../../domain/drawing.js';
 import {
   MessageId,
   type Message,
   type MessageContent,
 } from '../../domain/message.js';
+import type { Picture } from '../../domain/picture.js';
 import { UserId } from '../../domain/user.js';
 import { Prisma, type PrismaClient } from './client.js';
 
@@ -14,7 +14,9 @@ const messageFields = {
   chatId: true,
   senderId: true,
   content: true,
-  drawing: true,
+  picture: true,
+  pictureWidth: true,
+  pictureHeight: true,
   createdAt: true,
 } satisfies Prisma.MessageSelect;
 
@@ -35,7 +37,8 @@ export function prismaMessageRepository(db: PrismaClient): MessageRepository {
       // One query for every chat: rank each chat's messages newest-first and
       // keep the requested window of ranks.
       const rows = await db.$queryRaw<MessageRow[]>`
-        SELECT "id", "chatId", "senderId", "content", "drawing", "createdAt"
+        SELECT "id", "chatId", "senderId", "content", "picture",
+          "pictureWidth", "pictureHeight", "createdAt"
         FROM (
           SELECT *, ROW_NUMBER() OVER (
             PARTITION BY "chatId" ORDER BY "createdAt" DESC, "id" DESC
@@ -49,11 +52,13 @@ export function prismaMessageRepository(db: PrismaClient): MessageRepository {
     },
 
     async append(message) {
-      const { chatId, senderId, createdAt } = message;
-      const body =
-        message.kind === 'text'
-          ? { content: message.content }
-          : { drawing: message.drawing };
+      const { chatId, senderId, createdAt, content, picture } = message;
+      const body = {
+        content,
+        picture: picture?.deflated ?? null,
+        pictureWidth: picture?.width ?? null,
+        pictureHeight: picture?.height ?? null,
+      };
       const [row] = await db.$transaction([
         db.message.create({
           data: { chatId, senderId, createdAt, ...body },
@@ -77,11 +82,24 @@ function toMessage(row: MessageRow): Message {
     senderId: UserId(row.senderId),
     createdAt: row.createdAt,
   };
-  if (row.content !== null) {
-    return { ...sent, kind: 'text', content: row.content as MessageContent };
+  const content = row.content as MessageContent | null;
+  const picture = pictureOf(row);
+  if (content !== null) return { ...sent, content, picture };
+  if (picture !== null) return { ...sent, content, picture };
+  throw new Error(`Message ${row.id} has neither text nor a picture`);
+}
+
+/** Checked when it was sent, and held to its size by a CHECK since. */
+function pictureOf({
+  id,
+  picture,
+  pictureWidth: width,
+  pictureHeight: height,
+}: MessageRow): Picture | null {
+  if (picture === null) return null;
+  if (width === null || height === null) {
+    throw new Error(`Message ${id} has a picture without its size`);
   }
-  if (row.drawing !== null) {
-    return { ...sent, kind: 'drawing', drawing: row.drawing as Drawing };
-  }
-  throw new Error(`Message ${row.id} has neither text nor a drawing`);
+  // Raw queries hand back a Buffer; keep one type either way.
+  return { width, height, deflated: new Uint8Array(picture) } as Picture;
 }

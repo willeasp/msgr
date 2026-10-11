@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ChatId, type ChannelName, type Chat, type ChatAdded } from './chat.js';
-import type { Drawing } from './drawing.js';
+import type { Picture } from './picture.js';
 import { invalidInput } from './errors.js';
 import { MessageId, type Message, type MessageContent } from './message.js';
 import {
@@ -86,11 +86,11 @@ const general: Chat = {
   participantIds: [ada, bob.id],
 };
 const text = (content: string, chat: Chat = direct): Message => ({
-  kind: 'text',
   id: MessageId('m'),
   chatId: chat.id,
   senderId: bob.id,
   content: content as MessageContent,
+  picture: null,
   createdAt: new Date(0),
 });
 
@@ -109,18 +109,15 @@ describe('messageNotification', () => {
     );
   });
 
-  it('says a drawing was sent', () => {
-    const drawing: Message = {
-      kind: 'drawing',
-      id: MessageId('m'),
-      chatId: direct.id,
-      senderId: bob.id,
-      drawing: 'AAAA' as Drawing,
-      createdAt: new Date(0),
-    };
-    expect(messageNotification(drawing, bob, direct).body).toBe(
-      'Sent a drawing.'
+  it('says a picture was sent, unless it came with text', () => {
+    const picture = {} as Picture;
+    const alone: Message = { ...text('x'), content: null, picture };
+    expect(messageNotification(alone, bob, direct).body).toBe(
+      'Sent a picture.'
     );
+    expect(
+      messageNotification({ ...text('look'), picture }, bob, direct).body
+    ).toBe('look');
   });
 
   it('cuts long text to 200 characters without splitting an emoji', () => {

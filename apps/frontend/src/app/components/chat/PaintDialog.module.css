@@ -81,13 +81,6 @@
   }
 }
 
-.error {
-  margin-top: calc(var(--line) * 0.5);
-  padding: 0 1ch;
-  background: var(--ink);
-  color: var(--paper);
-}
-
 .question {
   margin-top: calc(var(--line) * 0.5);
   font-family: var(--font-family-chrome);

@@ -51,3 +51,8 @@
   outline: 1px dotted currentColor;
   outline-offset: 1px;
 }
+
+/* A picture's caption, a little apart from it. */
+canvas + .content {
+  margin-top: 4px;
+}

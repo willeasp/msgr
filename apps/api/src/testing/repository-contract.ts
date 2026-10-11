@@ -8,13 +8,13 @@ import {
   type GroupChat,
 } from '../domain/chat.js';
 import { newInvite, type InviteCode } from '../domain/invite.js';
-import { Drawing } from '../domain/drawing.js';
 import {
   MessageId,
   type Message,
   type MessageContent,
 } from '../domain/message.js';
 import type { PushSubscription } from '../domain/push.js';
+import { examplePicture } from './pictures.js';
 import {
   Email,
   SearchTerm,
@@ -52,10 +52,10 @@ export function repositoryContract(
 
   const send = (chat: Chat, sender: User, content: string, createdAt: string) =>
     repositories.messages.append({
-      kind: 'text',
       chatId: chat.id,
       senderId: sender.id,
       content: content as MessageContent,
+      picture: null,
       createdAt: new Date(createdAt),
     });
 
@@ -400,53 +400,59 @@ export function repositoryContract(
       expect(await page(2, 6)).toEqual([]);
     });
 
-    it('stores a drawing and reads it back unchanged', async () => {
+    it('stores pictures, alone or with text, and reads them back unchanged', async () => {
       const ada = await fixtures.user({ name: 'Ada' });
       const grace = await fixtures.user({ name: 'Grace' });
       const chat = await repositories.chats.saveDirect(pairOf(ada, grace));
       const text = await send(chat, ada, 'look', '2030-01-01T00:00:00Z');
-      const bytes = new Uint8Array(Drawing.BYTES);
-      bytes[0] = 0xff;
-      const drawing = await repositories.messages.append({
-        kind: 'drawing',
+      const alone = await repositories.messages.append({
         chatId: chat.id,
         senderId: grace.id,
-        drawing: btoa(String.fromCharCode(...bytes)) as Drawing,
+        content: null,
+        picture: examplePicture(256, 160),
         createdAt: new Date('2030-01-01T00:01:00Z'),
       });
+      const captioned = await repositories.messages.append({
+        chatId: chat.id,
+        senderId: ada.id,
+        content: 'a tall one' as MessageContent,
+        picture: examplePicture(9, 320, 319),
+        createdAt: new Date('2030-01-01T00:02:00Z'),
+      });
 
-      expect(drawing).toMatchObject({ kind: 'drawing', senderId: grace.id });
-      expect(drawing).not.toHaveProperty('content');
+      expect(alone).toMatchObject({
+        content: null,
+        picture: { width: 256, height: 160 },
+      });
+      expect(captioned.picture).toEqual(examplePicture(9, 320, 319));
       expect(
         await repositories.messages.findPages([chat.id], {
           limit: 5,
           offset: 0,
         })
-      ).toEqual([text, drawing]);
+      ).toEqual([text, alone, captioned]);
     });
 
-    it('finds messages by id, text and drawings alike, and skips unknown ids', async () => {
+    it('finds messages by id, with and without pictures, and skips unknown ids', async () => {
       const ada = await fixtures.user({ name: 'Ada' });
       const grace = await fixtures.user({ name: 'Grace' });
       const chat = await repositories.chats.saveDirect(pairOf(ada, grace));
       const text = await send(chat, ada, 'hi', '2030-01-01T00:00:00Z');
-      const bytes = new Uint8Array(Drawing.BYTES);
-      bytes[1] = 0x0f;
-      const drawing = await repositories.messages.append({
-        kind: 'drawing',
+      const picture = await repositories.messages.append({
         chatId: chat.id,
         senderId: grace.id,
-        drawing: btoa(String.fromCharCode(...bytes)) as Drawing,
+        content: null,
+        picture: examplePicture(),
         createdAt: new Date('2030-01-01T00:01:00Z'),
       });
 
       const found = await repositories.messages.findByIds([
-        drawing.id,
+        picture.id,
         text.id,
         MessageId('missing'),
       ]);
 
-      expect(sortById(found)).toEqual(sortById([text, drawing]));
+      expect(sortById(found)).toEqual(sortById([text, picture]));
       expect(await repositories.messages.findByIds([])).toEqual([]);
     });
 

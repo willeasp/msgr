@@ -1,3 +1,4 @@
+import { toBase64 } from '@msgr/bitmap';
 import { loadExisting } from '../application/loaders.js';
 import { counterpart } from '../domain/chat.js';
 import type { Message } from '../domain/message.js';
@@ -65,10 +66,6 @@ export const resolvers: Resolvers = {
       ),
     sendMessage: async (_, { input }, ctx) =>
       unwrap(await ctx.services.messages.send(requireViewer(ctx), input)),
-    sendDrawing: async (_, { input }, ctx) =>
-      unwrap(
-        await ctx.services.messages.sendDrawing(requireViewer(ctx), input)
-      ),
     joinChannel: async (_, { name }, ctx) =>
       unwrap(await ctx.services.chats.joinChannel(requireViewer(ctx), name)),
     leaveChannel: async (_, { chatId }, ctx) =>
@@ -143,6 +140,10 @@ export const resolvers: Resolvers = {
     joined: (channel, _, ctx) =>
       channel.participantIds.includes(requireViewer(ctx).id),
     chatId: (channel) => channel.id,
+  },
+
+  Picture: {
+    bits: (picture) => toBase64(picture.deflated),
   },
 
   Message: {

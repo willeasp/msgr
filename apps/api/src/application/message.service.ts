@@ -1,11 +1,11 @@
 import { ChatId, visibleTo } from '../domain/chat.js';
 import type { InvalidInput, NotFound } from '../domain/errors.js';
-import { Drawing } from '../domain/drawing.js';
 import {
+  MessageBody,
   MessageContent,
   type Message,
-  type MessageBody,
 } from '../domain/message.js';
+import { Picture } from '../domain/picture.js';
 import { Page } from '../domain/page.js';
 import { ok, type Result } from '../domain/result.js';
 import type { User } from '../domain/user.js';
@@ -61,28 +61,26 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
       return ok(await loaders.messages(page.value).load(chat.value.id));
     },
 
+    /** Text, a picture, or both; each is checked before the chat is looked up. */
     async send(
       viewer: User,
-      input: { readonly chatId: string; readonly content: string }
+      input: {
+        readonly chatId: string;
+        readonly content?: string | null;
+        readonly picture?: Parameters<typeof Picture.parse>[0] | null;
+      }
     ): Promise<Result<Message, InvalidInput | NotFound>> {
-      const content = MessageContent.parse(input.content);
+      const content =
+        input.content == null ? ok(null) : MessageContent.parse(input.content);
       if (!content.ok) return content;
-      return post(viewer, input.chatId, {
-        kind: 'text',
-        content: content.value,
-      });
-    },
-
-    async sendDrawing(
-      viewer: User,
-      input: { readonly chatId: string; readonly drawing: string }
-    ): Promise<Result<Message, InvalidInput | NotFound>> {
-      const drawing = Drawing.parse(input.drawing);
-      if (!drawing.ok) return drawing;
-      return post(viewer, input.chatId, {
-        kind: 'drawing',
-        drawing: drawing.value,
-      });
+      const picture =
+        input.picture == null
+          ? ok(null)
+          : Picture.parse(input.picture, deps.pictures);
+      if (!picture.ok) return picture;
+      const body = MessageBody.of(content.value, picture.value);
+      if (!body.ok) return body;
+      return post(viewer, input.chatId, body.value);
     },
 
     /** Every message sent from now on to a chat the viewer is in. */

@@ -16,6 +16,7 @@ import { prismaRepositories } from './infrastructure/prisma/repositories.js';
 import { createMemoryThrottle } from './infrastructure/throttle.js';
 import { createJwtTokenService } from './infrastructure/token-service.js';
 import { createMemoryWatching } from './infrastructure/watching.js';
+import { zlibPictureCodec } from './infrastructure/zlib-picture-codec.js';
 
 // The composition root: the only place that knows which adapter fills which port.
 
@@ -57,6 +58,7 @@ const server = await startServer(
       clock,
     }),
     linkPreviewer: cachedLinkPreviewer(createLinkPreviewer(), clock),
+    pictures: zlibPictureCodec,
     pushSender: push ? createWebPushSender(push) : noPushSender,
     pushKey: push?.publicKey ?? null,
     watching: createMemoryWatching(),

@@ -17,6 +17,7 @@ import { createPubSubMessageEvents } from '../infrastructure/message-events.js';
 import { createMemoryThrottle } from '../infrastructure/throttle.js';
 import { createJwtTokenService } from '../infrastructure/token-service.js';
 import { createMemoryWatching } from '../infrastructure/watching.js';
+import { zlibPictureCodec } from '../infrastructure/zlib-picture-codec.js';
 import { createInMemoryRepositories } from './in-memory-repositories.js';
 
 export const TEST_JWT_SECRET = 'test-secret-that-is-at-least-32-characters';
@@ -114,6 +115,7 @@ export function createTestApp(overrides: Partial<Dependencies> = {}) {
     inviteCodes: sequentialInviteCodes(),
     throttle: createMemoryThrottle({ limit: 10, windowMs: 60_000, clock }),
     linkPreviewer: fakeLinkPreviewer(),
+    pictures: zlibPictureCodec,
     pushSender: recordingPushSender().sender,
     pushKey: TEST_PUSH_KEY,
     watching: createMemoryWatching(),

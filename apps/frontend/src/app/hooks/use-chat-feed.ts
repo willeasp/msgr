@@ -17,7 +17,11 @@ const MESSAGE_RECEIVED_SUBSCRIPTION = gql(`
     messageReceived {
       id
       content
-      drawing
+      picture {
+        width
+        height
+        bits
+      }
       createdAt
       sender {
         id
@@ -90,7 +94,7 @@ export function useChatFeed(handlers: {
           : existing
       );
       // The chat's history too, open or not, so it is current when opened.
-      const { chat, id, content, drawing, createdAt, sender } = message;
+      const { chat, id, content, picture, createdAt, sender } = message;
       client.cache.updateQuery(
         { query: GET_CHAT_MESSAGES, variables: { chatId: chat.id } },
         (existing) =>
@@ -100,7 +104,7 @@ export function useChatFeed(handlers: {
                 __typename: 'Message' as const,
                 id,
                 content,
-                drawing,
+                picture,
                 createdAt,
                 sender,
               }),

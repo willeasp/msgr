@@ -50,7 +50,7 @@ export function ChatListItem({ chat, isSelected }: ChatListItemProps) {
               <PixelText
                 text={
                   latestMessage
-                    ? latestMessage.content ?? 'Drawing'
+                    ? latestMessage.content ?? 'Picture'
                     : 'No messages yet'
                 }
               />

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Drawing } from '../domain/drawing.js';
 import type { Message } from '../domain/message.js';
 import { Page } from '../domain/page.js';
+import { examplePicture, pictureInput } from '../testing/pictures.js';
 import {
   createTestApp,
   expectOk,
@@ -34,10 +34,10 @@ describe('sending a message', () => {
 
     expect(message).toEqual({
       id: message.id,
-      kind: 'text',
       chatId: chat.id,
       senderId: ada.id,
       content: 'hi',
+      picture: null,
       createdAt: sentAt,
     });
   });
@@ -120,48 +120,58 @@ describe('sending a message', () => {
   });
 });
 
-const encode = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
-const drawing = (() => {
-  const bytes = new Uint8Array(Drawing.BYTES);
-  bytes[42] = 0b0011_1100;
-  return encode(bytes);
-})();
-
-describe('sending a drawing', () => {
-  it('stores it, stamped by the clock, and delivers it live', async () => {
+describe('sending a picture', () => {
+  it('stores it alone or with text, stamped by the clock, and delivers it live', async () => {
     const { services, ada, grace, linus, chat } = await team();
     const toGrace = nextEvent(services().messages.feed(grace));
     const toLinus = nextEvent(services().messages.feed(linus));
 
-    const message = expectOk(
-      await services().messages.sendDrawing(ada, { chatId: chat.id, drawing })
+    const alone = expectOk(
+      await services().messages.send(ada, {
+        chatId: chat.id,
+        picture: pictureInput(),
+      })
+    );
+    const captioned = expectOk(
+      await services().messages.send(ada, {
+        chatId: chat.id,
+        content: ' look ',
+        picture: pictureInput(),
+      })
     );
 
-    expect(message).toEqual({
-      id: message.id,
-      kind: 'drawing',
+    expect(alone).toEqual({
+      id: alone.id,
       chatId: chat.id,
       senderId: ada.id,
-      drawing,
+      content: null,
+      picture: examplePicture(),
       createdAt: expect.any(Date),
     });
-    expect(await toGrace).toEqual(message);
+    expect(captioned).toMatchObject({
+      content: 'look',
+      picture: examplePicture(),
+    });
+    expect(await toGrace).toEqual(alone);
     expect(await toLinus).toBe('nothing');
   });
 
-  it('rejects a bad drawing before looking at the chat, storing nothing', async () => {
+  it('rejects a bad picture, or nothing at all, before looking at the chat', async () => {
     const { services, ada, chat } = await team();
-    const blank = encode(new Uint8Array(Drawing.BYTES));
+    // Inked off its 8×1 canvas, so blank.
+    const blankPicture = pictureInput(8, 1, 5);
 
-    expect(
-      await services().messages.sendDrawing(ada, {
-        chatId: 'missing',
-        drawing: blank,
-      })
-    ).toMatchObject({
-      ok: false,
-      error: { type: 'InvalidInput', field: 'drawing' },
-    });
+    for (const [input, field] of [
+      [{ picture: blankPicture }, 'picture'],
+      [{ picture: { ...pictureInput(), width: 321 } }, 'picture'],
+      [{ content: 'hi', picture: blankPicture }, 'picture'],
+      [{}, 'content'],
+      [{ content: null, picture: null }, 'content'],
+    ] as const) {
+      expect(
+        await services().messages.send(ada, { chatId: 'missing', ...input })
+      ).toMatchObject({ ok: false, error: { type: 'InvalidInput', field } });
+    }
     expect(
       expectOk(await services().messages.list(ada, { chatId: chat.id }))
     ).toEqual([]);
@@ -171,9 +181,9 @@ describe('sending a drawing', () => {
     const { services, linus, chat } = await team();
 
     expect(
-      await services().messages.sendDrawing(linus, {
+      await services().messages.send(linus, {
         chatId: chat.id,
-        drawing,
+        picture: pictureInput(),
       })
     ).toEqual({ ok: false, error: { type: 'NotFound', entity: 'Chat' } });
   });
