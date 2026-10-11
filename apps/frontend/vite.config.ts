@@ -11,6 +11,10 @@
 const config = {
   root: __dirname,
   cacheDir: '../../node_modules/.vite/apps/frontend',
+  // The shared lib's source, so the app never waits for its build.
+  resolve: {
+    alias: { '@msgr/bitmap': `${__dirname}/../../libs/bitmap/src/index.ts` },
+  },
   server: {
     port: 4200,
     host: 'localhost',

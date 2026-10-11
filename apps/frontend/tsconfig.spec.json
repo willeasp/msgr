@@ -5,5 +5,6 @@
     "tsBuildInfoFile": "out-tsc/spec/tsconfig.spec.tsbuildinfo"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": []
+  "exclude": [],
+  "references": [{ "path": "../../libs/bitmap/tsconfig.lib.json" }]
 }

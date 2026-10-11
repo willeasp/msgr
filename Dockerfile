@@ -11,6 +11,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/frontend/package.json apps/frontend/
+COPY libs/bitmap/package.json libs/bitmap/
 RUN npm ci --no-audit --no-fund
 COPY . .
 ENV NX_DAEMON=false NX_NO_CLOUD=true
@@ -25,11 +26,13 @@ ENV NODE_ENV=production STATIC_DIR=/app/apps/frontend/dist
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/frontend/package.json apps/frontend/
+COPY libs/bitmap/package.json libs/bitmap/
 RUN npm ci --omit=dev --no-audit --no-fund
 COPY --from=build /app/apps/api/dist apps/api/dist
 COPY --from=build /app/apps/api/generated apps/api/generated
 COPY --from=build /app/apps/api/prisma apps/api/prisma
 COPY --from=build /app/apps/frontend/dist apps/frontend/dist
+COPY --from=build /app/libs/bitmap/dist libs/bitmap/dist
 EXPOSE 4000
 # Bring the database up to date, then serve.
 CMD ["sh", "-c", "npx prisma migrate deploy --schema apps/api/prisma/schema.prisma && exec node apps/api/dist/main.js"]

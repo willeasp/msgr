@@ -1,3 +1,4 @@
+import { atkinson, toBase64 } from '@msgr/bitmap';
 import type { Brand } from './brand.js';
 import { Url } from './link.js';
 
@@ -143,33 +144,11 @@ export function readPreview(html: string, page: Url): PagePreview | null {
 }
 
 /** Atkinson's dithering of 64×64 greyscale bytes (0 black, 255 white), packed into bits. */
-export function ditherThumbnail(grey: Uint8Array): Thumbnail {
-  const size = THUMBNAIL_SIZE;
-  const light = Float32Array.from(grey, (value) => value / 255);
-  const bytes = new Uint8Array((size * size) / 8);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const old = light[y * size + x] ?? 1;
-      const ink = old < 0.5;
-      const at = y * (size / 8) + (x >> 3);
-      if (ink) bytes[at] = (bytes[at] ?? 0) | (0x80 >> (x & 7));
-      const error = (old - (ink ? 0 : 1)) / 8;
-      for (const [dx, dy] of [
-        [1, 0],
-        [2, 0],
-        [-1, 1],
-        [0, 1],
-        [1, 1],
-        [0, 2],
-      ] as const) {
-        const nx = x + dx;
-        const ny = y + dy;
-        if (nx >= 0 && nx < size && ny < size) {
-          const next = ny * size + nx;
-          light[next] = (light[next] ?? 1) + error;
-        }
-      }
-    }
-  }
-  return btoa(String.fromCharCode(...bytes)) as Thumbnail;
-}
+export const ditherThumbnail = (grey: Uint8Array): Thumbnail =>
+  toBase64(
+    atkinson(
+      Float32Array.from(grey, (value) => value / 255),
+      THUMBNAIL_SIZE,
+      THUMBNAIL_SIZE
+    ).bytes
+  ) as Thumbnail;

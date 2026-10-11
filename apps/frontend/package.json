@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "dependencies": {
+    "@msgr/bitmap": "*",
     "graphql-ws": "^6.0.6"
   },
   "nx": {

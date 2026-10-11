@@ -1,3 +1,4 @@
+import { atkinson, getPixel } from '@msgr/bitmap';
 import { EMOJI_ART } from './emoji-art';
 import type { Bitmap } from './pixels';
 
@@ -50,34 +51,6 @@ export function isOnlyEmoji(text: string): boolean {
   );
 }
 
-/** Atkinson's dithering, as in MacPaint: ink below half, 6/8 of the error passed on. */
-export function atkinson(values: readonly number[]): boolean[] {
-  const v = [...values];
-  const ink: boolean[] = [];
-  for (let y = 0; y < SIZE; y++) {
-    for (let x = 0; x < SIZE; x++) {
-      const i = y * SIZE + x;
-      const old = v[i] ?? 1;
-      ink[i] = old < 0.5;
-      const error = (old - (ink[i] ? 0 : 1)) / 8;
-      for (const [dx, dy] of [
-        [1, 0],
-        [2, 0],
-        [-1, 1],
-        [0, 1],
-        [1, 1],
-        [0, 2],
-      ] as const) {
-        const nx = x + dx,
-          ny = y + dy;
-        if (nx >= 0 && nx < SIZE && ny < SIZE)
-          v[ny * SIZE + nx] = (v[ny * SIZE + nx] ?? 1) + error;
-      }
-    }
-  }
-  return ink;
-}
-
 /** The pixel art for an emoji: its dithered fill, its outline and its colour edges. */
 export function pixelEmoji(samples: readonly Sample[]): Bitmap {
   const on = (x: number, y: number) => x >= 0 && y >= 0 && x < SIZE && y < SIZE;
@@ -88,7 +61,9 @@ export function pixelEmoji(samples: readonly Sample[]): Bitmap {
   const fill = atkinson(
     samples.map(({ luminance }) =>
       Math.min(1, Math.max(0, (luminance - 0.2) / 0.6))
-    )
+    ),
+    SIZE,
+    SIZE
   );
   return Array.from({ length: SIZE }, (_, y) =>
     Array.from({ length: SIZE }, (_, x) => {
@@ -101,7 +76,7 @@ export function pixelEmoji(samples: readonly Sample[]): Bitmap {
       const edge =
         Math.abs(light(x, y) - light(x + 1, y)) > 0.3 ||
         Math.abs(light(x, y) - light(x, y + 1)) > 0.3;
-      return fill[y * SIZE + x] || outline || edge ? '#' : '.';
+      return getPixel(fill, x, y) || outline || edge ? '#' : '.';
     }).join('')
   );
 }
