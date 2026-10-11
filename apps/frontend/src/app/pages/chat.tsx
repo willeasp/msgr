@@ -13,6 +13,7 @@ import { ChatSidebar, GET_CHATS } from '../components/chat/ChatSidebar';
 import { AddPeopleDialog } from '../components/chat/AddPeopleDialog';
 import { ChatWindow, GET_CHAT_DATA } from '../components/chat/ChatWindow';
 import { InviteDialog } from '../components/InviteDialog';
+import { ProfileDialog } from '../components/ProfileDialog';
 import { JoinChannelDialog } from '../components/chat/JoinChannelDialog';
 import { EmptyChatState } from '../components/chat/EmptyChatState';
 import { NewChatModal } from '../components/chat/NewChatModal';
@@ -164,6 +165,7 @@ export function Chat() {
         onNewChannel={newChannel}
         onJoinChannel={joinChannel}
         onInvite={invite}
+        onProfile={() => open(ProfileDialog, {})}
         onAddPeople={addPeople}
         onCloseChat={chatId ? closeChat : undefined}
         onLeaveChannel={leaveOpenChannel}

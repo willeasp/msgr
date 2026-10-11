@@ -7,8 +7,19 @@ People join by invite, sign in, open chats with each other and exchange messages
 ### People
 
 **User**:
-Someone with an account: an id, a unique email and a display name.
-_Avoid_: Account, member, profile
+Someone with an account: an id, a unique email and a profile.
+_Avoid_: Account, member
+
+**Profile**:
+What a user shows others of themselves: a display name and an avatar, changed together. Everyone who shares a chat with them sees a change at once.
+
+**Avatar**:
+A user's own picture, exactly 64×64, drawn or dithered from a photo's middle square; or none. With none, their face is the default: a pattern made from their id.
+_Avoid_: Profile picture (in code), photo
+
+**Face**:
+How a user appears beside their messages and on their direct chat in the list: their avatar, or else the default pattern.
+_Avoid_: Identicon (that's only the default)
 
 **Viewer**:
 The signed-in user a request is made on behalf of. Every rule is phrased from the viewer's side.

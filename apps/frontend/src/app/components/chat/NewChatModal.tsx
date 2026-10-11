@@ -31,6 +31,15 @@ const FIND_OR_CREATE_CHAT = gql(`
     findOrCreateChat(participantId: $participantId) {
       id
       title
+      counterpart {
+        id
+        name
+        avatar {
+          width
+          height
+          bits
+        }
+      }
       participants {
         id
         name

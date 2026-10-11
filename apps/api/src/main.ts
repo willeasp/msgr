@@ -3,6 +3,7 @@ import { parseConfig } from './config.js';
 import { startServer } from './graphql/server.js';
 import { createPubSubMessageEvents } from './infrastructure/message-events.js';
 import { createPubSubChatEvents } from './infrastructure/chat-events.js';
+import { createPubSubProfileEvents } from './infrastructure/profile-events.js';
 import { cachedLinkPreviewer } from './infrastructure/cached-link-previewer.js';
 import { randomInviteCodes } from './infrastructure/invite-codes.js';
 import { createLinkPreviewer } from './infrastructure/link-previewer.js';
@@ -48,6 +49,7 @@ const server = await startServer(
     }),
     events: createPubSubMessageEvents(),
     chatEvents: createPubSubChatEvents(),
+    profileEvents: createPubSubProfileEvents(),
     clock,
     inviteCodes: randomInviteCodes,
     // Ten tries per email every fifteen minutes is plenty for a person and

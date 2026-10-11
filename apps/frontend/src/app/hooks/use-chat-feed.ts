@@ -28,11 +28,25 @@ const MESSAGE_RECEIVED_SUBSCRIPTION = gql(`
       sender {
         id
         name
+        avatar {
+          width
+          height
+          bits
+        }
       }
       chat {
         id
         kind
         title
+        counterpart {
+          id
+          name
+          avatar {
+            width
+            height
+            bits
+          }
+        }
         participants {
           id
           name
@@ -54,6 +68,15 @@ const CHAT_ADDED_SUBSCRIPTION = gql(`
         id
         kind
         title
+        counterpart {
+          id
+          name
+          avatar {
+            width
+            height
+            bits
+          }
+        }
         participants {
           id
           name
@@ -100,12 +123,29 @@ export function recordMessage(cache: ApolloCache, message: ReceivedMessage) {
   );
 }
 
+// Each person is cached once, by id, so their new name and picture reach
+// every message, row and title that shows them without another line here.
+const PROFILE_CHANGED_SUBSCRIPTION = gql(`
+  subscription OnProfileChanged {
+    profileChanged {
+      id
+      name
+      avatar {
+        width
+        height
+        bits
+      }
+    }
+  }
+`);
+
 export type AddedChat = OnChatAddedSubscription['chatAdded'];
 
 /**
  * Everything live for the viewer, for as long as the chat page is open,
- * whichever windows are showing: every message to any of their chats, and
- * every chat that comes to include them. Keeps the chat list and each chat's
+ * whichever windows are showing: every message to any of their chats,
+ * every chat that comes to include them, and every change to the profile of
+ * someone they share a chat with. Keeps the chat list and each chat's
  * history current, and hands each event on to be alerted.
  */
 export function useChatFeed(handlers: {
@@ -126,6 +166,8 @@ export function useChatFeed(handlers: {
       latest.current.onMessage(message);
     },
   });
+
+  useSubscription(PROFILE_CHANGED_SUBSCRIPTION);
 
   useSubscription(CHAT_ADDED_SUBSCRIPTION, {
     onData: ({ data, client }) => {

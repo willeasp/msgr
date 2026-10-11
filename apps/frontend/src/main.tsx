@@ -2,17 +2,13 @@ import { StrictMode } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import * as ReactDOM from 'react-dom/client';
 import App from './app/app';
-import {
-  ApolloClient,
-  InMemoryCache,
-  HttpLink,
-  ApolloLink,
-} from '@apollo/client';
+import { ApolloClient, HttpLink, ApolloLink } from '@apollo/client';
 import { ApolloProvider } from '@apollo/client/react';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { createClient } from 'graphql-ws';
 import { ModalProvider } from './sacred/components/page/ModalContext';
+import { createCache } from './lib/cache';
 import { applyTheme, loadTheme } from './lib/theme';
 import { registerServiceWorker } from './app/hooks/use-service-worker';
 
@@ -64,7 +60,7 @@ const link = ApolloLink.split(
 
 const client = new ApolloClient({
   link,
-  cache: new InMemoryCache(),
+  cache: createCache(),
 });
 
 root.render(

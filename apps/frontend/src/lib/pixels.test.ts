@@ -1,8 +1,10 @@
+import { blank, setPixel } from '@msgr/bitmap';
 import { describe, expect, it } from 'vitest';
 import {
   bitmapOf,
   identicon,
   identiconCells,
+  pictureImage,
   pixelPath,
   svgMask,
 } from './pixels';
@@ -68,5 +70,21 @@ describe('svgMask', () => {
     expect(svg).toContain('viewBox="0 0 2 2"');
     expect(svg).toContain('shape-rendering="crispEdges"');
     expect(svg).toContain('M0 0h1v1h-1z');
+  });
+});
+
+describe('pictureImage', () => {
+  it('draws a picture black on white, at its own size, safe in a CSS url()', () => {
+    const bits = blank(3, 2);
+    setPixel(bits, 1, 1, true);
+
+    const svg = decodeURIComponent(
+      pictureImage(bits).replace('data:image/svg+xml,', '')
+    );
+
+    expect(svg).toContain('viewBox="0 0 3 2"');
+    expect(svg).toContain('<rect width="3" height="2" fill="#fff"/>');
+    expect(svg).toContain('d="M1 1h1v1h-1z"');
+    expect(pictureImage(bits)).not.toMatch(/[()\s"']/);
   });
 });

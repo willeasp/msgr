@@ -76,6 +76,14 @@ export function createInMemoryRepositories(): {
           .sort((a, b) => compare(a.name, b.name) || compare(a.id, b.id))
           .slice(0, limit);
       },
+
+      saveProfile: async (id, { name, avatar }) => {
+        const record = users.get(id);
+        if (!record) throw new Error(`Unknown user ${id}`);
+        const user = { ...record.user, name, avatar };
+        users.set(id, { ...record, user });
+        return user;
+      },
     },
 
     chats: {
@@ -162,7 +170,7 @@ export function createInMemoryRepositories(): {
         if ([...users.values()].some(({ user }) => user.email === email)) {
           return err('EmailTaken');
         }
-        const user: User = { id: UserId(nextId()), email, name };
+        const user: User = { id: UserId(nextId()), email, name, avatar: null };
         users.set(user.id, { user, passwordHash });
         invites.set(code, { ...record, used: true });
         return ok({ user, invitedBy: record.invite.invitedBy });
@@ -222,6 +230,7 @@ export function createInMemoryRepositories(): {
         id: UserId(nextId()),
         email: parseEmail(email ?? fixtureEmail(name)),
         name,
+        avatar: null,
       };
       users.set(user.id, { user, passwordHash });
       return user;

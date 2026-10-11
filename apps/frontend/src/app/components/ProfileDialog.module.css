@@ -1,0 +1,38 @@
+/* The picture at 2×, its choices beside it. */
+.picture {
+  display: flex;
+  align-items: flex-start;
+  gap: 2ch;
+  margin-bottom: var(--line);
+}
+
+.preview {
+  flex-shrink: 0;
+  width: 128px;
+  height: 128px;
+  box-shadow: 0 0 0 1px var(--ink);
+  image-rendering: pixelated;
+}
+
+/* The default pattern inverts with the screen; a picture keeps its tones. */
+:global(body.theme-dark) .preview:not([data-picture]) {
+  filter: invert(1);
+}
+
+.choices {
+  display: grid;
+  gap: 8px;
+}
+
+.error {
+  margin-top: calc(var(--line) * 0.5);
+}
+
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

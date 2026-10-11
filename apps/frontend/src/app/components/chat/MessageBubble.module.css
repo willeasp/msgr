@@ -1,7 +1,9 @@
 .meta,
 .metaOwn {
   display: flex;
+  align-items: center;
   gap: 1ch;
+  margin-bottom: 4px;
 }
 
 /* Inset by the 1ch speech-bubble tail, so labels line up with bubbles. */

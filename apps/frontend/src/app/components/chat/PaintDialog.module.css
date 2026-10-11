@@ -51,7 +51,14 @@
 /* Drawn like a picture in the chat, at 2× (1× on a phone). */
 .canvas {
   composes: picture from './MessagePicture.module.css';
+  /* A small picture is magnified more, so a finger can draw on it. */
+  width: calc(var(--width) * var(--zoom) * 2px);
   cursor: crosshair;
+
+  @media (max-width: 760px) {
+    width: calc(var(--width) * var(--zoom) * 1px);
+  }
+
   /* Dragging draws, rather than scrolling the page. */
   touch-action: none;
 }

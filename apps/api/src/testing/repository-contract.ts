@@ -14,7 +14,7 @@ import {
   type MessageContent,
 } from '../domain/message.js';
 import type { PushSubscription } from '../domain/push.js';
-import { examplePicture } from './pictures.js';
+import { exampleAvatar, examplePicture } from './pictures.js';
 import {
   Email,
   SearchTerm,
@@ -110,6 +110,25 @@ export function repositoryContract(
       expect(await search('NAVY')).toEqual([grace]);
       expect(await search('a')).toEqual([adam, grace]);
       expect(await search('a', 1)).toEqual([adam]);
+    });
+
+    it('saves a profile: a new name, and a picture or none', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const avatar = exampleAvatar();
+
+      const saved = await repositories.users.saveProfile(ada.id, {
+        name: 'Countess' as DisplayName,
+        avatar,
+      });
+
+      expect(saved).toEqual({ ...ada, name: 'Countess', avatar });
+      expect(await repositories.users.findByIds([ada.id])).toEqual([saved]);
+      expect(
+        await repositories.users.saveProfile(ada.id, {
+          name: 'Countess' as DisplayName,
+          avatar: null,
+        })
+      ).toEqual({ ...ada, name: 'Countess', avatar: null });
     });
 
     it('matches % and _ literally', async () => {
@@ -318,6 +337,7 @@ export function repositoryContract(
           id: grace.value.user.id,
           email: 'grace@example.com',
           name: 'Grace',
+          avatar: null,
         },
         invitedBy: ada.id,
       });

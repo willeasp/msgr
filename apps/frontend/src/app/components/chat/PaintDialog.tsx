@@ -31,16 +31,18 @@ const TOOLS = [
 const UNDO_STEPS = 20;
 
 interface PaintDialogProps {
-  /** The chat's title, for the window's own. */
-  chatTitle: string;
+  /** The window's: "Drawing for Ada". */
+  title: string;
   /** A picture to start from, at its own size; left as it is. */
   start?: Bits;
-  /** Takes the finished picture, to attach to the message being written. */
-  onAttach: (bits: Bits) => void;
+  /** The button that takes the finished picture: "Attach". */
+  done: string;
+  /** Takes the finished picture. */
+  onDone: (bits: Bits) => void;
 }
 
-/** MacPaint, more or less: draws a picture to attach to a message. */
-export function PaintDialog({ chatTitle, start, onAttach }: PaintDialogProps) {
+/** MacPaint, more or less: draws a picture, for a message or a profile. */
+export function PaintDialog({ title, start, done, onDone }: PaintDialogProps) {
   const { close } = useModals();
   const [bits] = useState<Bits>(() =>
     start ? { ...start, bytes: start.bytes.slice() } : newDrawing()
@@ -85,8 +87,8 @@ export function PaintDialog({ chatTitle, start, onAttach }: PaintDialogProps) {
     drew();
   };
   const cancel = () => (changed ? setConfirming(true) : close());
-  const attach = () => {
-    onAttach(bits);
+  const finish = () => {
+    onDone(bits);
     close();
   };
 
@@ -135,7 +137,7 @@ export function PaintDialog({ chatTitle, start, onAttach }: PaintDialogProps) {
   };
 
   return (
-    <MacDialog title={`Drawing for ${chatTitle}`} modal wide>
+    <MacDialog title={title} modal wide>
       <div className={styles.workspace}>
         <div className={styles.tools}>
           {TOOLS.map(({ tool: name, label, icon }) => (
@@ -163,7 +165,15 @@ export function PaintDialog({ chatTitle, start, onAttach }: PaintDialogProps) {
           width={bits.width}
           height={bits.height}
           className={styles.canvas}
-          style={pixelSize(bits)}
+          style={
+            {
+              ...pixelSize(bits),
+              '--zoom': Math.min(
+                3,
+                Math.max(1, Math.floor(256 / Math.max(bits.width, bits.height)))
+              ),
+            } as React.CSSProperties
+          }
           role="img"
           aria-label="Canvas"
           onPointerDown={onPointerDown}
@@ -210,9 +220,9 @@ export function PaintDialog({ chatTitle, start, onAttach }: PaintDialogProps) {
             Cancel
           </Button>
           {empty ? (
-            <Button isDisabled>Attach</Button>
+            <Button isDisabled>{done}</Button>
           ) : (
-            <Button onClick={attach}>Attach</Button>
+            <Button onClick={finish}>{done}</Button>
           )}
         </DialogButtons>
       )}

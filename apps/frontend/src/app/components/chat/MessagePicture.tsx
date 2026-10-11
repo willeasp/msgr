@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { blank, type Bits } from '@msgr/bitmap';
-import { pictureBits, type WirePicture } from '../../../lib/picture-wire';
+import { useMemo } from 'react';
+import { blank } from '@msgr/bitmap';
+import type { WirePicture } from '../../../lib/picture-wire';
+import { usePicture } from '../../hooks/use-picture';
 import { pixelSize, useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
 import styles from './MessagePicture.module.css';
 
@@ -10,14 +11,7 @@ export function MessagePicture({ picture }: { picture: WirePicture }) {
     () => blank(picture.width, picture.height),
     [picture.width, picture.height]
   );
-  const [bits, setBits] = useState<Bits | null>(null);
-  useEffect(() => {
-    let current = true;
-    void pictureBits(picture).then((found) => current && setBits(found));
-    return () => {
-      current = false;
-    };
-  }, [picture]);
+  const bits = usePicture(picture);
   const shown = bits ?? empty;
   const { ref } = useBitmapCanvas(shown);
 

@@ -4,6 +4,7 @@ import { counterpart } from '../domain/chat.js';
 import type { Message } from '../domain/message.js';
 import { Page } from '../domain/page.js';
 import type { ChatAdded } from '../domain/chat.js';
+import type { User } from '../domain/user.js';
 import type {
   ChatAddedReason,
   ChatKind,
@@ -66,6 +67,13 @@ export const resolvers: Resolvers = {
       ),
     sendMessage: async (_, { input }, ctx) =>
       unwrap(await ctx.services.messages.send(requireViewer(ctx), input)),
+    updateProfile: async (_, { input }, ctx) =>
+      unwrap(
+        await ctx.services.users.updateProfile(requireViewer(ctx), {
+          name: input.name,
+          avatar: input.avatar ?? null,
+        })
+      ),
     joinChannel: async (_, { name }, ctx) =>
       unwrap(await ctx.services.chats.joinChannel(requireViewer(ctx), name)),
     leaveChannel: async (_, { chatId }, ctx) =>
@@ -93,6 +101,11 @@ export const resolvers: Resolvers = {
       subscribe: (_, __, ctx) =>
         ctx.services.chats.additions(requireViewer(ctx)),
       resolve: (event: ChatAdded) => event,
+    },
+    profileChanged: {
+      subscribe: (_, __, ctx) =>
+        ctx.services.users.profileChanges(requireViewer(ctx)),
+      resolve: (user: User) => user,
     },
     watching: {
       subscribe: (_, { chatId }, ctx) =>
@@ -126,6 +139,13 @@ export const resolvers: Resolvers = {
           ).name;
       }
     },
+    counterpart: (chat, _, ctx) =>
+      chat.kind === 'direct'
+        ? loadExisting(
+            ctx.loaders.user,
+            counterpart(chat, requireViewer(ctx).id)
+          )
+        : null,
     participants: (chat, _, { loaders }) =>
       Promise.all(
         chat.participantIds.map((id) => loadExisting(loaders.user, id))

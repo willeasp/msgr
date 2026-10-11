@@ -45,7 +45,9 @@ a hard cap at exactly the size's bytes, so a small DEFLATE bomb never expands in
 memory, refuses a blank one, and stores its own compression, never the sender's
 bytes. Browsers inflate under the same cap. WebSocket messages, which only
 ever carry subscriptions, are capped at 64 KB; messages go over HTTP, where
-bodies are capped at 100 KB.
+bodies are capped at 100 KB. Avatars are pictures too, parsed the same way and
+held to exactly 64×64. Only people who share a chat with someone are sent their
+profile changes, though anyone signed in can read a name and avatar.
 
 **Link previews.** Our server, not the reader's browser, fetches a page to
 preview a link, so linked sites never see readers' addresses. Because anyone can

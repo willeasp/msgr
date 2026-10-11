@@ -13,6 +13,7 @@ import type { InviteCode } from '../domain/invite.js';
 import type { Result } from '../domain/result.js';
 import type { PasswordHash } from '../domain/user.js';
 import { createPubSubChatEvents } from '../infrastructure/chat-events.js';
+import { createPubSubProfileEvents } from '../infrastructure/profile-events.js';
 import { createPubSubMessageEvents } from '../infrastructure/message-events.js';
 import { createMemoryThrottle } from '../infrastructure/throttle.js';
 import { createJwtTokenService } from '../infrastructure/token-service.js';
@@ -111,6 +112,7 @@ export function createTestApp(overrides: Partial<Dependencies> = {}) {
     tokens: createJwtTokenService({ secret: TEST_JWT_SECRET, ttlSeconds: 60 }),
     events: createPubSubMessageEvents(),
     chatEvents: createPubSubChatEvents(),
+    profileEvents: createPubSubProfileEvents(),
     clock,
     inviteCodes: sequentialInviteCodes(),
     throttle: createMemoryThrottle({ limit: 10, windowMs: 60_000, clock }),

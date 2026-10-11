@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { DisplayName, Email, NewPassword, SearchTerm } from './user.js';
+import {
+  Avatar,
+  DisplayName,
+  Email,
+  NewPassword,
+  Profile,
+  SearchTerm,
+} from './user.js';
+import { zlibPictureCodec } from '../infrastructure/zlib-picture-codec.js';
+import { pictureInput } from '../testing/pictures.js';
 
 describe('Email.parse', () => {
   it('trims and lower-cases', () => {
@@ -79,5 +88,55 @@ describe('NewPassword.parse', () => {
     expect(NewPassword.parse('a'.repeat(73)).ok).toBe(false);
     // Each "é" is two bytes in UTF-8.
     expect(NewPassword.parse('é'.repeat(37)).ok).toBe(false);
+  });
+});
+
+describe('Avatar.parse', () => {
+  it('takes a 64×64 picture', () => {
+    const result = Avatar.parse(pictureInput(64, 64), zlibPictureCodec);
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { width: 64, height: 64 },
+    });
+  });
+
+  it('refuses any other size, and whatever a picture refuses', () => {
+    for (const raw of [
+      pictureInput(64, 63),
+      pictureInput(320, 320),
+      { width: 64, height: 64, bits: 'not base64!' },
+    ]) {
+      expect(Avatar.parse(raw, zlibPictureCodec)).toMatchObject({
+        ok: false,
+        error: { type: 'InvalidInput', field: 'avatar' },
+      });
+    }
+  });
+});
+
+describe('Profile.parse', () => {
+  it('parses the name and the picture, which may be none', () => {
+    expect(
+      Profile.parse({ name: '  Ada  ', avatar: null }, zlibPictureCodec)
+    ).toEqual({ ok: true, value: { name: 'Ada', avatar: null } });
+    expect(
+      Profile.parse(
+        { name: 'Ada', avatar: pictureInput(64, 64) },
+        zlibPictureCodec
+      )
+    ).toMatchObject({ ok: true, value: { avatar: { width: 64 } } });
+  });
+
+  it('refuses a bad name or a bad picture', () => {
+    expect(
+      Profile.parse({ name: ' ', avatar: null }, zlibPictureCodec)
+    ).toMatchObject({ ok: false, error: { field: 'name' } });
+    expect(
+      Profile.parse(
+        { name: 'Ada', avatar: pictureInput(8, 8) },
+        zlibPictureCodec
+      )
+    ).toMatchObject({ ok: false, error: { field: 'avatar' } });
   });
 });

@@ -58,13 +58,25 @@ export function identicon(seed: string): string {
     `<path d="M0 0h9v9h-9zM.5 .5v8h8v-8z" fill="#000" fill-rule="evenodd"/>` +
     `<path d="${pixelPath(bitmap)}" fill="#000" transform="translate(2 2)"/>` +
     `</svg>`;
-  // Escape the parentheses too: Avatar puts this in an unquoted CSS url().
-  const encoded = encodeURIComponent(svg).replace(
+  return dataUri(svg);
+}
+
+/** A picture, black on white, as a data URI for an <img> or background. */
+export function pictureImage(bits: Bits): string {
+  const { width, height } = bits;
+  return dataUri(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges">` +
+      `<rect width="${width}" height="${height}" fill="#fff"/>` +
+      `<path d="${pixelPath(bitmapOf(bits))}"/></svg>`
+  );
+}
+
+// Escapes the parentheses too: Avatar puts this in an unquoted CSS url().
+const dataUri = (svg: string) =>
+  `data:image/svg+xml,${encodeURIComponent(svg).replace(
     /[()]/g,
     (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
-  );
-  return `data:image/svg+xml,${encoded}`;
-}
+  )}`;
 
 /** A packed picture as a Bitmap, row by row. */
 export const bitmapOf = (bits: Bits): Bitmap =>

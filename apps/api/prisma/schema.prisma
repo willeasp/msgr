@@ -13,6 +13,8 @@ model User {
   email             String             @unique
   name              String
   password          String
+  /// A 64×64 picture, raw-DEFLATEd like a message's; null for the default.
+  avatar            Bytes?
   chats             Chat[]             @relation("ChatParticipants")
   messages          Message[]
   invitesSent       Invite[]           @relation("InvitesSent")

@@ -5,6 +5,8 @@ const config: CodegenConfig = {
   documents: [
     'apps/frontend/src/**/*.{ts,tsx}',
     '!apps/frontend/src/lib/__generated__/**',
+    // Tests write their own documents straight into the cache.
+    '!apps/frontend/src/**/*.test.ts',
   ],
   generates: {
     'apps/frontend/src/lib/__generated__/': {

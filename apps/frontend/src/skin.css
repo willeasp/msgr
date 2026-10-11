@@ -407,6 +407,11 @@ body.theme-dark .srcl-Avatar__root {
   filter: invert(1);
 }
 
+/* A profile picture keeps its tones, as pictures in messages do. */
+body.theme-dark [data-picture] > .srcl-Avatar__root {
+  filter: none;
+}
+
 :root .srcl-AlertBanner__root {
   padding: calc(var(--line) * 0.5) 2ch;
   background: var(--paper);

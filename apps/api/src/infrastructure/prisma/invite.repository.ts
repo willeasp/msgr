@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto';
 import type { InviteRepository } from '../../application/ports.js';
 import type { InviteCode } from '../../domain/invite.js';
 import { err, ok } from '../../domain/result.js';
-import { UserId, type Email } from '../../domain/user.js';
+import { UserId } from '../../domain/user.js';
+import { toUser, userFields } from './user.repository.js';
 import { Prisma, type PrismaClient } from './client.js';
 
 /** Rows hold a hash of the code, so a leaked database cannot sign anyone up. */
@@ -46,7 +47,7 @@ export function prismaInviteRepository(db: PrismaClient): InviteRepository {
           const user = await tx.user
             .create({
               data: { email, name, password: passwordHash },
-              select: { id: true, email: true, name: true },
+              select: userFields,
             })
             .catch((error: unknown) => {
               throw isUniqueViolation(error) ? new Abort('EmailTaken') : error;
@@ -59,11 +60,7 @@ export function prismaInviteRepository(db: PrismaClient): InviteRepository {
           return { user, invitedById };
         });
         return ok({
-          user: {
-            id: UserId(row.user.id),
-            email: row.user.email as Email,
-            name: row.user.name,
-          },
+          user: toUser(row.user),
           invitedBy: row.invitedById === null ? null : UserId(row.invitedById),
         });
       } catch (error) {

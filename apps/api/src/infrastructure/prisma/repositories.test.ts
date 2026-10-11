@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe } from 'vitest';
 import { ChatId } from '../../domain/chat.js';
-import { UserId, type Email } from '../../domain/user.js';
 import {
   fixtureEmail,
   repositoryContract,
@@ -8,6 +7,7 @@ import {
 } from '../../testing/repository-contract.js';
 import { PrismaClient } from './client.js';
 import { prismaRepositories } from './repositories.js';
+import { toUser, userFields } from './user.repository.js';
 
 // Point at a disposable, migrated database: every test truncates it.
 const url = process.env['TEST_DATABASE_URL'];
@@ -31,10 +31,12 @@ describe.runIf(url)('prisma repositories', () => {
 
 const prismaFixtures = (db: PrismaClient): Fixtures => ({
   async user({ name, email = fixtureEmail(name), passwordHash }) {
-    const row = await db.user.create({
-      data: { name, email, password: passwordHash ?? 'unusable' },
-    });
-    return { id: UserId(row.id), email: row.email as Email, name: row.name };
+    return toUser(
+      await db.user.create({
+        data: { name, email, password: passwordHash ?? 'unusable' },
+        select: userFields,
+      })
+    );
   },
 
   async groupChat(title, members) {

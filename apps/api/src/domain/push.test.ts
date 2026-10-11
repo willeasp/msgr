@@ -66,6 +66,7 @@ const bob: User = {
   id: UserId('bob'),
   email: 'bob@example.com' as Email,
   name: 'Bob',
+  avatar: null,
 };
 const ada = UserId('ada');
 const direct: Chat = {

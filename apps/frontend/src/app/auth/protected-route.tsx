@@ -10,6 +10,11 @@ export const ME = gql(`
       id
       email
       name
+      avatar {
+        width
+        height
+        bits
+      }
     }
   }
 `);

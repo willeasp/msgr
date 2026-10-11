@@ -1,16 +1,18 @@
 import type { UserRepository } from '../../application/ports.js';
 import {
   UserId,
+  type Avatar,
   type Email,
   type PasswordHash,
   type User,
 } from '../../domain/user.js';
 import type { Prisma, PrismaClient } from './client.js';
 
-const userFields = {
+export const userFields = {
   id: true,
   email: true,
   name: true,
+  avatar: true,
 } satisfies Prisma.UserSelect;
 
 type UserRow = Prisma.UserGetPayload<{ select: typeof userFields }>;
@@ -35,6 +37,15 @@ export function prismaUserRepository(db: PrismaClient): UserRepository {
       );
     },
 
+    async saveProfile(id, { name, avatar }) {
+      const row = await db.user.update({
+        where: { id },
+        data: { name, avatar: avatar?.deflated ?? null },
+        select: userFields,
+      });
+      return toUser(row);
+    },
+
     async search(term, { excluding, limit }) {
       // Prisma hands `contains` to LIKE as-is; escape so "%" and "_" match literally.
       const literal = term.replace(/[\\%_]/g, '\\$&');
@@ -55,8 +66,16 @@ export function prismaUserRepository(db: PrismaClient): UserRepository {
   };
 }
 
-const toUser = (row: UserRow): User => ({
+export const toUser = (row: UserRow): User => ({
   id: UserId(row.id),
   email: row.email as Email,
   name: row.name,
+  // Checked when it was saved; always this size.
+  avatar:
+    row.avatar &&
+    ({
+      width: 64,
+      height: 64,
+      deflated: new Uint8Array(row.avatar),
+    } as Avatar),
 });

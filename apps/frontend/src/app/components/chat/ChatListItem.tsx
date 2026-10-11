@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
-import { identicon } from '../../../lib/pixels';
 import { formatTime } from '../../../lib/utils/time';
 import { useClock } from '../../hooks/use-clock';
 import Avatar from '../../../sacred/components/Avatar';
 import Indent from '../../../sacred/components/Indent';
 import RowEllipsis from '../../../sacred/components/RowEllipsis';
 import RowSpaceBetween from '../../../sacred/components/RowSpaceBetween';
+import { useFace, type Person } from '../Face';
 import { Muted } from '../Muted';
 import styles from './ChatListItem.module.css';
 import { PixelText } from '../PixelText';
@@ -14,6 +14,8 @@ interface ChatListItemProps {
   chat: {
     id: string;
     title: string;
+    /** The other person, in a direct chat: the row shows their face. */
+    counterpart?: Person | null;
     messages: Array<{
       id: string;
       content?: string | null;
@@ -26,6 +28,7 @@ interface ChatListItemProps {
 export function ChatListItem({ chat, isSelected }: ChatListItemProps) {
   const latestMessage = chat.messages[0];
   const now = useClock();
+  const face = useFace(chat.counterpart ?? { id: chat.id });
 
   return (
     <Link
@@ -33,7 +36,7 @@ export function ChatListItem({ chat, isSelected }: ChatListItemProps) {
       className={isSelected ? `${styles.item} ${styles.selected}` : styles.item}
       aria-current={isSelected ? 'page' : undefined}
     >
-      <Avatar src={identicon(chat.id)}>
+      <Avatar src={face.src} data-picture={face.picture || undefined}>
         <Indent>
           <RowSpaceBetween>
             <RowEllipsis>

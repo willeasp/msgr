@@ -13,6 +13,15 @@ export const GET_CHATS = gql(`
       id
       kind
       title
+      counterpart {
+        id
+        name
+        avatar {
+          width
+          height
+          bits
+        }
+      }
       participants {
         id
         name

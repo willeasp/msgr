@@ -33,11 +33,25 @@ const SEND_MESSAGE = gql(`
       sender {
         id
         name
+        avatar {
+          width
+          height
+          bits
+        }
       }
       chat {
         id
         kind
         title
+        counterpart {
+          id
+          name
+          avatar {
+            width
+            height
+            bits
+          }
+        }
         participants {
           id
           name

@@ -28,6 +28,7 @@
 - **Pixel emoji.** Every emoji is redrawn as black-and-white pixel art in the theme's ink, and a message of just emoji shows them big.
 - **MacPaint drawings.** **Draw…** opens a paint window with a pencil, brush, paint bucket, eraser and eight patterns, and attaches the picture to your message. **Draw on It** opens any picture in the chat to add to it.
 - **Photos, the 1984 way.** **Picture…**, pasting or dropping a photo dithers it to black and white on your device, up to 320 pixels a side, to send with or without text. Only the dithered picture leaves your device, in a few kilobytes.
+- **Profiles.** File → **Profile…** changes your name and your face: draw one, or dither a photo's middle to 64×64. Remove it and you're the pattern you started as. Everyone who shares a chat with you sees the change at once.
 - **Link previews.** Links are clickable, and the first in a message gets a card with the page's site, title, description and its picture dithered to 64×64. Our server reads the page, fenced in so it can only reach the public internet, so linked sites never see who's reading.
 - **Notifications, even with Msgr closed**, on computers and phones, for messages in chats you aren't looking at. Msgr offers them once on each device, and keeps them in the **Special** menu. On an iPhone, add Msgr to the Home Screen first (Share → Add to Home Screen); elsewhere it can be installed as an app from the **Special** menu. A beep sounds while it's open.
 - **Light, dark and seven tints** from the **View** menu, and a layout that works on a phone.

@@ -1,0 +1,15 @@
+.face {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+}
+
+/* A picture keeps its own frame and tones; a pattern inverts with the screen. */
+.face[data-picture] {
+  box-shadow: 0 0 0 1px var(--ink);
+}
+
+:global(body.theme-dark) .face:not([data-picture]) {
+  filter: invert(1);
+}

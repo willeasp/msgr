@@ -20,6 +20,11 @@ export const GET_CHAT_MESSAGES = gql(`
       sender {
         id
         name
+        avatar {
+          width
+          height
+          bits
+        }
       }
       createdAt
     }

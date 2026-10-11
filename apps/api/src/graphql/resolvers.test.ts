@@ -304,6 +304,68 @@ describe('channels', () => {
   });
 });
 
+describe('profiles', () => {
+  const update = `mutation ($name: String!, $avatar: PictureInput) {
+    updateProfile(input: { name: $name, avatar: $avatar }) {
+      name
+      avatar { width height bits }
+    }
+  }`;
+
+  it("changes the viewer's name and picture, and takes the picture away", async () => {
+    const { app, ada } = await world();
+    const avatar = pictureInput(64, 64);
+
+    const saved = await execute(app, update, {
+      as: ada,
+      variables: { name: 'Countess', avatar },
+    });
+
+    expect(saved.data).toEqual({
+      updateProfile: {
+        name: 'Countess',
+        avatar: { width: 64, height: 64, bits: expect.any(String) },
+      },
+    });
+    const removed = await execute(app, update, {
+      as: ada,
+      variables: { name: 'Countess', avatar: null },
+    });
+    expect(removed.data).toEqual({
+      updateProfile: { name: 'Countess', avatar: null },
+    });
+  });
+
+  it('rejects a picture of the wrong size as bad input, and anyone signed out', async () => {
+    const { app, ada } = await world();
+    const variables = { name: 'Ada', avatar: pictureInput(32, 32) };
+
+    const result = await execute(app, update, { as: ada, variables });
+
+    expect(codeOf(result)).toBe('BAD_USER_INPUT');
+    expect(result.errors?.[0]?.extensions['field']).toBe('avatar');
+    expect(codeOf(await execute(app, update, { variables }))).toBe(
+      'UNAUTHENTICATED'
+    );
+  });
+
+  it('streams the change to everyone who shares a chat', async () => {
+    const { app, ada, grace } = await world();
+    const toGrace = nextEvent(
+      await feed(app, grace, 'subscription { profileChanged { id name } }')
+    );
+
+    await execute(app, update, {
+      as: ada,
+      variables: { name: 'Countess', avatar: null },
+    });
+
+    expect(await toGrace).toEqual({
+      data: { profileChanged: { id: ada.id, name: 'Countess' } },
+    });
+  });
+});
+
 describe('throttling', () => {
   it('reports a throttled login as too many requests', async () => {
     const app = createTestApp({ throttle: { attempt: () => false } });
@@ -332,6 +394,23 @@ describe('chats', () => {
     expect((await execute(app, query, { as: grace, variables })).data).toEqual({
       chat: { title: 'Ada' },
     });
+  });
+
+  it('names the other person in a direct chat, and nobody in a group', async () => {
+    const { app, ada, grace, team, direct } = await world();
+    const query = 'query ($id: ID!) { chat(id: $id) { counterpart { name } } }';
+
+    expect(
+      (await execute(app, query, { as: ada, variables: { id: direct.id } }))
+        .data
+    ).toEqual({ chat: { counterpart: { name: 'Grace' } } });
+    expect(
+      (await execute(app, query, { as: grace, variables: { id: direct.id } }))
+        .data
+    ).toEqual({ chat: { counterpart: { name: 'Ada' } } });
+    expect(
+      (await execute(app, query, { as: ada, variables: { id: team.id } })).data
+    ).toEqual({ chat: { counterpart: null } });
   });
 
   it("returns null for a chat the viewer isn't in", async () => {

@@ -21,6 +21,7 @@ import type {
   NewPassword,
   NewUser,
   PasswordHash,
+  Profile,
   SearchTerm,
   SessionToken,
   User,
@@ -37,6 +38,8 @@ import type {
 export interface UserRepository {
   findByIds(ids: readonly UserId[]): Promise<User[]>;
   findCredentials(email: Email): Promise<Credentials | null>;
+  /** Replaces the user's name and picture; the user as they are now. */
+  saveProfile(id: UserId, profile: Profile): Promise<User>;
   /** Name or email contains `term` (case-insensitive), ordered by name. */
   search(
     term: SearchTerm,
@@ -141,6 +144,12 @@ export interface ChatEvents {
   subscribe(recipient: UserId): AsyncIterableIterator<ChatAdded>;
 }
 
+/** Tells everyone who shares a chat with someone that their profile changed, live. */
+export interface ProfileEvents {
+  publish(user: User, recipients: readonly UserId[]): Promise<void>;
+  subscribe(recipient: UserId): AsyncIterableIterator<User>;
+}
+
 /** Who has which chat open in a visible window right now. Its messages don't notify them. */
 export interface Watching {
   /** Counts `userId` as watching `chatId` until the returned function is called. */
@@ -180,6 +189,7 @@ export interface Dependencies {
   readonly tokens: TokenService;
   readonly events: MessageEvents;
   readonly chatEvents: ChatEvents;
+  readonly profileEvents: ProfileEvents;
   readonly clock: Clock;
   readonly inviteCodes: InviteCodes;
   readonly throttle: Throttle;

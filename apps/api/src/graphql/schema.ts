@@ -6,6 +6,8 @@ export const typeDefs = /* GraphQL */ `
     id: ID!
     email: String!
     name: String!
+    "Their profile picture, 64×64; null for the default, a pattern made from their id."
+    avatar: Picture
   }
 
   type AuthPayload {
@@ -47,6 +49,8 @@ export const typeDefs = /* GraphQL */ `
     "A group's own title, a channel's name after a #, or for a direct chat the other participant's name."
     title: String!
     participants: [User!]!
+    "In a direct chat, the other person; null in any other."
+    counterpart: User
     "Paged back from the newest message (offset 0); each page is returned oldest first."
     messages(limit: Int, offset: Int): [Message!]!
   }
@@ -122,6 +126,13 @@ export const typeDefs = /* GraphQL */ `
     picture: PictureInput
   }
 
+  "Everything someone shows others of themselves, saved at once."
+  input ProfileInput {
+    name: String!
+    "Exactly 64×64; null for the default."
+    avatar: PictureInput
+  }
+
   "Where one browser receives Web Push, from its PushSubscription.toJSON()."
   input PushSubscriptionInput {
     endpoint: String!
@@ -160,6 +171,8 @@ export const typeDefs = /* GraphQL */ `
     "The viewer's direct chat with a user, created on first contact."
     findOrCreateChat(participantId: ID!): Chat!
     sendMessage(input: SendMessageInput!): Message!
+    "Replaces the viewer's name and picture, and tells everyone who shares a chat with them."
+    updateProfile(input: ProfileInput!): User!
     "Joins the channel called name, creating it if nobody has yet."
     joinChannel(name: String!): Chat!
     "Leaves a channel. Direct and group chats cannot be left."
@@ -177,6 +190,8 @@ export const typeDefs = /* GraphQL */ `
     messageReceived: Message!
     "Every chat that comes to include the viewer without them opening it."
     chatAdded: ChatAdded!
+    "Every change to the profile of someone who shares a chat with the viewer, their own included."
+    profileChanged: User!
     "Held while a visible page shows this chat, so its messages don't notify the viewer. Never sends anything."
     watching(chatId: ID!): Boolean
   }

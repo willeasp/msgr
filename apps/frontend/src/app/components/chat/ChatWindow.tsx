@@ -20,6 +20,15 @@ export const GET_CHAT_DATA = gql(`
       id
       kind
       title
+      counterpart {
+        id
+        name
+        avatar {
+          width
+          height
+          bits
+        }
+      }
       participants {
         id
         name
@@ -74,7 +83,12 @@ export function ChatWindow({
   };
   // A blank canvas, the attachment, or a picture from the chat to draw on.
   const draw = (start?: Bits) =>
-    open(PaintDialog, { chatTitle: title, start, onAttach: attach });
+    open(PaintDialog, {
+      title: `Drawing for ${title}`,
+      start,
+      done: 'Attach',
+      onDone: attach,
+    });
   const drawOn = async (picture: WirePicture) => {
     const bits = await pictureBits(picture);
     if (bits) draw(bits);

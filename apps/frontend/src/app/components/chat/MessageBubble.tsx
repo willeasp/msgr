@@ -6,6 +6,7 @@ import MessageViewer from '../../../sacred/components/MessageViewer';
 import { isOnlyEmoji } from '../../../lib/emoji';
 import { firstLink, splitLinks } from '../../../lib/links';
 import type { WirePicture } from '../../../lib/picture-wire';
+import { Face, type Person } from '../Face';
 import { PixelText } from '../PixelText';
 import { MessagePicture } from './MessagePicture';
 import { LinkPreviewCard } from './LinkPreviewCard';
@@ -16,10 +17,7 @@ interface MessageBubbleProps {
     id: string;
     content?: string | null;
     picture?: WirePicture | null;
-    sender: {
-      id: string;
-      name: string;
-    };
+    sender: Person & { name: string };
     createdAt: string;
   };
   isCurrentUser: boolean;
@@ -45,6 +43,7 @@ export function MessageBubble({
     <>
       {showMeta && (
         <div className={isCurrentUser ? styles.metaOwn : styles.meta}>
+          <Face person={message.sender} />
           <span className={styles.sender}>
             {isCurrentUser ? 'You' : <PixelText text={message.sender.name} />}
           </span>

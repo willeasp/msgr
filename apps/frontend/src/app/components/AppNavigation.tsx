@@ -21,6 +21,7 @@ interface AppNavigationProps {
   onNewChannel: () => void;
   onJoinChannel: () => void;
   onInvite: () => void;
+  onProfile: () => void;
   /** Present while a channel is open. */
   onAddPeople?: () => void;
   /** Present while a chat is open. */
@@ -39,6 +40,7 @@ export function AppNavigation({
   onNewChannel,
   onJoinChannel,
   onInvite,
+  onProfile,
   onAddPeople,
   onCloseChat,
   onLeaveChannel,
@@ -71,6 +73,7 @@ export function AppNavigation({
               ...(onLeaveChannel
                 ? [{ label: 'Leave Channel', onClick: onLeaveChannel }]
                 : []),
+              { label: 'Profile…', onClick: onProfile },
               {
                 label: 'Log Out',
                 // While still signed in, so the server lets go of this browser

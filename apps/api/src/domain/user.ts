@@ -1,5 +1,6 @@
 import type { Brand } from './brand.js';
 import { invalidInput, type InvalidInput } from './errors.js';
+import { Picture, type PictureCodec, type RawPicture } from './picture.js';
 import { err, ok, type Result } from './result.js';
 
 export type UserId = Brand<string, 'UserId'>;
@@ -9,7 +10,30 @@ export interface User {
   readonly id: UserId;
   readonly email: Email;
   readonly name: string;
+  /** Null for the default: a pattern made from their id. */
+  readonly avatar: Avatar | null;
 }
+
+/** Someone's profile picture: a picture exactly 64 pixels square. */
+export type Avatar = Picture & { readonly width: 64; readonly height: 64 };
+export const Avatar = {
+  SIDE: 64 as const,
+  parse(raw: RawPicture, codec: PictureCodec): Result<Avatar, InvalidInput> {
+    if (raw.width !== Avatar.SIDE || raw.height !== Avatar.SIDE) {
+      return err(
+        invalidInput(
+          'avatar',
+          `A profile picture must be ${Avatar.SIDE} by ${Avatar.SIDE} pixels`
+        )
+      );
+    }
+    const picture = Picture.parse(raw, codec);
+    if (!picture.ok) {
+      return err(invalidInput('avatar', picture.error.reason));
+    }
+    return ok(picture.value as Avatar);
+  },
+};
 
 /** What someone calls themselves: trimmed, non-empty, at most 50 characters. */
 export type DisplayName = Brand<string, 'DisplayName'>;
@@ -29,6 +53,26 @@ export const DisplayName = {
       );
     }
     return ok(name as DisplayName);
+  },
+};
+
+/** What someone shows others of themselves, all of it saved at once. */
+export interface Profile {
+  readonly name: DisplayName;
+  /** Null for the default. */
+  readonly avatar: Avatar | null;
+}
+export const Profile = {
+  parse(
+    raw: { readonly name: string; readonly avatar: RawPicture | null },
+    codec: PictureCodec
+  ): Result<Profile, InvalidInput> {
+    const name = DisplayName.parse(raw.name);
+    if (!name.ok) return name;
+    if (raw.avatar === null) return ok({ name: name.value, avatar: null });
+    const avatar = Avatar.parse(raw.avatar, codec);
+    if (!avatar.ok) return avatar;
+    return ok({ name: name.value, avatar: avatar.value });
   },
 };
 
