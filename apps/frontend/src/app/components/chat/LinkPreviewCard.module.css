@@ -35,15 +35,28 @@
   height: 64px;
 }
 
-/* The page's picture, dithered by the server, in the card's ink. */
+/* The page's picture, dithered by the server: its ink masked over its own
+   paper, so it keeps its tones in every theme and when the card inverts. */
 .thumbnail {
-  background: currentColor;
-  -webkit-mask: var(--thumbnail) center / 100% 100% no-repeat;
-  mask: var(--thumbnail) center / 100% 100% no-repeat;
+  position: relative;
+  background: var(--picture-paper);
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--picture-ink);
+    -webkit-mask: var(--thumbnail) center / 100% 100% no-repeat;
+    mask: var(--thumbnail) center / 100% 100% no-repeat;
+  }
 
   @media (forced-colors: active) {
     forced-color-adjust: none;
-    background: CanvasText;
+    background: Canvas;
+
+    &::before {
+      background: CanvasText;
+    }
   }
 }
 

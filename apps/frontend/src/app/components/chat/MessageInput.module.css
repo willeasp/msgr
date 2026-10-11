@@ -70,8 +70,8 @@
   width: auto;
   height: min(calc(var(--height) * 1px), calc(var(--line) * 3));
   aspect-ratio: var(--width) / var(--height);
-  color: var(--ink);
-  background: var(--paper);
+  color: var(--picture-ink);
+  background: var(--picture-paper);
   box-shadow: 0 0 0 1px var(--ink);
   image-rendering: pixelated;
 }

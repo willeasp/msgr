@@ -13,6 +13,9 @@ Each starts with :root so it outranks the component's own rule of the same shape
 body {
   --ink: var(--theme-text);
   --paper: var(--theme-background);
+  /* Pictures and photos keep their tones: dark stays dark on any screen. */
+  --picture-ink: var(--ink);
+  --picture-paper: var(--paper);
   --line: calc(var(--theme-line-height-base) * 1rem);
 
   /* 50% grey, the desktop. */
@@ -32,6 +35,12 @@ body {
 
   --font-family-mono: 'DepartureMono-Regular', Monaco, Consolas, monospace;
   --font-family-chrome: 'ChicagoFLF', Chicago, var(--font-family-mono);
+}
+
+/* The dark screen is the inverted one; a picture on it is still a light sheet. */
+body.theme-dark {
+  --picture-ink: var(--paper);
+  --picture-paper: var(--ink);
 }
 
 /*

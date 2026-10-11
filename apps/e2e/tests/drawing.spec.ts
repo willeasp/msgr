@@ -60,6 +60,16 @@ const painted = (
   );
 const showsPaperAtTopLeft = (canvas: Locator) =>
   painted(canvas, [0, 0], 'backgroundColor');
+/** Whether a canvas's paper is lighter than its ink, as on a sheet of paper. */
+const darkOnLight = (canvas: Locator) =>
+  canvas.evaluate((element) => {
+    const light = (colour: string) =>
+      (colour.match(/\d+/g) ?? [])
+        .slice(0, 3)
+        .reduce((sum, value) => sum + Number(value), 0);
+    const { color, backgroundColor } = getComputedStyle(element);
+    return light(backgroundColor) > light(color);
+  });
 
 test('a drawing goes with a message to Bob, live, and comes back drawn on', async ({
   page,
@@ -97,10 +107,13 @@ test('a drawing goes with a message to Bob, live, and comes back drawn on', asyn
   await expect(received).toHaveCount(1);
   await expect(bobsChat.getByText('look at this')).toBeVisible();
 
-  // The picture follows the theme, repainted in the dark paper.
+  // A picture keeps its tones in every theme, repainted when it changes:
+  // on the dark screen, dark is still dark, not a negative.
   expect(await showsPaperAtTopLeft(received)).toBe(true);
+  expect(await darkOnLight(received)).toBe(true);
   await chooseMenu(bob, 'View', 'Dark');
   await expect.poll(() => showsPaperAtTopLeft(received)).toBe(true);
+  expect(await darkOnLight(received)).toBe(true);
 
   await bobsChat.getByRole('button', { name: 'Draw on It' }).click();
   await paintWindow(bob).getByRole('button', { name: 'Brush' }).click();

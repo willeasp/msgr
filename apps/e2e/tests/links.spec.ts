@@ -1,5 +1,11 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { anotherPerson, chatWindow, chatsWindow, signIn } from './support';
+import {
+  anotherPerson,
+  chatWindow,
+  chatsWindow,
+  chooseMenu,
+  signIn,
+} from './support';
 
 // A checkerboard, as 64×64 bits in base64.
 const CHECKERBOARD = btoa(
@@ -42,10 +48,22 @@ async function say(page: Page, words: string) {
   await expect(box).toHaveValue('');
 }
 
+// The thumbnail is paper, with its ink masked on top.
 const maskOf = (element: Locator) =>
   element.evaluate((node) => {
-    const style = getComputedStyle(node);
+    const style = getComputedStyle(node, '::before');
     return style.maskImage || style.webkitMaskImage;
+  });
+/** Whether a thumbnail's ink is darker than its paper. */
+const darkOnLight = (element: Locator) =>
+  element.evaluate((node) => {
+    const light = (colour: string) =>
+      (colour.match(/\d+/g) ?? [])
+        .slice(0, 3)
+        .reduce((sum, value) => sum + Number(value), 0);
+    const paper = getComputedStyle(node).backgroundColor;
+    const ink = getComputedStyle(node, '::before').backgroundColor;
+    return light(paper) > light(ink);
   });
 
 test('links open in a new tab, and the first gets a card', async ({
@@ -84,6 +102,7 @@ test('links open in a new tab, and the first gets a card', async ({
     const picture = card.locator(':scope > :first-child');
     expect((await picture.boundingBox())?.width).toBe(64);
     expect(await maskOf(picture)).toContain('data:image/svg+xml');
+    expect(await darkOnLight(picture)).toBe(true);
 
     // Just above the message it belongs to.
     const cardBox = await card.boundingBox();
@@ -92,6 +111,17 @@ test('links open in a new tab, and the first gets a card', async ({
       linkBox?.y ?? 0
     );
   }
+
+  // On the dark screen too: a thumbnail is a picture, not a negative.
+  await chooseMenu(page, 'View', 'Dark');
+  expect(
+    await darkOnLight(
+      chatWindow(page, 'Charlie Brown')
+        .getByRole('link', { name: /An example page/ })
+        .locator(':scope > :first-child')
+    )
+  ).toBe(true);
+  await chooseMenu(page, 'View', 'Light');
 
   // A focused link shows where it is, even in the viewer's inverted bubble.
   const own = chatWindow(page, 'Charlie Brown').getByRole('link', {
