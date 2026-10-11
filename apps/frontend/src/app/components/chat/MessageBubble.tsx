@@ -1,4 +1,5 @@
 import { formatTime } from '../../../lib/utils/time';
+import { useClock } from '../../hooks/use-clock';
 import ActionButton from '../../../sacred/components/ActionButton';
 import Message from '../../../sacred/components/Message';
 import MessageViewer from '../../../sacred/components/MessageViewer';
@@ -36,6 +37,7 @@ export function MessageBubble({
   onDrawOnIt,
 }: MessageBubbleProps) {
   const Bubble = isCurrentUser ? MessageViewer : Message;
+  const now = useClock();
   const { picture } = message;
   const content = message.content ?? '';
 
@@ -47,7 +49,7 @@ export function MessageBubble({
             {isCurrentUser ? 'You' : <PixelText text={message.sender.name} />}
           </span>
           <time className={styles.time} dateTime={message.createdAt}>
-            {formatTime(message.createdAt)}
+            {formatTime(message.createdAt, now)}
           </time>
         </div>
       )}

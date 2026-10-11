@@ -1,15 +1,14 @@
 import { useId, useRef, useState } from 'react';
 import { useMutation } from '@apollo/client/react';
 import type { Bits } from '@msgr/bitmap';
-import { withMessage } from '../../../lib/chat-list';
 import { parseCommand } from '../../../lib/commands';
 import { gql } from '../../../lib/__generated__';
 import { toWire } from '../../../lib/picture-wire';
 import Button from '../../../sacred/components/Button';
 import TextArea from '../../../sacred/components/TextArea';
 import { pixelSize, useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
+import { recordMessage } from '../../hooks/use-chat-feed';
 import { useMediaQuery } from '../../hooks/use-media-query';
-import { GET_CHAT_MESSAGES } from './MessageList';
 import { firstImage } from './picture-from-file';
 import { useJoinChannel } from './use-join-channel';
 import styles from './MessageInput.module.css';
@@ -30,11 +29,20 @@ const SEND_MESSAGE = gql(`
         height
         bits
       }
+      createdAt
       sender {
         id
         name
       }
-      createdAt
+      chat {
+        id
+        kind
+        title
+        participants {
+          id
+          name
+        }
+      }
     }
   }
 `);
@@ -103,20 +111,7 @@ export function MessageInput({
         if (sent) setMessageInput((now) => (now.trim() === sent ? '' : now));
       },
       update: (cache, { data }) => {
-        if (!data?.sendMessage) return;
-
-        // Update cache with the new message
-        cache.updateQuery(
-          {
-            query: GET_CHAT_MESSAGES,
-            variables: { chatId },
-          },
-          (existing) =>
-            existing && {
-              // The feed may have delivered it already.
-              messages: [...withMessage(existing.messages, data.sendMessage)],
-            }
-        );
+        if (data?.sendMessage) recordMessage(cache, data.sendMessage);
       },
     }
   );

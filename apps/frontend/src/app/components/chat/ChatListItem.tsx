@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { identicon } from '../../../lib/pixels';
 import { formatTime } from '../../../lib/utils/time';
+import { useClock } from '../../hooks/use-clock';
 import Avatar from '../../../sacred/components/Avatar';
 import Indent from '../../../sacred/components/Indent';
 import RowEllipsis from '../../../sacred/components/RowEllipsis';
@@ -24,6 +25,7 @@ interface ChatListItemProps {
 
 export function ChatListItem({ chat, isSelected }: ChatListItemProps) {
   const latestMessage = chat.messages[0];
+  const now = useClock();
 
   return (
     <Link
@@ -41,7 +43,7 @@ export function ChatListItem({ chat, isSelected }: ChatListItemProps) {
             </RowEllipsis>
             {latestMessage && (
               <time className={styles.time} dateTime={latestMessage.createdAt}>
-                {formatTime(latestMessage.createdAt)}
+                {formatTime(latestMessage.createdAt, now)}
               </time>
             )}
           </RowSpaceBetween>

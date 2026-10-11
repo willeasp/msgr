@@ -11,11 +11,15 @@ export type ReceivedMessage =
  * The chat list after a message arrives: its chat moves to the top with the
  * message as its preview, joining the list if this is the chat's first message
  * the viewer has seen. This matches the server's most-recently-active order.
+ * A message older than the chat's preview, arriving late, changes nothing.
  */
 export function withReceivedMessage(
   chats: readonly ChatRow[],
   { chat, id, content, createdAt }: ReceivedMessage
-): ChatRow[] {
+): readonly ChatRow[] {
+  const preview = chats.find((row) => row.id === chat.id)?.messages[0];
+  if (preview && Date.parse(preview.createdAt) > Date.parse(createdAt))
+    return chats;
   return [
     { ...chat, messages: [{ id, content, createdAt }] },
     ...chats.filter((row) => row.id !== chat.id),

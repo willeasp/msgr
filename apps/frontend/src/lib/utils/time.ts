@@ -1,11 +1,9 @@
 /**
- * Format a timestamp into a human-readable relative time string
- * @param date - Date object or ISO string
- * @returns Formatted time string (e.g., "Just now", "5m ago", "2d ago")
+ * How long ago `date` was, as of `now` ("Just now", "5m ago", "2d ago").
+ * `now` comes from `useClock`, so every time on screen agrees with the clock.
  */
-export function formatTime(date: Date | string): string {
+export function formatTime(date: Date | string, now: Date): string {
   const d = new Date(date);
-  const now = new Date();
   const diff = now.getTime() - d.getTime();
   const minutes = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);

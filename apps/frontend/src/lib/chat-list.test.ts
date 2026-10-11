@@ -59,6 +59,14 @@ describe('withReceivedMessage', () => {
       { id: 'c-new', content: 'fresh', createdAt: '2026-01-02' },
     ]);
   });
+
+  // Your own send's response can land after the feed brought a later message.
+  it('keeps a later preview when an earlier message arrives after it', () => {
+    const chats = [row('a', 'x'), row('b', 'y')];
+    const late = { ...received('b', 'stale'), createdAt: '2025-12-31' };
+
+    expect(withReceivedMessage(chats, late)).toBe(chats);
+  });
 });
 
 describe('withMessage', () => {

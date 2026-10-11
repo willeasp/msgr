@@ -91,13 +91,14 @@ sendMessage: async (_, { input }, ctx) =>
 apps/frontend/src/
   app/pages/       routes: chat (the desktop), login, sign-up (/invite/:code), not-found
   app/components/  Mac chrome (MenuBar, MacWindow, MacDialog, PixelIcon), chat/ windows and dialogs
-  app/hooks/       useChatFeed (the live subscriptions), useAlerts, useNotifications, useWatching, useInstallPrompt, useClock, useMediaQuery
+  app/hooks/       useChatFeed (the live subscriptions), useAlerts, useNotifications, useWatching, useInstallPrompt, useClock (the one clock), useMediaQuery
   lib/             pure logic, each with a test: theme, alerts, push, commands, chat-list, pixels, paint, emoji, links, photo, picture-wire
   sacred/          vendored Sacred Computer components (read its README first)
   skin.css         the Macintosh skin over them
 ```
 
-- **One live feed.** The chat page owns the only subscriptions (`useChatFeed`): `messageReceived` updates the chat list and each chat's cached history, open or not, and hands every message to `useAlerts`, which beeps and counts unread messages in the tab; `chatAdded` puts a chat that now includes the viewer (an invitee signed up, or someone added them to a channel) on the list and rings for it. Windows only query. Opening a chat also refetches its history (`cache-and-network`), so anything missed while offline appears.
+- **One live feed.** The chat page owns the only subscriptions (`useChatFeed`): `messageReceived` updates the chat list and each chat's cached history, open or not, and hands every message to `useAlerts`, which beeps and counts unread messages in the tab; `chatAdded` puts a chat that now includes the viewer (an invitee signed up, or someone added them to a channel) on the list and rings for it. Windows only query. Every message enters the cache through `recordMessage`, the feed's and the viewer's own sends alike, so the chat list and the history can't disagree; `sendMessage` selects everything the feed does. The socket retries forever (phones drop it when they sleep) and refetches every active query when it returns, since events sent meanwhile are lost. Opening a chat also refetches its history (`cache-and-network`).
+- **One clock.** `useClock` is the page's only "now": the menu bar and every "5m ago" read it (`formatTime(date, now)` has no clock of its own), and it re-reads the device's time on waking, when timers have been paused.
 - **Notifications come by Web Push**, open or not ([ADR 0006](docs/adr/0006-web-push-for-notifications.md)). `useNotifications` turns them on and off, and re-registers the browser for whoever is signed in on every visit. `useWatching` tells the server which chat is on screen, so that chat doesn't notify. The page never shows a notification itself.
 - **Session changes** (sign in, sign up, log out) go through `useSessionChange`, which clears Apollo's cache before navigating. Everything cached, down to `me: null`, belongs to the previous viewer; without the reset, signing in after being redirected to `/login` bounces straight back there.
 - **Dialogs** go through Sacred's modal stack: `useModals().open(Component, props)`.
