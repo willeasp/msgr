@@ -5,7 +5,7 @@ Invite-only, real-time chat dressed as a black-and-white Macintosh: a GraphQL AP
 ## Commands
 
 ```bash
-npm run dev                 # API on :4000, frontend on :4200 (needs `npm run db:start`)
+npm run dev                 # applies pending migrations, then API on :4000, frontend on :4200 (needs `npm run db:start`)
 npm run test                # every unit/integration test, run once; no database needed
 (cd apps/api && npx vitest --watch)   # TDD loop: re-runs on save
 npm run typecheck           # runs codegen first
