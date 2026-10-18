@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { identicon, pictureImage } from '../../lib/pixels';
 import type { WirePicture } from '../../lib/picture-wire';
+import { useInks } from '../hooks/use-inks';
 import { usePicture } from '../hooks/use-picture';
 import styles from './Face.module.css';
 
@@ -11,13 +12,17 @@ export interface Person {
 
 /**
  * How someone looks: their profile picture, or else the pattern made from
- * their id. `picture` says which, since only patterns follow the dark screen.
+ * their id, drawn in the theme's colours. A pattern is ink on paper; a
+ * picture keeps its tones, so it stays a light sheet on the dark screen.
+ * `picture` says which.
  */
 export function useFace({ id, avatar }: Person) {
   const bits = usePicture(avatar);
+  const inks = useInks();
   const src = useMemo(
-    () => (bits ? pictureImage(bits) : identicon(id)),
-    [bits, id]
+    () =>
+      bits ? pictureImage(bits, inks.picture) : identicon(id, inks.screen),
+    [bits, id, inks]
   );
   return { src, picture: bits !== null };
 }

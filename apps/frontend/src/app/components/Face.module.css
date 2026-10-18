@@ -5,11 +5,7 @@
   image-rendering: pixelated;
 }
 
-/* A picture keeps its own frame and tones; a pattern inverts with the screen. */
+/* A picture keeps its own frame; a pattern draws one. */
 .face[data-picture] {
   box-shadow: 0 0 0 1px var(--ink);
-}
-
-:global(body.theme-dark) .face:not([data-picture]) {
-  filter: invert(1);
 }

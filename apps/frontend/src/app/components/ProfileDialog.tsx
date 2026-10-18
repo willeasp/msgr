@@ -10,6 +10,7 @@ import Input from '../../sacred/components/Input';
 import { useModals } from '../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../sacred/modules/hotkeys';
 import { ME } from '../auth/protected-route';
+import { useInks } from '../hooks/use-inks';
 import { usePicture } from '../hooks/use-picture';
 import { PaintDialog } from './chat/PaintDialog';
 import { firstImage, pictureFromFile } from './chat/picture-from-file';
@@ -41,6 +42,7 @@ export function ProfileDialog() {
   // undefined until changed: the saved picture, inflated, stands.
   const [drawn, setDrawn] = useState<Bits | null | undefined>(undefined);
   const saved = usePicture(me?.avatar);
+  const inks = useInks();
   const picture = drawn === undefined ? saved : drawn;
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -109,7 +111,11 @@ export function ProfileDialog() {
         <div className={styles.picture}>
           <img
             className={styles.preview}
-            src={picture ? pictureImage(picture) : identicon(me?.id ?? '')}
+            src={
+              picture
+                ? pictureImage(picture, inks.picture)
+                : identicon(me?.id ?? '', inks.screen)
+            }
             alt="Your face"
             data-picture={picture ? true : undefined}
             width={SIDE * 2}

@@ -406,7 +406,7 @@ a:focus {
   color: var(--paper);
 }
 
-/* Identicons are drawn black on white; the dark screen inverts them to match. */
+/* Faces come drawn in the theme's colours (useFace). */
 :root .srcl-Avatar__root {
   background-size: 100% 100%;
   image-rendering: pixelated;
@@ -415,15 +415,6 @@ a:focus {
   &:active::before {
     display: none;
   }
-}
-
-body.theme-dark .srcl-Avatar__root {
-  filter: invert(1);
-}
-
-/* A profile picture keeps its tones, as pictures in messages do. */
-body.theme-dark [data-picture] > .srcl-Avatar__root {
-  filter: none;
 }
 
 :root .srcl-AlertBanner__root {
