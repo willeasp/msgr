@@ -46,28 +46,44 @@ export function identiconCells(seed: string): boolean[][] {
   return cells;
 }
 
-/** A framed, black-on-white identicon as a data URI, for an <img> or background. */
-export function identicon(seed: string): string {
+/** The two colours a 1-bit image is drawn in, as CSS colours. */
+export interface Inks {
+  readonly ink: string;
+  readonly paper: string;
+}
+
+export const BLACK_ON_WHITE: Inks = { ink: '#000', paper: '#fff' };
+
+/** A framed identicon as a data URI, for an <img> or background. */
+export function identicon(
+  seed: string,
+  { ink, paper }: Inks = BLACK_ON_WHITE
+): string {
   const bitmap = identiconCells(seed).map((row) =>
     row.map((ink) => (ink ? '#' : '.')).join('')
   );
   // The 5 cells sit centred in a 9-unit square inside a thin frame.
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 9" shape-rendering="crispEdges">` +
-    `<rect width="9" height="9" fill="#fff"/>` +
-    `<path d="M0 0h9v9h-9zM.5 .5v8h8v-8z" fill="#000" fill-rule="evenodd"/>` +
-    `<path d="${pixelPath(bitmap)}" fill="#000" transform="translate(2 2)"/>` +
+    `<rect width="9" height="9" fill="${paper}"/>` +
+    `<path d="M0 0h9v9h-9zM.5 .5v8h8v-8z" fill="${ink}" fill-rule="evenodd"/>` +
+    `<path d="${pixelPath(
+      bitmap
+    )}" fill="${ink}" transform="translate(2 2)"/>` +
     `</svg>`;
   return dataUri(svg);
 }
 
-/** A picture, black on white, as a data URI for an <img> or background. */
-export function pictureImage(bits: Bits): string {
+/** A picture as a data URI for an <img> or background. */
+export function pictureImage(
+  bits: Bits,
+  { ink, paper }: Inks = BLACK_ON_WHITE
+): string {
   const { width, height } = bits;
   return dataUri(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges">` +
-      `<rect width="${width}" height="${height}" fill="#fff"/>` +
-      `<path d="${pixelPath(bitmapOf(bits))}"/></svg>`
+      `<rect width="${width}" height="${height}" fill="${paper}"/>` +
+      `<path d="${pixelPath(bitmapOf(bits))}" fill="${ink}"/></svg>`
   );
 }
 

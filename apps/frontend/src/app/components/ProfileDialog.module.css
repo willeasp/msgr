@@ -14,11 +14,6 @@
   image-rendering: pixelated;
 }
 
-/* The default pattern inverts with the screen; a picture keeps its tones. */
-:global(body.theme-dark) .preview:not([data-picture]) {
-  filter: invert(1);
-}
-
 .choices {
   display: grid;
   gap: 8px;

@@ -48,12 +48,27 @@ describe('identicon', () => {
   it('survives an unquoted CSS url(), as Avatar uses it', () => {
     expect(identicon('chat-1')).not.toMatch(/[\s()'"]/);
   });
+
+  it("is drawn in the theme's ink and paper, tinted ones too", () => {
+    const inks = { ink: 'oklch(0.18 0.1 142)', paper: 'oklch(0.97 0.02 142)' };
+    const uri = identicon('chat-1', inks);
+    const svg = decodeURIComponent(uri.replace('data:image/svg+xml,', ''));
+
+    expect(svg).toContain('fill="oklch(0.97 0.02 142)"');
+    expect(svg).toContain('fill="oklch(0.18 0.1 142)"');
+    expect(svg).not.toContain('#000');
+    expect(uri).not.toMatch(/[\s()'"]/);
+  });
 });
 
 describe('bitmapOf', () => {
   it('turns packed bits, leftmost in the high bit, into rows', () => {
     expect(
-      bitmapOf({ width: 8, height: 2, bytes: Uint8Array.of(0b1000_0001, 0xff) })
+      bitmapOf({
+        width: 8,
+        height: 2,
+        bytes: Uint8Array.of(0b1000_0001, 0xff),
+      })
     ).toEqual(['#......#', '########']);
     // Rows padded to whole bytes: 9 pixels take 2.
     expect(
@@ -84,7 +99,19 @@ describe('pictureImage', () => {
 
     expect(svg).toContain('viewBox="0 0 3 2"');
     expect(svg).toContain('<rect width="3" height="2" fill="#fff"/>');
-    expect(svg).toContain('d="M1 1h1v1h-1z"');
+    expect(svg).toContain('d="M1 1h1v1h-1z" fill="#000"');
     expect(pictureImage(bits)).not.toMatch(/[()\s"']/);
+  });
+
+  it('draws in the colours it is given', () => {
+    const bits = blank(1, 1);
+    const svg = decodeURIComponent(
+      pictureImage(bits, { ink: 'navy', paper: 'ivory' }).replace(
+        'data:image/svg+xml,',
+        ''
+      )
+    );
+    expect(svg).toContain('fill="ivory"');
+    expect(svg).toContain('fill="navy"');
   });
 });
