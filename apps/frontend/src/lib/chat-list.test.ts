@@ -61,6 +61,24 @@ describe('withReceivedMessage', () => {
   });
 
   // Your own send's response can land after the feed brought a later message.
+  it('previews a movie by its being one, not by its frames', () => {
+    const movie = { width: 8, height: 8, frames: 3, bits: 'AAAA' };
+    const next = withReceivedMessage([row('a', 'x')], {
+      ...received('a', 'unused'),
+      content: null,
+      movie,
+    });
+
+    expect(next[0]?.messages).toEqual([
+      {
+        id: 'a-new',
+        content: null,
+        movie: { frames: 3 },
+        createdAt: '2026-01-02',
+      },
+    ]);
+  });
+
   it('keeps a later preview when an earlier message arrives after it', () => {
     const chats = [row('a', 'x'), row('b', 'y')];
     const late = { ...received('b', 'stale'), createdAt: '2025-12-31' };

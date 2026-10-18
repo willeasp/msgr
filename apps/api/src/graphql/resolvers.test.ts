@@ -13,6 +13,7 @@ import {
 } from '../testing/harness.js';
 import { createContext } from './context.js';
 import { toBase64 } from '@msgr/bitmap';
+import { exampleMovie, movieInput } from '../testing/movies.js';
 import { examplePicture, pictureInput } from '../testing/pictures.js';
 import { schema } from './server.js';
 
@@ -561,6 +562,69 @@ describe('messages', () => {
       });
       expect(codeOf(result)).toBe('BAD_USER_INPUT');
       expect(result.errors?.[0]?.extensions['field']).toBe(field);
+    }
+  });
+
+  const sendMovie = `mutation ($chatId: ID!, $content: String, $picture: PictureInput, $movie: MovieInput) {
+    sendMessage(input: { chatId: $chatId, content: $content, picture: $picture, movie: $movie }) {
+      content
+      picture { width }
+      movie { width height frames bits }
+    }
+  }`;
+
+  it('sends a movie, alone or with text, and reads it back', async () => {
+    const { app, ada, team } = await world();
+    const movie = movieInput(13, 7, 5);
+    const kept = {
+      width: 13,
+      height: 7,
+      frames: 5,
+      bits: toBase64(exampleMovie(13, 7, 5).coded),
+    };
+
+    const alone = await execute(app, sendMovie, {
+      as: ada,
+      variables: { chatId: team.id, movie },
+    });
+    const captioned = await execute(app, sendMovie, {
+      as: ada,
+      variables: { chatId: team.id, content: 'look', movie },
+    });
+    const read = await execute(
+      app,
+      'query ($id: ID!) { messages(chatId: $id) { content picture { width } movie { width height frames bits } } }',
+      { as: ada, variables: { id: team.id } }
+    );
+
+    expect(alone.data).toEqual({
+      sendMessage: { content: null, picture: null, movie: kept },
+    });
+    expect(captioned.data).toEqual({
+      sendMessage: { content: 'look', picture: null, movie: kept },
+    });
+    expect(read.data).toEqual({
+      messages: [
+        { content: null, picture: null, movie: kept },
+        { content: 'look', picture: null, movie: kept },
+      ],
+    });
+  });
+
+  it('rejects a bad movie, or a movie with a picture, as bad input', async () => {
+    const { app, ada, team } = await world();
+
+    for (const variables of [
+      { movie: { ...movieInput(), frames: 0 } },
+      { movie: movieInput(8, 1, 2, 8) },
+      { picture: pictureInput(), movie: movieInput() },
+    ]) {
+      const result = await execute(app, sendMovie, {
+        as: ada,
+        variables: { chatId: team.id, ...variables },
+      });
+      expect(codeOf(result)).toBe('BAD_USER_INPUT');
+      expect(result.errors?.[0]?.extensions['field']).toBe('movie');
     }
   });
 

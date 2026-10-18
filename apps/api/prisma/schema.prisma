@@ -51,6 +51,11 @@ model Message {
   picture       Bytes?
   pictureWidth  Int?     @db.SmallInt
   pictureHeight Int?     @db.SmallInt
+  /// A 1-bit movie, its frames coded by `encodeMovie`; see domain/movie.ts.
+  movie         Bytes?
+  movieWidth    Int?     @db.SmallInt
+  movieHeight   Int?     @db.SmallInt
+  movieFrames   Int?     @db.SmallInt
   senderId      String
   sender        User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
   chatId        String

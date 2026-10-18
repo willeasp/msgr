@@ -34,7 +34,8 @@ by any other site are refused.
 
 **The page.** The app and API share one origin. Responses carry a
 Content-Security-Policy that allows scripts, styles and connections only from
-that origin and forbids framing, plus `X-Content-Type-Options: nosniff` and
+that origin, and media only from it or from `blob:` URLs the page made itself
+(a video the viewer picked, played on their device to make a movie), and forbids framing, plus `X-Content-Type-Options: nosniff` and
 `Referrer-Policy: same-origin`. Messages are rendered as text, never HTML.
 
 **Pictures.** A photo is shrunk and dithered to 1 bit on the sender's device;
@@ -45,9 +46,19 @@ a hard cap at exactly the size's bytes, so a small DEFLATE bomb never expands in
 memory, refuses a blank one, and stores its own compression, never the sender's
 bytes. Browsers inflate under the same cap. WebSocket messages, which only
 ever carry subscriptions, are capped at 64 KB; messages go over HTTP, where
-bodies are capped at 100 KB. Avatars are pictures too, parsed the same way and
+bodies are capped at 1 MB, just above the largest honest movie. Avatars are pictures too, parsed the same way and
 held to exactly 64×64. Only people who share a chat with someone are sent their
 profile changes, though anyone signed in can read a name and avatar.
+
+**Movies.** A video is cut, shrunk and dithered to 1 bit on the sender's device;
+only those frames are uploaded, never the video or its sound or metadata, and the
+page reads the file from disk as it plays, never whole into memory. The server
+takes a movie's stated size (1 to 320 a side, 1 to 48 frames) only as a claim:
+it refuses a payload longer than any honest movie of that size before decoding
+it. Decoding reads exactly the frames the size says, whatever the bytes, so it
+does a bounded amount of work and can't expand further. It refuses a movie blank
+in every frame and stores its own coding, never the sender's bytes. Browsers
+decode under the same bounds.
 
 **Link previews.** Our server, not the reader's browser, fetches a page to
 preview a link, so linked sites never see readers' addresses. Because anyone can

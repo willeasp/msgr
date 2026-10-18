@@ -28,11 +28,14 @@ const COOKIE = 'token';
 
 /**
  * Scripts, styles, fonts and connections only from this address; images may
- * also be data URIs (the identicons). Nothing may frame the app.
+ * also be data URIs (the identicons), and video blob URLs (a file the viewer
+ * picked, played on their own device to make a movie). Nothing may frame the
+ * app.
  */
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "img-src 'self' data:",
+  "media-src 'self' blob:",
   "style-src 'self' 'unsafe-inline'",
   "object-src 'none'",
   "base-uri 'self'",
@@ -108,7 +111,9 @@ export async function startServer(
   app.use(
     PATH,
     cors({ origin: config.corsOrigin, credentials: true }),
-    express.json(),
+    // A message's largest honest movie, 48 frames of 320×320, is under 0.95
+    // MB as base64 (domain/movie.ts); a picture is far less.
+    express.json({ limit: '1mb' }),
     cookieParser(),
     expressMiddleware(apollo, {
       context: ({ req, res }) =>

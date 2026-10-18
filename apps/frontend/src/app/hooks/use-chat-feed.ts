@@ -24,6 +24,12 @@ const MESSAGE_RECEIVED_SUBSCRIPTION = gql(`
         height
         bits
       }
+      movie {
+        width
+        height
+        frames
+        bits
+      }
       createdAt
       sender {
         id
@@ -84,6 +90,9 @@ const CHAT_ADDED_SUBSCRIPTION = gql(`
         messages(limit: 1) {
           id
           content
+          movie {
+            frames
+          }
           createdAt
         }
       }
@@ -103,7 +112,7 @@ export function recordMessage(cache: ApolloCache, message: ReceivedMessage) {
       : existing
   );
   // The chat's history too, open or not, so it is current when opened.
-  const { chat, id, content, picture, createdAt, sender } = message;
+  const { chat, id, content, picture, movie, createdAt, sender } = message;
   cache.updateQuery(
     { query: GET_CHAT_MESSAGES, variables: { chatId: chat.id } },
     (existing) =>
@@ -115,6 +124,7 @@ export function recordMessage(cache: ApolloCache, message: ReceivedMessage) {
             id,
             content,
             picture,
+            movie,
             createdAt,
             sender,
           }),

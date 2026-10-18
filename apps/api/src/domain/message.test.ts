@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MessageBody, MessageContent } from './message.js';
+import type { Movie } from './movie.js';
 import type { Picture } from './picture.js';
 import { err, ok } from './result.js';
 
@@ -36,25 +37,47 @@ describe('MessageBody.of', () => {
     height: 1,
     deflated: new Uint8Array(),
   } as Picture;
+  const movie = {
+    width: 1,
+    height: 1,
+    frames: 1,
+    coded: new Uint8Array(),
+  } as Movie;
 
-  it('takes text, a picture, or both', () => {
-    expect(MessageBody.of(text, null)).toEqual(
-      ok({ content: text, picture: null })
+  it('takes text, a picture or a movie, or text with either', () => {
+    expect(MessageBody.of(text, null, null)).toEqual(
+      ok({ content: text, picture: null, movie: null })
     );
-    expect(MessageBody.of(null, picture)).toEqual(
-      ok({ content: null, picture })
+    expect(MessageBody.of(null, picture, null)).toEqual(
+      ok({ content: null, picture, movie: null })
     );
-    expect(MessageBody.of(text, picture)).toEqual(
-      ok({ content: text, picture })
+    expect(MessageBody.of(text, picture, null)).toEqual(
+      ok({ content: text, picture, movie: null })
+    );
+    expect(MessageBody.of(null, null, movie)).toEqual(
+      ok({ content: null, picture: null, movie })
+    );
+    expect(MessageBody.of(text, null, movie)).toEqual(
+      ok({ content: text, picture: null, movie })
     );
   });
 
   it('refuses a message with nothing in it', () => {
-    expect(MessageBody.of(null, null)).toEqual(
+    expect(MessageBody.of(null, null, null)).toEqual(
       err({
         type: 'InvalidInput',
         field: 'content',
-        reason: 'Write something or attach a picture',
+        reason: 'Write something or attach a picture or a movie',
+      })
+    );
+  });
+
+  it('refuses a picture and a movie together', () => {
+    expect(MessageBody.of(text, picture, movie)).toEqual(
+      err({
+        type: 'InvalidInput',
+        field: 'movie',
+        reason: 'Attach a picture or a movie, not both',
       })
     );
   });

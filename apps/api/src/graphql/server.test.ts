@@ -4,6 +4,13 @@ import { join } from 'node:path';
 import { createClient, type Client } from 'graphql-ws';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
+import {
+  byteLength,
+  encodeMovie,
+  MAX_FRAMES,
+  MAX_SIDE,
+  toBase64,
+} from '@msgr/bitmap';
 import type { MessageEvents } from '../application/ports.js';
 import type { User } from '../domain/user.js';
 import { createPubSubMessageEvents } from '../infrastructure/message-events.js';
@@ -96,6 +103,43 @@ describe('server', () => {
     expect(logout.headers.get('set-cookie')).toMatch(
       /^token=; Path=\/; Expires=Thu, 01 Jan 1970/
     );
+  });
+
+  it('takes the largest movie a message can carry, noise in every frame', async () => {
+    const notes = await app.fixtures.groupChat('Notes', [ada]);
+    const size = byteLength(MAX_SIDE, MAX_SIDE) * MAX_FRAMES;
+    // xorshift32: noise the coder can't foretell, so it codes to its full size.
+    let seed = 2463534242;
+    const bytes = Uint8Array.from({ length: size }, () => {
+      seed ^= seed << 13;
+      seed ^= seed >>> 17;
+      seed ^= seed << 5;
+      return seed & 0xff;
+    });
+    const movie = {
+      width: MAX_SIDE,
+      height: MAX_SIDE,
+      frames: MAX_FRAMES,
+      bits: toBase64(
+        encodeMovie({ width: MAX_SIDE, height: MAX_SIDE, count: MAX_FRAMES, bytes })
+      ),
+    };
+    const response = await fetch(server.url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        cookie: await sessionCookie(),
+      },
+      body: JSON.stringify({
+        query:
+          'mutation ($input: SendMessageInput!) { sendMessage(input: $input) { movie { frames } } }',
+        variables: { input: { chatId: notes.id, movie } },
+      }),
+    });
+
+    expect(await response.json()).toEqual({
+      data: { sendMessage: { movie: { frames: MAX_FRAMES } } },
+    });
   });
 
   /** The next message Ada's feed delivers over `client`. */
@@ -211,6 +255,10 @@ describe('server', () => {
     const page = await fetch(site);
     expect(page.headers.get('content-security-policy')).toContain(
       "default-src 'self'"
+    );
+    // A video the viewer picks plays from a blob URL, to be made a movie.
+    expect(page.headers.get('content-security-policy')).toContain(
+      "media-src 'self' blob:"
     );
     expect(page.headers.get('x-frame-options')).toBe('DENY');
     expect(page.headers.get('x-content-type-options')).toBe('nosniff');

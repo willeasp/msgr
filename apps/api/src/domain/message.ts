@@ -1,6 +1,7 @@
 import type { Brand } from './brand.js';
 import type { ChatId } from './chat.js';
 import { invalidInput, type InvalidInput } from './errors.js';
+import type { Movie } from './movie.js';
 import type { Picture } from './picture.js';
 import { err, ok, type Result } from './result.js';
 import type { UserId } from './user.js';
@@ -15,21 +16,44 @@ interface Sent {
   readonly createdAt: Date;
 }
 
+/** A picture or a movie, never both. */
+type Attached =
+  | { readonly picture: Picture; readonly movie: null }
+  | { readonly picture: null; readonly movie: Movie };
+type Unattached = { readonly picture: null; readonly movie: null };
+
 /**
- * What a message says: text, a picture, or both, never neither. When there is
- * no text, there is a picture, and the type says so.
+ * What a message says: text, a picture or a movie, or text with one of them;
+ * never neither. When there is no text, something is attached, and the type
+ * says so.
  */
 export type MessageBody =
-  | { readonly content: MessageContent; readonly picture: Picture | null }
-  | { readonly content: null; readonly picture: Picture };
+  | ({ readonly content: MessageContent } & (Attached | Unattached))
+  | ({ readonly content: null } & Attached);
 export const MessageBody = {
   of(
     content: MessageContent | null,
-    picture: Picture | null
+    picture: Picture | null,
+    movie: Movie | null
   ): Result<MessageBody, InvalidInput> {
-    if (content !== null) return ok({ content, picture });
-    if (picture !== null) return ok({ content, picture });
-    return err(invalidInput('content', 'Write something or attach a picture'));
+    if (picture !== null && movie !== null) {
+      return err(
+        invalidInput('movie', 'Attach a picture or a movie, not both')
+      );
+    }
+    const attached: Attached | null =
+      picture !== null
+        ? { picture, movie: null }
+        : movie !== null
+        ? { picture: null, movie }
+        : null;
+    if (content !== null) {
+      return ok({ content, ...(attached ?? { picture: null, movie: null }) });
+    }
+    if (attached !== null) return ok({ content, ...attached });
+    return err(
+      invalidInput('content', 'Write something or attach a picture or a movie')
+    );
   },
 };
 

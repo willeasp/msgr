@@ -19,6 +19,7 @@ interface ChatListItemProps {
     messages: Array<{
       id: string;
       content?: string | null;
+      movie?: { frames: number } | null;
       createdAt: string;
     }>;
   };
@@ -55,7 +56,8 @@ export function ChatListItem({ chat, isSelected }: ChatListItemProps) {
               <PixelText
                 text={
                   latestMessage
-                    ? latestMessage.content ?? 'Picture'
+                    ? latestMessage.content ??
+                      (latestMessage.movie ? 'Movie' : 'Picture')
                     : 'No messages yet'
                 }
               />

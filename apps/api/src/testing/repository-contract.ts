@@ -14,6 +14,7 @@ import {
   type MessageContent,
 } from '../domain/message.js';
 import type { PushSubscription } from '../domain/push.js';
+import { exampleMovie } from './movies.js';
 import { exampleAvatar, examplePicture } from './pictures.js';
 import {
   Email,
@@ -56,6 +57,7 @@ export function repositoryContract(
       senderId: sender.id,
       content: content as MessageContent,
       picture: null,
+      movie: null,
       createdAt: new Date(createdAt),
     });
 
@@ -430,6 +432,7 @@ export function repositoryContract(
         senderId: grace.id,
         content: null,
         picture: examplePicture(256, 160),
+        movie: null,
         createdAt: new Date('2030-01-01T00:01:00Z'),
       });
       const captioned = await repositories.messages.append({
@@ -437,6 +440,7 @@ export function repositoryContract(
         senderId: ada.id,
         content: 'a tall one' as MessageContent,
         picture: examplePicture(9, 320, 319),
+        movie: null,
         createdAt: new Date('2030-01-01T00:02:00Z'),
       });
 
@@ -453,7 +457,42 @@ export function repositoryContract(
       ).toEqual([text, alone, captioned]);
     });
 
-    it('finds messages by id, with and without pictures, and skips unknown ids', async () => {
+    it('stores movies, alone or with text, and reads them back unchanged', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const chat = await repositories.chats.saveDirect(pairOf(ada, grace));
+      const alone = await repositories.messages.append({
+        chatId: chat.id,
+        senderId: grace.id,
+        content: null,
+        picture: null,
+        movie: exampleMovie(320, 180, 48),
+        createdAt: new Date('2030-01-01T00:01:00Z'),
+      });
+      const captioned = await repositories.messages.append({
+        chatId: chat.id,
+        senderId: ada.id,
+        content: 'a short one' as MessageContent,
+        picture: null,
+        movie: exampleMovie(9, 320, 1),
+        createdAt: new Date('2030-01-01T00:02:00Z'),
+      });
+
+      expect(alone).toMatchObject({
+        content: null,
+        picture: null,
+        movie: { width: 320, height: 180, frames: 48 },
+      });
+      expect(captioned.movie).toEqual(exampleMovie(9, 320, 1));
+      expect(
+        await repositories.messages.findPages([chat.id], {
+          limit: 5,
+          offset: 0,
+        })
+      ).toEqual([alone, captioned]);
+    });
+
+    it('finds messages by id, with and without pictures and movies, and skips unknown ids', async () => {
       const ada = await fixtures.user({ name: 'Ada' });
       const grace = await fixtures.user({ name: 'Grace' });
       const chat = await repositories.chats.saveDirect(pairOf(ada, grace));
@@ -463,16 +502,26 @@ export function repositoryContract(
         senderId: grace.id,
         content: null,
         picture: examplePicture(),
+        movie: null,
         createdAt: new Date('2030-01-01T00:01:00Z'),
+      });
+      const movie = await repositories.messages.append({
+        chatId: chat.id,
+        senderId: ada.id,
+        content: null,
+        picture: null,
+        movie: exampleMovie(),
+        createdAt: new Date('2030-01-01T00:02:00Z'),
       });
 
       const found = await repositories.messages.findByIds([
         picture.id,
+        movie.id,
         text.id,
         MessageId('missing'),
       ]);
 
-      expect(sortById(found)).toEqual(sortById([text, picture]));
+      expect(sortById(found)).toEqual(sortById([text, picture, movie]));
       expect(await repositories.messages.findByIds([])).toEqual([]);
     });
 

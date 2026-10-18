@@ -17,6 +17,7 @@ const config: CodegenConfig = {
           Invite: '../../domain/invite.js#Invite',
           LinkPreview: '../../domain/link-preview.js#LinkPreview',
           Message: '../../domain/message.js#Message',
+          Movie: '../../domain/movie.js#Movie',
           Picture: '../../domain/picture.js#Picture',
           SignUpPayload: '../../application/auth.service.js#Welcome',
           User: '../../domain/user.js#User',

@@ -5,9 +5,11 @@ import Message from '../../../sacred/components/Message';
 import MessageViewer from '../../../sacred/components/MessageViewer';
 import { isOnlyEmoji } from '../../../lib/emoji';
 import { firstLink, splitLinks } from '../../../lib/links';
+import type { WireMovie } from '../../../lib/movie-wire';
 import type { WirePicture } from '../../../lib/picture-wire';
 import { Face, type Person } from '../Face';
 import { PixelText } from '../PixelText';
+import { MessageMovie } from './MessageMovie';
 import { MessagePicture } from './MessagePicture';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import styles from './MessageBubble.module.css';
@@ -17,6 +19,7 @@ interface MessageBubbleProps {
     id: string;
     content?: string | null;
     picture?: WirePicture | null;
+    movie?: WireMovie | null;
     sender: Person & { name: string };
     createdAt: string;
   };
@@ -27,6 +30,8 @@ interface MessageBubbleProps {
   showName: boolean;
   /** Opens the paint window on a picture; offered under each one. */
   onDrawOnIt?: (picture: WirePicture) => void;
+  /** Opens the paint window over a movie; offered under each one. */
+  onDrawOnMovie?: (movie: WireMovie) => void;
 }
 
 /** The viewer's own messages sit right in the accent colour, others' left. */
@@ -36,10 +41,11 @@ export function MessageBubble({
   showMeta,
   showName,
   onDrawOnIt,
+  onDrawOnMovie,
 }: MessageBubbleProps) {
   const Bubble = isCurrentUser ? MessageViewer : Message;
   const now = useClock();
-  const { picture } = message;
+  const { picture, movie } = message;
   const content = message.content ?? '';
 
   return (
@@ -62,6 +68,7 @@ export function MessageBubble({
         <div className={styles.line}>
           <Bubble>
             {picture && <MessagePicture picture={picture} />}
+            {movie && <MessageMovie movie={movie} />}
             {content && (
               <span
                 className={styles.content}
@@ -99,6 +106,13 @@ export function MessageBubble({
         {picture && onDrawOnIt && (
           <div className={styles.under}>
             <ActionButton onClick={() => onDrawOnIt(picture)}>
+              Draw on It
+            </ActionButton>
+          </div>
+        )}
+        {movie && onDrawOnMovie && (
+          <div className={styles.under}>
+            <ActionButton onClick={() => onDrawOnMovie(movie)}>
               Draw on It
             </ActionButton>
           </div>

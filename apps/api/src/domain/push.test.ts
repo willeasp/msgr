@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ChatId, type ChannelName, type Chat, type ChatAdded } from './chat.js';
+import type { Movie } from './movie.js';
 import type { Picture } from './picture.js';
 import { invalidInput } from './errors.js';
 import { MessageId, type Message, type MessageContent } from './message.js';
@@ -92,6 +93,7 @@ const text = (content: string, chat: Chat = direct): Message => ({
   senderId: bob.id,
   content: content as MessageContent,
   picture: null,
+  movie: null,
   createdAt: new Date(0),
 });
 
@@ -112,12 +114,39 @@ describe('messageNotification', () => {
 
   it('says a picture was sent, unless it came with text', () => {
     const picture = {} as Picture;
-    const alone: Message = { ...text('x'), content: null, picture };
+    const alone: Message = {
+      ...text('x'),
+      content: null,
+      picture,
+      movie: null,
+    };
     expect(messageNotification(alone, bob, direct).body).toBe(
       'Sent a picture.'
     );
     expect(
-      messageNotification({ ...text('look'), picture }, bob, direct).body
+      messageNotification(
+        { ...text('look'), picture, movie: null },
+        bob,
+        direct
+      ).body
+    ).toBe('look');
+  });
+
+  it('says a movie was sent, unless it came with text', () => {
+    const movie = {} as Movie;
+    const alone: Message = {
+      ...text('x'),
+      content: null,
+      picture: null,
+      movie,
+    };
+    expect(messageNotification(alone, bob, direct).body).toBe('Sent a movie.');
+    expect(
+      messageNotification(
+        { ...text('look'), picture: null, movie },
+        bob,
+        direct
+      ).body
     ).toBe('look');
   });
 

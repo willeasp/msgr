@@ -58,3 +58,58 @@ describe('createCache', () => {
     ).toBe('Team');
   });
 });
+
+describe("a message's movie", () => {
+  const FULL = gql`
+    query Full {
+      message {
+        id
+        movie {
+          width
+          height
+          frames
+          bits
+        }
+      }
+    }
+  `;
+  const PREVIEW = gql`
+    query Preview {
+      message {
+        id
+        movie {
+          frames
+        }
+      }
+    }
+  `;
+  const movie = {
+    __typename: 'Movie',
+    width: 8,
+    height: 8,
+    frames: 3,
+    bits: 'AAAA',
+  };
+
+  it('keeps its bits when the chat list reads only whether there is one', () => {
+    const cache = createCache();
+    cache.writeQuery({
+      query: FULL,
+      data: { message: { __typename: 'Message', id: 'm', movie } },
+    });
+    cache.writeQuery({
+      query: PREVIEW,
+      data: {
+        message: {
+          __typename: 'Message',
+          id: 'm',
+          movie: { __typename: 'Movie', frames: 3 },
+        },
+      },
+    });
+
+    expect(cache.readQuery({ query: FULL })).toEqual({
+      message: { __typename: 'Message', id: 'm', movie },
+    });
+  });
+});

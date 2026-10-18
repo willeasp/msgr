@@ -1,15 +1,19 @@
-import { useId, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { useMutation } from '@apollo/client/react';
-import type { Bits } from '@msgr/bitmap';
+import { blank, type Bits } from '@msgr/bitmap';
 import { parseCommand } from '../../../lib/commands';
 import { gql } from '../../../lib/__generated__';
+import { drawnOver, frameShown } from '../../../lib/movie';
+import { toWire as movieToWire } from '../../../lib/movie-wire';
 import { toWire } from '../../../lib/picture-wire';
 import Button from '../../../sacred/components/Button';
 import TextArea from '../../../sacred/components/TextArea';
 import { pixelSize, useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
 import { recordMessage } from '../../hooks/use-chat-feed';
 import { useMediaQuery } from '../../hooks/use-media-query';
-import { firstImage } from './picture-from-file';
+import { useMovieTick } from '../../hooks/use-movie';
+import type { Attachment } from './attachment';
+import { firstMedia } from './movie-from-file';
 import { useJoinChannel } from './use-join-channel';
 import styles from './MessageInput.module.css';
 
@@ -18,15 +22,27 @@ const SEND_MESSAGE = gql(`
     $chatId: ID!
     $content: String
     $picture: PictureInput
+    $movie: MovieInput
   ) {
     sendMessage(
-      input: { chatId: $chatId, content: $content, picture: $picture }
+      input: {
+        chatId: $chatId
+        content: $content
+        picture: $picture
+        movie: $movie
+      }
     ) {
       id
       content
       picture {
         width
         height
+        bits
+      }
+      movie {
+        width
+        height
+        frames
         bits
       }
       createdAt
@@ -63,20 +79,22 @@ const SEND_MESSAGE = gql(`
 
 interface MessageInputProps {
   chatId: string;
-  /** The picture going with the message, if any; sent with or without text. */
-  attachment: Bits | null;
+  /** The picture or movie going with the message, if any; sent with or without text. */
+  attachment: Attachment | null;
   /** Why the last photo couldn't be attached. */
   attachError: string | null;
-  /** Opens the paint window, on a blank canvas or on `start`. */
-  onDraw: (start?: Bits) => void;
-  /** Attaches a photo picked, pasted or dropped. */
+  /** Opens the paint window on a blank canvas. */
+  onDraw: () => void;
+  /** Opens the paint window on the attachment. */
+  onEdit: (attachment: Attachment) => void;
+  /** Attaches a photo or video picked, pasted or dropped. */
   onAttachFile: (file: File) => void;
   /** Takes off this attachment, once sent or removed. */
-  onDetach: (picture: Bits) => void;
+  onDetach: (attachment: Attachment) => void;
 }
 
 /** The attached picture, small, above the field: click it to paint on it. */
-function Attachment({ bits, onEdit }: { bits: Bits; onEdit: () => void }) {
+function AttachedPicture({ bits, onEdit }: { bits: Bits; onEdit: () => void }) {
   const { ref } = useBitmapCanvas(bits);
   return (
     <button
@@ -96,15 +114,51 @@ function Attachment({ bits, onEdit }: { bits: Bits; onEdit: () => void }) {
   );
 }
 
+/** The attached movie, looping with what's drawn over it: click it to draw. */
+function AttachedMovie({
+  attachment: { movie, drawing },
+  onEdit,
+}: {
+  attachment: Extract<Attachment, { kind: 'movie' }>;
+  onEdit: () => void;
+}) {
+  const tick = useMovieTick();
+  const [shown] = useState(() => blank(movie.width, movie.height));
+  // Each frame drawn into the same bytes, as a new object so the canvas repaints.
+  const frame = useMemo(
+    () => frameShown(movie, tick % movie.count, drawing, { ...shown }),
+    [movie, drawing, tick, shown]
+  );
+  const { ref } = useBitmapCanvas(frame);
+  return (
+    <button
+      type="button"
+      className={styles.attachment}
+      onClick={onEdit}
+      aria-label="Draw on movie"
+    >
+      <canvas
+        ref={ref}
+        width={movie.width}
+        height={movie.height}
+        className={styles.preview}
+        style={pixelSize(movie)}
+      />
+    </button>
+  );
+}
+
 export function MessageInput({
   chatId,
   attachment,
   attachError,
   onDraw,
+  onEdit,
   onAttachFile,
   onDetach,
 }: MessageInputProps) {
-  const fileRef = useRef<HTMLInputElement>(null);
+  const pictureRef = useRef<HTMLInputElement>(null);
+  const movieRef = useRef<HTMLInputElement>(null);
   const [messageInput, setMessageInput] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
   const inputId = useId();
@@ -151,12 +205,20 @@ export function MessageInput({
         variables: {
           chatId,
           content: content || null,
-          picture: sent ? await toWire(sent) : null,
+          picture: sent?.kind === 'picture' ? await toWire(sent.bits) : null,
+          movie:
+            sent?.kind === 'movie'
+              ? movieToWire(
+                  sent.drawing
+                    ? drawnOver(sent.movie, sent.drawing)
+                    : sent.movie
+                )
+              : null,
         },
       });
       if (sent && data) onDetach(sent);
     } catch {
-      // Shown from `sendError`; the message and its picture stay to retry.
+      // Shown from `sendError`; the message and its attachment stay to retry.
     } finally {
       setPreparing(false);
     }
@@ -176,7 +238,7 @@ export function MessageInput({
       onSubmit={handleSendMessage}
       className={styles.root}
       onPaste={(e) => {
-        const file = firstImage(e.clipboardData.files);
+        const file = firstMedia(e.clipboardData.files);
         if (!file) return;
         e.preventDefault();
         onAttachFile(file);
@@ -187,7 +249,17 @@ export function MessageInput({
       </label>
       {attachment && (
         <div className={styles.attached}>
-          <Attachment bits={attachment} onEdit={() => onDraw(attachment)} />
+          {attachment.kind === 'picture' ? (
+            <AttachedPicture
+              bits={attachment.bits}
+              onEdit={() => onEdit(attachment)}
+            />
+          ) : (
+            <AttachedMovie
+              attachment={attachment}
+              onEdit={() => onEdit(attachment)}
+            />
+          )}
           <Button theme="SECONDARY" onClick={() => onDetach(attachment)}>
             Remove
           </Button>
@@ -217,25 +289,40 @@ export function MessageInput({
           autoFocus={hasMouse}
         />
       </div>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        className={styles.hidden}
-        tabIndex={-1}
-        aria-hidden
-        onChange={(e) => {
-          const file = firstImage(e.target.files);
-          e.target.value = '';
-          if (file) onAttachFile(file);
-        }}
-      />
+      {(
+        [
+          [pictureRef, 'image/*'],
+          [movieRef, 'video/*'],
+        ] as const
+      ).map(([ref, accept]) => (
+        <input
+          key={accept}
+          ref={ref}
+          type="file"
+          accept={accept}
+          className={styles.hidden}
+          tabIndex={-1}
+          aria-hidden
+          onChange={(e) => {
+            const file = firstMedia(e.target.files);
+            e.target.value = '';
+            if (file) onAttachFile(file);
+          }}
+        />
+      ))}
       <Button
         theme="SECONDARY"
         type="button"
-        onClick={() => fileRef.current?.click()}
+        onClick={() => pictureRef.current?.click()}
       >
         Picture…
+      </Button>
+      <Button
+        theme="SECONDARY"
+        type="button"
+        onClick={() => movieRef.current?.click()}
+      >
+        Movie…
       </Button>
       <Button theme="SECONDARY" type="button" onClick={() => onDraw()}>
         Draw…

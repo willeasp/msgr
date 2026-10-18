@@ -29,6 +29,9 @@ export const GET_CHATS = gql(`
       messages(limit: 1) {
         id
         content
+        movie {
+          frames
+        }
         createdAt
       }
     }

@@ -3,6 +3,7 @@ import { useQuery } from '@apollo/client/react';
 import { gql } from '../../../lib/__generated__';
 import { LoadingState } from '../LoadingState';
 import { Muted } from '../Muted';
+import type { WireMovie } from '../../../lib/movie-wire';
 import type { WirePicture } from '../../../lib/picture-wire';
 import { MessageBubble } from './MessageBubble';
 import styles from './MessageList.module.css';
@@ -15,6 +16,12 @@ export const GET_CHAT_MESSAGES = gql(`
       picture {
         width
         height
+        bits
+      }
+      movie {
+        width
+        height
+        frames
         bits
       }
       sender {
@@ -37,6 +44,7 @@ interface MessageListProps {
   /** Name each run's sender: in groups and channels, not direct chats. */
   showNames: boolean;
   onDrawOnIt?: (picture: WirePicture) => void;
+  onDrawOnMovie?: (movie: WireMovie) => void;
 }
 
 export function MessageList({
@@ -44,6 +52,7 @@ export function MessageList({
   currentUserId,
   showNames,
   onDrawOnIt,
+  onDrawOnMovie,
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -97,6 +106,7 @@ export function MessageList({
           showMeta={messages[index - 1]?.sender.id !== message.sender.id}
           showName={showNames}
           onDrawOnIt={onDrawOnIt}
+          onDrawOnMovie={onDrawOnMovie}
         />
       ))}
       <div ref={messagesEndRef} />

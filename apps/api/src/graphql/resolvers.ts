@@ -166,6 +166,10 @@ export const resolvers: Resolvers = {
     bits: (picture) => toBase64(picture.deflated),
   },
 
+  Movie: {
+    bits: (movie) => toBase64(movie.coded),
+  },
+
   Message: {
     sender: (message, _, { loaders }) =>
       loadExisting(loaders.user, message.senderId),

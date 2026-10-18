@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { blank, getPixel, setPixel } from '@msgr/bitmap';
 import {
   PATTERNS,
+  coverStroke,
   fill,
   inkRuns,
   line,
@@ -163,6 +164,30 @@ describe('strokes', () => {
     expect(getPixel(bits, 13, 13)).toBe(false);
     expect(getPixel(bits, 5, 6)).toBe(true);
     expect(getPixel(bits, 14, 13)).toBe(true);
+  });
+});
+
+describe('covering a stroke, to draw over a movie', () => {
+  it('marks exactly the pixels the stroke paints', () => {
+    // Each brush on a ground of the other colour, so all it paints shows.
+    for (const [brush, ink, ground] of [
+      ['pencil', false, true],
+      ['brush', true, false],
+      ['eraser', false, true],
+    ] as const) {
+      const painted = blank(32, 32);
+      if (ground) fill(painted, 0, 0, black);
+      const options = { ink, pattern: black };
+      paintStroke(painted, brush, { x: 8, y: 8 }, { x: 20, y: 14 }, options);
+      const covered = blank(32, 32);
+      coverStroke(covered, brush, { x: 8, y: 8 }, { x: 20, y: 14 });
+      for (let y = 0; y < 32; y++) {
+        for (let x = 0; x < 32; x++) {
+          const changed = getPixel(painted, x, y) !== ground;
+          expect(getPixel(covered, x, y)).toBe(changed);
+        }
+      }
+    }
   });
 });
 

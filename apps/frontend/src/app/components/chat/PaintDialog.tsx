@@ -1,7 +1,9 @@
-import { useRef, useState } from 'react';
-import { getPixel, isBlank, type Bits } from '@msgr/bitmap';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { blank, getPixel, isBlank, type Bits, type Frames } from '@msgr/bitmap';
+import { frameShown, type Drawing } from '../../../lib/movie';
 import {
   PATTERNS,
+  coverStroke,
   fill,
   newDrawing,
   paintStroke,
@@ -14,6 +16,7 @@ import Button from '../../../sacred/components/Button';
 import { useModals } from '../../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../../sacred/modules/hotkeys';
 import { pixelSize, useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
+import { useMovieTick } from '../../hooks/use-movie';
 import { BRUSH, BUCKET, ERASER, PENCIL } from '../icons';
 import { DialogButtons, MacDialog } from '../MacDialog';
 import { PixelIcon } from '../PixelIcon';
@@ -30,33 +33,83 @@ const TOOLS = [
 
 const UNDO_STEPS = 20;
 
-interface PaintDialogProps {
+type PaintDialogProps = {
   /** The window's: "Drawing for Ada". */
   title: string;
-  /** A picture to start from, at its own size; left as it is. */
-  start?: Bits;
-  /** The button that takes the finished picture: "Attach". */
+  /** The button that takes the finished drawing: "Attach". */
   done: string;
-  /** Takes the finished picture. */
-  onDone: (bits: Bits) => void;
-}
+} & (
+  | {
+      /** A picture to start from, at its own size; left as it is. */
+      start?: Bits;
+      movie?: undefined;
+      /** Takes the finished picture. */
+      onDone: (bits: Bits) => void;
+    }
+  | {
+      /** A movie to draw over, looping underneath; left as it is. */
+      movie: Frames;
+      /** What was drawn over it before, to carry on from. */
+      drawing?: Drawing | null;
+      /** Takes what's drawn, the same over every frame. */
+      onDone: (drawing: Drawing) => void;
+    }
+);
 
-/** MacPaint, more or less: draws a picture, for a message or a profile. */
-export function PaintDialog({ title, start, done, onDone }: PaintDialogProps) {
+const copy = (bits: Bits): Bits => ({ ...bits, bytes: bits.bytes.slice() });
+
+/**
+ * MacPaint, more or less: draws a picture, for a message or a profile; or
+ * draws over a movie, which loops underneath, everything drawn staying over
+ * every frame.
+ */
+export function PaintDialog(props: PaintDialogProps) {
+  const { title, done, movie } = props;
   const { close } = useModals();
+  // Over a movie, `bits` holds what's drawn and `mask` where.
   const [bits] = useState<Bits>(() =>
-    start ? { ...start, bytes: start.bytes.slice() } : newDrawing()
+    movie
+      ? props.drawing
+        ? copy(props.drawing.ink)
+        : blank(movie.width, movie.height)
+      : props.start
+      ? copy(props.start)
+      : newDrawing()
   );
-  const { ref, repaint } = useBitmapCanvas(bits);
+  const [mask] = useState<Bits | null>(() =>
+    movie
+      ? props.drawing
+        ? copy(props.drawing.mask)
+        : blank(movie.width, movie.height)
+      : null
+  );
+  // What the canvas shows: the picture, or the drawing over this frame.
+  const [shown] = useState<Bits>(() =>
+    movie ? blank(movie.width, movie.height) : bits
+  );
+  const { ref, repaint } = useBitmapCanvas(shown);
+  const tick = useMovieTick();
+  // The frame showing now, with the drawing over it.
+  const compose = useCallback(() => {
+    if (movie && mask) {
+      frameShown(movie, tick % movie.count, { ink: bits, mask }, shown);
+    }
+  }, [movie, mask, bits, shown, tick]);
+  useEffect(() => {
+    compose();
+    repaint();
+  }, [compose, repaint]);
   const [tool, setTool] = useState<Tool>('pencil');
   const [pattern, setPattern] = useState<(typeof PATTERNS)[number]>(
     PATTERNS[0]
   );
   const [changed, setChanged] = useState(false);
-  const [empty, setEmpty] = useState(() => isBlank(bits));
+  // A movie is never empty, drawn on or not.
+  const [empty, setEmpty] = useState(() => !movie && isBlank(bits));
   const [confirming, setConfirming] = useState(false);
-  // Copies of the bitmap from before each stroke, fill or clear.
-  const history = useRef<Uint8Array[]>([]);
+  // Copies of the drawing (and where, over a movie) from before each stroke,
+  // fill or clear.
+  const history = useRef<[Uint8Array, Uint8Array | null][]>([]);
   // The pointer drawing the current stroke; other fingers are ignored.
   const stroke = useRef<{
     pointerId: number;
@@ -65,30 +118,34 @@ export function PaintDialog({ title, start, done, onDone }: PaintDialogProps) {
   } | null>(null);
 
   const drew = () => {
+    compose();
     repaint();
     setChanged(true);
-    setEmpty(isBlank(bits));
+    setEmpty(!movie && isBlank(bits));
   };
   const checkpoint = () => {
     history.current = [
       ...history.current.slice(1 - UNDO_STEPS),
-      bits.bytes.slice(),
+      [bits.bytes.slice(), mask?.bytes.slice() ?? null],
     ];
   };
   const undo = () => {
     const before = history.current.pop();
     if (!before) return;
-    bits.bytes.set(before);
+    bits.bytes.set(before[0]);
+    if (mask && before[1]) mask.bytes.set(before[1]);
     drew();
   };
   const clear = () => {
     checkpoint();
     bits.bytes.fill(0);
+    mask?.bytes.fill(0);
     drew();
   };
   const cancel = () => (changed ? setConfirming(true) : close());
   const finish = () => {
-    onDone(bits);
+    if (props.movie && mask) props.onDone({ ink: bits, mask });
+    else if (!props.movie) props.onDone(bits);
     close();
   };
 
@@ -105,6 +162,11 @@ export function PaintDialog({ title, start, done, onDone }: PaintDialogProps) {
     };
   };
   const options = (ink: boolean) => ({ ink, pattern: pattern.rows });
+  const paint = (from: Point, to: Point, ink: boolean) => {
+    if (tool === 'bucket') return;
+    paintStroke(bits, tool, from, to, options(ink));
+    if (mask) coverStroke(mask, tool, from, to);
+  };
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (e.button !== 0 || !e.isPrimary) return;
@@ -115,9 +177,10 @@ export function PaintDialog({ title, start, done, onDone }: PaintDialogProps) {
     if (tool === 'bucket') {
       fill(bits, point.x, point.y, pattern.rows);
     } else {
-      // As in MacPaint, a pencil stroke that starts on ink draws paper.
-      const ink = tool === 'pencil' ? !getPixel(bits, point.x, point.y) : true;
-      paintStroke(bits, tool, point, point, options(ink));
+      // As in MacPaint, a pencil stroke that starts on ink draws paper:
+      // over a movie, on ink as it shows right now.
+      const ink = tool === 'pencil' ? !getPixel(shown, point.x, point.y) : true;
+      paint(point, point, ink);
       stroke.current = { pointerId: e.pointerId, last: point, ink };
     }
     drew();
@@ -128,7 +191,7 @@ export function PaintDialog({ title, start, done, onDone }: PaintDialogProps) {
       return;
     }
     const point = at(e);
-    paintStroke(bits, tool, current.last, point, options(current.ink));
+    paint(current.last, point, current.ink);
     current.last = point;
     drew();
   };
@@ -140,19 +203,22 @@ export function PaintDialog({ title, start, done, onDone }: PaintDialogProps) {
     <MacDialog title={title} modal wide>
       <div className={styles.workspace}>
         <div className={styles.tools}>
-          {TOOLS.map(({ tool: name, label, icon }) => (
-            <button
-              key={name}
-              type="button"
-              className={styles.tool}
-              aria-pressed={tool === name}
-              onClick={() => setTool(name)}
-              // In the window, so its keys (⌘Z, Escape) aren't the message box's.
-              autoFocus={name === 'pencil'}
-            >
-              <PixelIcon bitmap={icon} label={label} />
-            </button>
-          ))}
+          {/* A fill follows the shapes of one frame, so a movie has none. */}
+          {TOOLS.filter(({ tool: name }) => !movie || name !== 'bucket').map(
+            ({ tool: name, label, icon }) => (
+              <button
+                key={name}
+                type="button"
+                className={styles.tool}
+                aria-pressed={tool === name}
+                onClick={() => setTool(name)}
+                // In the window, so its keys (⌘Z, Escape) aren't the message box's.
+                autoFocus={name === 'pencil'}
+              >
+                <PixelIcon bitmap={icon} label={label} />
+              </button>
+            )
+          )}
           <button type="button" className={styles.action} onClick={undo}>
             Undo
           </button>

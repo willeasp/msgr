@@ -1,0 +1,152 @@
+/* The video, as large as fits, with what's happening laid over it. */
+.preview {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  margin-top: calc(var(--line) * 0.5);
+}
+
+.video {
+  display: block;
+  max-width: 100%;
+  max-height: min(50vh, 360px);
+  background: var(--ink);
+  box-shadow: 0 0 0 1px var(--ink);
+  /* The colours stay on the phone; here the video is for choosing. */
+  filter: grayscale(1);
+}
+
+.busy {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  background: var(--dither);
+  font-family: var(--font-family-chrome);
+
+  & span {
+    padding: 0 1ch;
+    background: var(--paper);
+    box-shadow: 0 0 0 1px var(--ink);
+  }
+}
+
+/* The whole video from end to end, with a window over the part to keep: its
+   handles stick out either side, so the track is inset to make room. */
+.timeline {
+  position: relative;
+  height: calc(var(--line) * 2.5);
+  margin: var(--line) 16px 0;
+  box-shadow: 0 0 0 1px var(--ink);
+  background: var(--picture-paper);
+  touch-action: none;
+  user-select: none;
+  cursor: pointer;
+}
+
+.strip {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--picture-ink);
+  background: var(--picture-paper);
+  image-rendering: pixelated;
+}
+
+/* What's left out, dimmed with the desktop's dither. */
+.shade {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--dither);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.window {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  border-top: 4px solid var(--ink);
+  border-bottom: 4px solid var(--ink);
+  cursor: grab;
+
+  &:focus-visible {
+    outline: 1px dotted var(--ink);
+    outline-offset: 4px;
+  }
+}
+
+.handle {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 14px;
+  background: var(--ink);
+  cursor: ew-resize;
+
+  /* Two grip lines. */
+  &::after {
+    content: '';
+    position: absolute;
+    top: 35%;
+    bottom: 35%;
+    left: 4px;
+    width: 4px;
+    border-right: 1px solid var(--paper);
+    border-left: 1px solid var(--paper);
+  }
+
+  /* A bigger target for a finger than for the eye. */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -8px -10px;
+  }
+
+  &:focus-visible {
+    outline: 1px dotted var(--ink);
+    outline-offset: 3px;
+  }
+}
+
+.start {
+  left: -14px;
+}
+
+.end {
+  right: -14px;
+}
+
+.playhead {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--ink);
+  pointer-events: none;
+}
+
+.times {
+  display: flex;
+  justify-content: space-between;
+  gap: 1ch;
+  margin: calc(var(--line) * 0.5) 16px 0;
+  font-variant-numeric: tabular-nums;
+
+  & b {
+    font-family: var(--font-family-chrome);
+    font-weight: normal;
+  }
+}
+
+.problem {
+  margin-top: calc(var(--line) * 0.5);
+  padding: 0 1ch;
+  background: var(--ink);
+  color: var(--paper);
+}

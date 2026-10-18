@@ -2,7 +2,7 @@
   "name": "@msgr/bitmap",
   "version": "0.0.1",
   "private": true,
-  "description": "1-bit pictures, shared by the API and the app: packing, Atkinson's dithering, base64.",
+  "description": "1-bit pictures and movies, shared by the API and the app: packing, Atkinson's dithering, movie coding, base64.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

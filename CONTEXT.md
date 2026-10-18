@@ -58,15 +58,19 @@ _Avoid_: Member
 The other participant of a direct chat, as seen by the viewer.
 
 **Message**:
-Text, a picture, or both, posted by a participant to a chat at a point in time; never neither. Text is trimmed and non-blank.
+Text, a picture or a movie, or text with one of them, posted by a participant to a chat at a point in time; never neither, and never both a picture and a movie. Text is trimmed and non-blank.
 
 **Picture**:
 A black-and-white image in a message, 1 to 320 pixels a side, drawn in the paint window or dithered from a photo on the sender's device. It is never blank.
 _Avoid_: Image, attachment, file
 
 **Drawing**:
-A picture made in the paint window, 256×160 when started blank. Stored and sent like any other picture.
+A picture made in the paint window, 256×160 when started blank. Stored and sent like any other picture. Also what's drawn over a movie in the paint window: the same over every frame, and drawn into them when it's sent.
 _Avoid_: Doodle, sketch
+
+**Movie**:
+A black-and-white moving picture in a message: 1 to 320 pixels a side and 1 to 48 frames, played at 8 frames a second and looping, like a GIF, with nothing to pause or wind. Made on the sender's device from up to 6 seconds of a video no longer than 10 minutes, perhaps drawn on. It is never blank.
+_Avoid_: Video (that's the file it's made from), clip, GIF
 
 **Activity**:
 When a chat last received a message. A viewer's chats are listed most recently active first. Opening a chat, or joining or leaving a channel, is not activity.

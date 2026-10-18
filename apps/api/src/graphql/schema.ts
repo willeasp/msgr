@@ -81,13 +81,15 @@ export const typeDefs = /* GraphQL */ `
     chatId: ID!
   }
 
-  "Text, a picture, or both: at least one of content and picture is set."
+  "Text, a picture or a movie, or text with one of them: at least one of content, picture and movie is set, and never both picture and movie."
   type Message {
     id: ID!
-    "The text; null for a picture alone."
+    "The text; null for a picture or a movie alone."
     content: String
-    "A picture, drawn or dithered from a photo; null for text alone."
+    "A picture, drawn or dithered from a photo; null without one."
     picture: Picture
+    "A movie, dithered from a video and perhaps drawn on; null without one."
+    movie: Movie
     sender: User!
     chat: Chat!
     createdAt: DateTime!
@@ -119,11 +121,29 @@ export const typeDefs = /* GraphQL */ `
     bits: String!
   }
 
-  "Text, a picture, or both."
+  "A black-and-white movie, 1 to 320 pixels a side and 1 to 48 frames, played at 8 frames a second, looping."
+  type Movie {
+    width: Int!
+    height: Int!
+    frames: Int!
+    "Its frames, each laid out as a Picture's bits, coded by encodeMovie from @msgr/bitmap, in base64."
+    bits: String!
+  }
+
+  "As Movie: the server decodes its bits to exactly its size, refuses a blank one and codes it again itself."
+  input MovieInput {
+    width: Int!
+    height: Int!
+    frames: Int!
+    bits: String!
+  }
+
+  "Text, a picture or a movie, or text with one of them."
   input SendMessageInput {
     chatId: ID!
     content: String
     picture: PictureInput
+    movie: MovieInput
   }
 
   "Everything someone shows others of themselves, saved at once."

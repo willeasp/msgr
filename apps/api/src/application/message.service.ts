@@ -5,6 +5,7 @@ import {
   MessageContent,
   type Message,
 } from '../domain/message.js';
+import { Movie, type RawMovie } from '../domain/movie.js';
 import { Picture, type RawPicture } from '../domain/picture.js';
 import { Page } from '../domain/page.js';
 import { ok, type Result } from '../domain/result.js';
@@ -61,13 +62,17 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
       return ok(await loaders.messages(page.value).load(chat.value.id));
     },
 
-    /** Text, a picture, or both; each is checked before the chat is looked up. */
+    /**
+     * Text, a picture or a movie, or text with one of them; each is checked
+     * before the chat is looked up.
+     */
     async send(
       viewer: User,
       input: {
         readonly chatId: string;
         readonly content?: string | null;
         readonly picture?: RawPicture | null;
+        readonly movie?: RawMovie | null;
       }
     ): Promise<Result<Message, InvalidInput | NotFound>> {
       const content =
@@ -78,7 +83,9 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
           ? ok(null)
           : Picture.parse(input.picture, deps.pictures);
       if (!picture.ok) return picture;
-      const body = MessageBody.of(content.value, picture.value);
+      const movie = input.movie == null ? ok(null) : Movie.parse(input.movie);
+      if (!movie.ok) return movie;
+      const body = MessageBody.of(content.value, picture.value, movie.value);
       if (!body.ok) return body;
       return post(viewer, input.chatId, body.value);
     },

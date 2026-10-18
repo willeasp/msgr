@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Message } from '../domain/message.js';
 import { Page } from '../domain/page.js';
+import { exampleMovie, movieInput } from '../testing/movies.js';
 import { examplePicture, pictureInput } from '../testing/pictures.js';
 import {
   createTestApp,
@@ -38,6 +39,7 @@ describe('sending a message', () => {
       senderId: ada.id,
       content: 'hi',
       picture: null,
+      movie: null,
       createdAt: sentAt,
     });
   });
@@ -146,6 +148,7 @@ describe('sending a picture', () => {
       senderId: ada.id,
       content: null,
       picture: examplePicture(),
+      movie: null,
       createdAt: expect.any(Date),
     });
     expect(captioned).toMatchObject({
@@ -186,6 +189,58 @@ describe('sending a picture', () => {
         picture: pictureInput(),
       })
     ).toEqual({ ok: false, error: { type: 'NotFound', entity: 'Chat' } });
+  });
+});
+
+describe('sending a movie', () => {
+  it('stores it alone or with text, coded by the server, and delivers it live', async () => {
+    const { services, ada, grace, chat } = await team();
+    const toGrace = nextEvent(services().messages.feed(grace));
+
+    const alone = expectOk(
+      await services().messages.send(ada, {
+        chatId: chat.id,
+        movie: movieInput(),
+      })
+    );
+    const captioned = expectOk(
+      await services().messages.send(ada, {
+        chatId: chat.id,
+        content: 'look',
+        movie: movieInput(),
+      })
+    );
+
+    expect(alone).toEqual({
+      id: alone.id,
+      chatId: chat.id,
+      senderId: ada.id,
+      content: null,
+      picture: null,
+      movie: exampleMovie(),
+      createdAt: expect.any(Date),
+    });
+    expect(captioned).toMatchObject({ content: 'look', movie: exampleMovie() });
+    expect(await toGrace).toEqual(alone);
+  });
+
+  it('rejects a bad movie, or a movie with a picture, before looking at the chat', async () => {
+    const { services, ada } = await team();
+    // Inked off its 8×1 canvas in every frame, so blank.
+    const blankMovie = movieInput(8, 1, 2, 8);
+
+    for (const input of [
+      { movie: blankMovie },
+      { movie: { ...movieInput(), frames: 49 } },
+      { content: 'hi', picture: pictureInput(), movie: movieInput() },
+    ]) {
+      expect(
+        await services().messages.send(ada, { chatId: 'missing', ...input })
+      ).toMatchObject({
+        ok: false,
+        error: { type: 'InvalidInput', field: 'movie' },
+      });
+    }
   });
 });
 

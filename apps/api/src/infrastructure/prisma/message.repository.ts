@@ -6,6 +6,7 @@ import {
   type Message,
   type MessageContent,
 } from '../../domain/message.js';
+import type { Movie } from '../../domain/movie.js';
 import type { Picture } from '../../domain/picture.js';
 import { UserId } from '../../domain/user.js';
 import { Prisma, type PrismaClient } from './client.js';
@@ -18,6 +19,10 @@ const messageFields = {
   picture: true,
   pictureWidth: true,
   pictureHeight: true,
+  movie: true,
+  movieWidth: true,
+  movieHeight: true,
+  movieFrames: true,
   createdAt: true,
 } satisfies Prisma.MessageSelect;
 
@@ -39,7 +44,8 @@ export function prismaMessageRepository(db: PrismaClient): MessageRepository {
       // keep the requested window of ranks.
       const rows = await db.$queryRaw<MessageRow[]>`
         SELECT "id", "chatId", "senderId", "content", "picture",
-          "pictureWidth", "pictureHeight", "createdAt"
+          "pictureWidth", "pictureHeight", "movie", "movieWidth",
+          "movieHeight", "movieFrames", "createdAt"
         FROM (
           SELECT *, ROW_NUMBER() OVER (
             PARTITION BY "chatId" ORDER BY "createdAt" DESC, "id" DESC
@@ -53,12 +59,16 @@ export function prismaMessageRepository(db: PrismaClient): MessageRepository {
     },
 
     async append(message) {
-      const { chatId, senderId, createdAt, content, picture } = message;
+      const { chatId, senderId, createdAt, content, picture, movie } = message;
       const body = {
         content,
         picture: picture?.deflated ?? null,
         pictureWidth: picture?.width ?? null,
         pictureHeight: picture?.height ?? null,
+        movie: movie?.coded ?? null,
+        movieWidth: movie?.width ?? null,
+        movieHeight: movie?.height ?? null,
+        movieFrames: movie?.frames ?? null,
       };
       const [row] = await db.$transaction([
         db.message.create({
@@ -85,10 +95,11 @@ function toMessage(row: MessageRow): Message {
   };
   const body = MessageBody.of(
     row.content as MessageContent | null,
-    pictureOf(row)
+    pictureOf(row),
+    movieOf(row)
   );
   if (!body.ok) {
-    throw new Error(`Message ${row.id} has neither text nor a picture`);
+    throw new Error(`Message ${row.id} breaks its CHECK: ${body.error.reason}`);
   }
   return { ...sent, ...body.value };
 }
@@ -106,4 +117,19 @@ function pictureOf({
   }
   // Raw queries hand back a Buffer; keep one type either way.
   return { width, height, deflated: new Uint8Array(picture) } as Picture;
+}
+
+/** Checked when it was sent, and held to its size by a CHECK since. */
+function movieOf({
+  id,
+  movie,
+  movieWidth: width,
+  movieHeight: height,
+  movieFrames: frames,
+}: MessageRow): Movie | null {
+  if (movie === null) return null;
+  if (width === null || height === null || frames === null) {
+    throw new Error(`Message ${id} has a movie without its size`);
+  }
+  return { width, height, frames, coded: new Uint8Array(movie) } as Movie;
 }

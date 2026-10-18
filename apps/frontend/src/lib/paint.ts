@@ -68,6 +68,23 @@ const DAB = Array.from({ length: 25 }, (_, i) => ({
   dy: Math.floor(i / 5) - 2,
 })).filter(({ dx, dy }) => Math.abs(dx) + Math.abs(dy) < 4);
 
+/** The pixels the brush's stamp covers at (x, y). */
+function stamp(brush: Brush, x: number, y: number): Point[] {
+  switch (brush) {
+    case 'pencil':
+      return [{ x, y }];
+    case 'brush':
+      return DAB.map(({ dx, dy }) => ({ x: x + dx, y: y + dy }));
+    case 'eraser': {
+      const square: Point[] = [];
+      for (let dy = -4; dy < 4; dy++) {
+        for (let dx = -4; dx < 4; dx++) square.push({ x: x + dx, y: y + dy });
+      }
+      return square;
+    }
+  }
+}
+
 /** One stretch of a stroke: the brush's stamp at every point along it. */
 export function paintStroke(
   bits: Bits,
@@ -76,21 +93,30 @@ export function paintStroke(
   to: Point,
   { ink, pattern }: { readonly ink: boolean; readonly pattern: Pattern }
 ): void {
-  for (const { x, y } of line(from, to)) {
-    switch (brush) {
-      case 'pencil':
-        setPixel(bits, x, y, ink);
-        break;
-      case 'brush':
-        for (const { dx, dy } of DAB) {
-          setPixel(bits, x + dx, y + dy, patternInk(pattern, x + dx, y + dy));
-        }
-        break;
-      case 'eraser':
-        for (let dy = -4; dy < 4; dy++) {
-          for (let dx = -4; dx < 4; dx++) setPixel(bits, x + dx, y + dy, false);
-        }
-        break;
+  for (const point of line(from, to)) {
+    for (const { x, y } of stamp(brush, point.x, point.y)) {
+      const value =
+        brush === 'pencil'
+          ? ink
+          : brush === 'brush' && patternInk(pattern, x, y);
+      setPixel(bits, x, y, value);
+    }
+  }
+}
+
+/**
+ * Inks in `mask` every pixel the same stroke would paint: over a movie, where
+ * something was drawn, ink or paper.
+ */
+export function coverStroke(
+  mask: Bits,
+  brush: Brush,
+  from: Point,
+  to: Point
+): void {
+  for (const point of line(from, to)) {
+    for (const { x, y } of stamp(brush, point.x, point.y)) {
+      setPixel(mask, x, y, true);
     }
   }
 }
