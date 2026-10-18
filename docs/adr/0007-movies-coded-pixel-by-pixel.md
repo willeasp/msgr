@@ -35,8 +35,11 @@ and measured their size against grey H.264 and AV1:
   coder (LZMA's) over a context of 11 pixels of the frame and 5 of the one
   before, each context counting its zeros and ones. Pure code, run by both
   browser and server.
-- The server decodes exactly the frames a movie's size says, refuses a blank
-  one and codes it again itself, as it does with pictures.
+- The server decodes exactly the frames a movie's size says, codes them again
+  and takes only bytes identical to that coding, so a few bytes can't decode
+  to a big busy movie that it would store and send to everyone. It refuses a
+  blank one. A mutation selects one field and the socket takes only
+  subscriptions, so one request can't ask for many movies' worth of work.
 - Anything drawn over a movie is drawn into every frame before it's sent.
   The server sees only a movie.
 

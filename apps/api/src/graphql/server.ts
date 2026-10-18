@@ -5,6 +5,12 @@ import { makeExecutableSchema } from '@graphql-tools/schema';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express, { type Response } from 'express';
+import {
+  getOperationAST,
+  GraphQLError,
+  parse,
+  type DocumentNode,
+} from 'graphql';
 import { useServer } from 'graphql-ws/use/ws';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -18,6 +24,7 @@ import {
   type Context,
   type SessionCookie,
 } from './context.js';
+import { oneThingPerMutation } from './one-thing-per-mutation.js';
 import { resolvers } from './resolvers.js';
 import { typeDefs } from './schema.js';
 
@@ -73,6 +80,21 @@ export async function startServer(
       // ours, or any page could open one riding the visitor's session cookie.
       onConnect: ({ extra }) =>
         isAllowedOrigin(extra.request.headers.origin, config.corsOrigin),
+      // Messages, and the movies they may carry, are sent over HTTP, where
+      // bodies and the work they ask for are bounded; the socket only listens.
+      onSubscribe: (_, _id, payload) => {
+        let document: DocumentNode;
+        try {
+          document = parse(payload.query);
+        } catch {
+          return undefined; // graphql-ws reports the syntax error itself
+        }
+        const operation = getOperationAST(document, payload.operationName);
+        if (operation?.operation !== 'subscription') {
+          return [new GraphQLError('Only subscriptions go over the socket.')];
+        }
+        return undefined;
+      },
       // One context per subscription, alive across many events: batch, don't cache.
       context: ({ connectionParams, extra }) =>
         createContext(deps, {
@@ -93,6 +115,7 @@ export async function startServer(
 
   const apollo = new ApolloServer<Context>({
     schema,
+    validationRules: [oneThingPerMutation],
     plugins: [
       ApolloServerPluginDrainHttpServer({ httpServer }),
       {

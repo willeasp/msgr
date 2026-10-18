@@ -3,7 +3,9 @@ import { fileURLToPath } from 'node:url';
 import { anotherPerson, chatWindow, chatsWindow, signIn } from './support';
 
 // Two seconds of a black square sliding right across white, 320×180.
-const VIDEO = fileURLToPath(new URL('../fixtures/square.webm', import.meta.url));
+const VIDEO = fileURLToPath(
+  new URL('../fixtures/square.webm', import.meta.url)
+);
 
 /** Drags across the paint window's canvas, between fractions of its size. */
 async function scribble(
@@ -35,9 +37,14 @@ const inked = (canvas: Locator, [x, y]: [number, number]) =>
       if (!probe) return false;
       probe.fillStyle = getComputedStyle(element).color;
       probe.fillRect(0, 0, 1, 1);
-      const at = [Math.floor(x * element.width), Math.floor(y * element.height)];
-      const pixel = (context: CanvasRenderingContext2D | null, [px, py]: number[]) =>
-        Array.from(context?.getImageData(px, py, 1, 1).data ?? []).join();
+      const at = [
+        Math.floor(x * element.width),
+        Math.floor(y * element.height),
+      ];
+      const pixel = (
+        context: CanvasRenderingContext2D | null,
+        [px, py]: number[]
+      ) => Array.from(context?.getImageData(px, py, 1, 1).data ?? []).join();
       return pixel(element.getContext('2d'), at) === pixel(probe, [0, 0]);
     },
     [x, y] as const
@@ -74,7 +81,9 @@ test('a video becomes a movie: part of it chosen, drawn on, sent, and looping li
   const canvas = paint.getByRole('img', { name: 'Canvas' });
   await expect(canvas).toHaveAttribute('width', '320');
   await expect(canvas).toHaveAttribute('height', '180');
-  await expect(paint.getByRole('button', { name: 'Paint Bucket' })).toHaveCount(0);
+  await expect(paint.getByRole('button', { name: 'Paint Bucket' })).toHaveCount(
+    0
+  );
   await paint.getByRole('button', { name: 'Brush' }).click();
   await scribble(page, [0.1, 0.92], [0.9, 0.92]);
   await paint.getByRole('button', { name: 'Attach' }).click();

@@ -46,7 +46,8 @@ a hard cap at exactly the size's bytes, so a small DEFLATE bomb never expands in
 memory, refuses a blank one, and stores its own compression, never the sender's
 bytes. Browsers inflate under the same cap. WebSocket messages, which only
 ever carry subscriptions, are capped at 64 KB; messages go over HTTP, where
-bodies are capped at 1 MB, just above the largest honest movie. Avatars are pictures too, parsed the same way and
+bodies are capped at 1 MB, just above the largest honest movie, and the socket
+refuses anything but a subscription. Avatars are pictures too, parsed the same way and
 held to exactly 64×64. Only people who share a chat with someone are sent their
 profile changes, though anyone signed in can read a name and avatar.
 
@@ -56,9 +57,13 @@ page reads the file from disk as it plays, never whole into memory. The server
 takes a movie's stated size (1 to 320 a side, 1 to 48 frames) only as a claim:
 it refuses a payload longer than any honest movie of that size before decoding
 it. Decoding reads exactly the frames the size says, whatever the bytes, so it
-does a bounded amount of work and can't expand further. It refuses a movie blank
-in every frame and stores its own coding, never the sender's bytes. Browsers
-decode under the same bounds.
+does a bounded amount of work. Any bytes decode to some movie, and a few can
+decode to a busy one far bigger than they are, so the server codes the frames
+again and takes only bytes identical to that: what it stores is never more than
+it was sent. It refuses a movie blank in every frame. Browsers decode under the
+same bounds. Because a movie costs the server real work (a third of a second for
+the largest), a mutation may select only one field (no aliases or fragments
+sending many at once), and the WebSocket takes only subscriptions.
 
 **Link previews.** Our server, not the reader's browser, fetches a page to
 preview a link, so linked sites never see readers' addresses. Because anyone can

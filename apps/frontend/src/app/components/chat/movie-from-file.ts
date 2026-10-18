@@ -82,9 +82,12 @@ export async function captureGrey(
     await new Promise<void>((resolve) => {
       let quiet = 0;
       let finished = false;
+      let pending = 0;
       const finish = () => {
         if (finished) return;
         finished = true;
+        // Seeking comes next; a callback left waiting would grab frames too.
+        video.cancelVideoFrameCallback(pending);
         clearInterval(watch);
         video.removeEventListener('ended', finish);
         video.pause();
@@ -103,14 +106,14 @@ export async function captureGrey(
         }
         onFrame(next - missing.length, count);
         if (signal.aborted || next >= count || mediaTime >= part.end) finish();
-        else video.requestVideoFrameCallback(onVideoFrame);
+        else pending = video.requestVideoFrameCallback(onVideoFrame);
       };
       // No frame for a second and a half: stop playing and seek the rest.
       const watch = setInterval(() => {
         if (++quiet > 3) finish();
       }, 500);
       video.addEventListener('ended', finish);
-      video.requestVideoFrameCallback(onVideoFrame);
+      pending = video.requestVideoFrameCallback(onVideoFrame);
       video.playbackRate = 2;
       video.play().catch(finish);
     });

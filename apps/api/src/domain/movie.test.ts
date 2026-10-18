@@ -33,19 +33,55 @@ const errorFor = (raw: RawMovie) => {
 };
 
 describe('Movie.parse', () => {
-  it('accepts a movie of any shape up to 320 a side and 48 frames, and codes it itself', () => {
+  it('accepts a movie of any shape up to 320 a side and 48 frames, coded as encodeMovie codes it', () => {
     const frames = walking(13, 320, 48);
-    // Junk after the end decodes to nothing; what's kept is the server's own coding.
-    const sent = wire(frames);
-    const padded = {
-      ...sent,
-      bits: toBase64(Uint8Array.from([...encodeMovie(frames), 1, 2, 3])),
-    };
-    const result = Movie.parse(padded);
+    const result = Movie.parse(wire(frames));
     if (!result.ok) throw new Error(result.error.reason);
     expect(result.value).toMatchObject({ width: 13, height: 320, frames: 48 });
     expect(result.value.coded).toEqual(encodeMovie(frames));
     expect(decodeMovie(result.value.coded, 13, 320, 48)).toEqual(frames);
+  });
+
+  it('accepts honest noise at any size, however poorly it codes', () => {
+    // A busy clip costs a little over a bit a pixel while its odds are learned.
+    for (const [width, height] of [
+      [64, 64],
+      [96, 96],
+      [320, 320],
+    ] as const) {
+      let seed = 2463534242;
+      const bytes = Uint8Array.from(
+        { length: byteLength(width, height) * 48 },
+        () => {
+          seed ^= seed << 13;
+          seed ^= seed >>> 17;
+          seed ^= seed << 5;
+          return seed & 0xff;
+        }
+      );
+      const noise = { width, height, count: 48, bytes };
+      expect(errorFor(wire(noise))).toBeNull();
+    }
+  });
+
+  it('refuses bits that are not exactly how encodeMovie codes their frames', () => {
+    const frames = walking(13, 7, 3);
+    const coded = encodeMovie(frames);
+    // Anything after the end, or a few bytes that decode to a busy movie
+    // far bigger than they are, would otherwise be stored as the server's
+    // own, larger coding.
+    for (const bits of [
+      toBase64(Uint8Array.from([...coded, 1, 2, 3])),
+      toBase64(coded.subarray(0, coded.length - 1)),
+      'EjRW',
+    ]) {
+      expect(errorFor({ width: 13, height: 7, frames: 3, bits })).toBe(
+        'Movie is not coded as encodeMovie codes it'
+      );
+    }
+    expect(
+      errorFor({ width: 320, height: 320, frames: 48, bits: 'EjRW' })
+    ).toBe('Movie is not coded as encodeMovie codes it');
   });
 
   it('rejects sides outside 1 to 320, before decoding anything', () => {

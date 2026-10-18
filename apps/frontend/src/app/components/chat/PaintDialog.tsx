@@ -88,7 +88,8 @@ export function PaintDialog(props: PaintDialogProps) {
     movie ? blank(movie.width, movie.height) : bits
   );
   const { ref, repaint } = useBitmapCanvas(shown);
-  const tick = useMovieTick();
+  // A picture stands still: no frames to step through.
+  const tick = useMovieTick(!!movie);
   // The frame showing now, with the drawing over it.
   const compose = useCallback(() => {
     if (movie && mask) {

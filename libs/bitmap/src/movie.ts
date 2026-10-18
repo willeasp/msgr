@@ -17,6 +17,15 @@ export interface Frames {
   readonly bytes: Uint8Array<ArrayBuffer>;
 }
 
+/**
+ * The most bytes `encodeMovie` makes of `count` frames this size: noise
+ * costs a bit a pixel and a little more while each context learns its odds,
+ * which in a short movie is a larger share. Comfortably above the worst
+ * honest movie, so a server can refuse more before decoding anything.
+ */
+export const maxCodedLength = (width: number, height: number, count: number) =>
+  Math.ceil(byteLength(width, height) * count * 1.125) + 16384;
+
 /** Frame `index` as a picture of its own, sharing the movie's bytes. */
 export function frameOf(movie: Frames, index: number): Bits {
   const size = byteLength(movie.width, movie.height);

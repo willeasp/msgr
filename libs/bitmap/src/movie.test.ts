@@ -4,6 +4,7 @@ import {
   decodeMovie,
   frameOf,
   MAX_FRAMES,
+  maxCodedLength,
   MOVIE_FPS,
   encodeMovie,
   type Frames,
@@ -93,6 +94,28 @@ describe('coding a movie', () => {
     const after = (encodeMovie(still).length - once) / 23;
     expect(after).toBeLessThan(once / 5);
     expect(encodeMovie(moving).length).toBeGreaterThan(once * 10);
+  });
+
+  it('never codes more than maxCodedLength, noise or not', () => {
+    let seed = 2463534242;
+    const random = () => {
+      seed ^= seed << 13;
+      seed ^= seed >>> 17;
+      seed ^= seed << 5;
+      return (seed >>> 0) / 2 ** 32;
+    };
+    for (const [width, height, count] of [
+      [1, 1, 1],
+      [8, 8, 48],
+      [33, 17, 48],
+      [96, 96, 48],
+      [160, 90, 48],
+    ] as const) {
+      const movie = frames(width, height, count, () => random() < 0.5);
+      expect(encodeMovie(movie).length).toBeLessThanOrEqual(
+        maxCodedLength(width, height, count)
+      );
+    }
   });
 
   it('decodes any bytes at all to frames of the size asked for', () => {

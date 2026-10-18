@@ -118,6 +118,8 @@ export function TrimDialog({ title, file, onDone }: TrimDialogProps) {
         await new Promise((loaded, failed) => {
           thumbs.onloadeddata = loaded;
           thumbs.onerror = failed;
+          // A video that never loads still lets the copy go.
+          setTimeout(failed, 8000);
         });
         await thumbs.play().catch(() => undefined);
         thumbs.pause();

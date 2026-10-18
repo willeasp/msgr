@@ -130,7 +130,7 @@ export const typeDefs = /* GraphQL */ `
     bits: String!
   }
 
-  "As Movie: the server decodes its bits to exactly its size, refuses a blank one and codes it again itself."
+  "As Movie: the server decodes its bits to exactly its size and takes them only if they're exactly how encodeMovie codes those frames, and never a blank one."
   input MovieInput {
     width: Int!
     height: Int!

@@ -2,6 +2,7 @@ import {
   blank,
   byteLength,
   frameOf,
+  isBlank,
   MOVIE_FPS,
   steadyAtkinson,
   type Bits,
@@ -56,7 +57,7 @@ export function* makeMovie(
 
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
 
-/** The 2nd and 98th percentiles of the clip's greys, 0 to 1, never equal. */
+/** The 2nd and 98th percentiles of the clip's greys, 0 to 1, or 0 and 1 when they're close. */
 function levels(grey: Uint8Array): [number, number] {
   const histogram = new Uint32Array(256);
   for (const g of grey) histogram[g]++;
@@ -68,8 +69,9 @@ function levels(grey: Uint8Array): [number, number] {
     }
     return 1;
   };
-  const lo = at(0.02);
-  return [lo, Math.max(lo + 1 / 255, at(0.98))];
+  const [lo, hi] = [at(0.02), at(0.98)];
+  // Next to no spread, like a clip of one colour: nothing to stretch.
+  return hi - lo < 8 / 255 ? [0, 1] : [lo, hi];
 }
 
 /** Local contrast lifted (against a blur 1/20th of the long side), then edges. */
@@ -172,3 +174,9 @@ export function drawnOver(movie: Frames, drawing: Drawing): Frames {
 /** The frame showing `ms` into a movie of `count` frames, looping. */
 export const frameAt = (ms: number, count: number) =>
   Math.floor((ms * MOVIE_FPS) / 1000) % count;
+
+/** Whether no frame has any ink: such a movie can't be sent. */
+export const isBlankMovie = (movie: Frames) =>
+  Array.from({ length: movie.count }, (_, f) => frameOf(movie, f)).every(
+    isBlank
+  );

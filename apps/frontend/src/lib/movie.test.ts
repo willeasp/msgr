@@ -1,6 +1,12 @@
 import { blank, frameOf, getPixel, setPixel } from '@msgr/bitmap';
 import { describe, expect, it } from 'vitest';
-import { drawnOver, frameAt, frameShown, movieFromGrey } from './movie';
+import {
+  drawnOver,
+  frameAt,
+  frameShown,
+  isBlankMovie,
+  movieFromGrey,
+} from './movie';
 
 describe('movieFromGrey', () => {
   it('dithers each frame, inking the dark and leaving the light', () => {
@@ -32,9 +38,13 @@ describe('movieFromGrey', () => {
     expect(getPixel(frameOf(movie, 0), 15, 0)).toBe(false);
   });
 
-  it('copes with a clip of one flat colour', () => {
-    const movie = movieFromGrey(new Uint8Array(12).fill(128), 4, 3, 1);
-    expect(movie.bytes.length).toBe(3);
+  it('leaves a clip of one flat colour that colour, with nothing to stretch', () => {
+    const ink = (grey: number) => {
+      const movie = movieFromGrey(new Uint8Array(12).fill(grey), 4, 3, 1);
+      return [0, 1, 2, 3].map((x) => getPixel(frameOf(movie, 0), x, 1));
+    };
+    expect(ink(255)).toEqual([false, false, false, false]);
+    expect(ink(0)).toEqual([true, true, true, true]);
   });
 });
 
@@ -81,5 +91,14 @@ describe('frameAt', () => {
     expect(frameAt(124, 3)).toBe(0);
     expect(frameAt(125, 3)).toBe(1);
     expect(frameAt(375, 3)).toBe(0);
+  });
+});
+
+describe('isBlankMovie', () => {
+  it('is a movie with no ink in any frame', () => {
+    const frames = { width: 9, height: 1, count: 2, bytes: new Uint8Array(4) };
+    expect(isBlankMovie(frames)).toBe(true);
+    setPixel(frameOf(frames, 1), 8, 0, true);
+    expect(isBlankMovie(frames)).toBe(false);
   });
 });

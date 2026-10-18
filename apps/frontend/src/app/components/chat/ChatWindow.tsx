@@ -3,7 +3,7 @@ import { useQuery } from '@apollo/client/react';
 import { isBlank, type Bits, type Frames } from '@msgr/bitmap';
 import { gql } from '../../../lib/__generated__';
 import { ChatKind } from '../../../lib/__generated__/graphql';
-import type { Drawing } from '../../../lib/movie';
+import { isBlankMovie, type Drawing } from '../../../lib/movie';
 import { movieFrames, type WireMovie } from '../../../lib/movie-wire';
 import { pictureBits, type WirePicture } from '../../../lib/picture-wire';
 import ActionButton from '../../../sacred/components/ActionButton';
@@ -82,7 +82,12 @@ export function ChatWindow({
       open(TrimDialog, {
         title: `Movie for ${title}`,
         file,
-        onDone: (movie) => attach({ kind: 'movie', movie, drawing: null }),
+        onDone: (movie) =>
+          isBlankMovie(movie)
+            ? setAttachError(
+                'That video comes out blank: nothing in it is dark.'
+              )
+            : attach({ kind: 'movie', movie, drawing: null }),
       });
       return;
     }

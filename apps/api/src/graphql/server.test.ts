@@ -121,7 +121,12 @@ describe('server', () => {
       height: MAX_SIDE,
       frames: MAX_FRAMES,
       bits: toBase64(
-        encodeMovie({ width: MAX_SIDE, height: MAX_SIDE, count: MAX_FRAMES, bytes })
+        encodeMovie({
+          width: MAX_SIDE,
+          height: MAX_SIDE,
+          count: MAX_FRAMES,
+          bytes,
+        })
       ),
     };
     const response = await fetch(server.url, {
@@ -139,6 +144,34 @@ describe('server', () => {
 
     expect(await response.json()).toEqual({
       data: { sendMessage: { movie: { frames: MAX_FRAMES } } },
+    });
+  });
+
+  it('runs a mutation that does one thing, and refuses one that does many', async () => {
+    const notes = await app.fixtures.groupChat('Notes', [ada]);
+    const cookie = await sessionCookie();
+    const send = (query: string) =>
+      fetch(server.url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie },
+        body: JSON.stringify({ query, variables: { chatId: notes.id } }),
+      }).then((response) => response.json());
+    const one = 'sendMessage(input: { chatId: $chatId, content: "hi" }) { id }';
+
+    // Aliases, or a fragment, would otherwise send thousands in one request.
+    for (const query of [
+      `mutation ($chatId: ID!) { a: ${one} b: ${one} }`,
+      `mutation ($chatId: ID!) { a: ${one} ...More } fragment More on Mutation { b: ${one} }`,
+    ]) {
+      expect(await send(query)).toMatchObject({
+        errors: [{ extensions: { code: 'GRAPHQL_VALIDATION_FAILED' } }],
+      });
+    }
+    expect(
+      await app.services().messages.list(ada, { chatId: notes.id })
+    ).toEqual({ ok: true, value: [] });
+    expect(await send(`mutation ($chatId: ID!) { ${one} }`)).toMatchObject({
+      data: { sendMessage: { id: expect.any(String) } },
     });
   });
 
@@ -162,6 +195,32 @@ describe('server', () => {
 
   const sessionCookie = async () =>
     ((await post(LOGIN)).headers.get('set-cookie') ?? '').split(';')[0] ?? '';
+
+  it('takes only subscriptions over the socket; messages are sent over HTTP', async () => {
+    const notes = await app.fixtures.groupChat('Notes', [ada]);
+    const { data } = (await (await post(LOGIN)).json()) as {
+      data: { login: { token: string } };
+    };
+    const client = createClient({
+      url: server.url.replace(/^http/, 'ws'),
+      webSocketImpl: WebSocket,
+      connectionParams: { token: data.login.token },
+    });
+
+    try {
+      const sent = client.iterate({
+        query: `mutation { sendMessage(input: { chatId: "${notes.id}", content: "hi" }) { id } }`,
+      });
+      await expect(sent.next()).rejects.toMatchObject([
+        { message: 'Only subscriptions go over the socket.' },
+      ]);
+      expect(
+        await app.services().messages.list(ada, { chatId: notes.id })
+      ).toEqual({ ok: true, value: [] });
+    } finally {
+      await client.dispose();
+    }
+  });
 
   it('authenticates subscriptions with the token from login', async () => {
     const { data } = (await (await post(LOGIN)).json()) as {
