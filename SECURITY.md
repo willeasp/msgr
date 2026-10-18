@@ -63,7 +63,10 @@ again and takes only bytes identical to that: what it stores is never more than
 it was sent. It refuses a movie blank in every frame. Browsers decode under the
 same bounds. Because a movie costs the server real work (a third of a second for
 the largest), a mutation may select only one field (no aliases or fragments
-sending many at once), and the WebSocket takes only subscriptions.
+sending many at once), and the WebSocket takes only subscriptions. Someone
+signed in can still send movie after movie, each costing that work; there is
+no per-person limit on sending yet, which an invite-only service can afford
+for now.
 
 **Link previews.** Our server, not the reader's browser, fetches a page to
 preview a link, so linked sites never see readers' addresses. Because anyone can
