@@ -24,7 +24,7 @@ each where it showed would have left the shape that caused them.
 ## Decision
 
 - All of the page's audio goes through one object, `audio`, made in
-  `app/audio.ts` by `createAudio` from `lib/audio.ts`. It is always exactly
+  `app/devices/audio.ts` by `createAudio` from `lib/audio.ts`. It is always exactly
   idle, playing, asking (for the microphone) or recording, and `play`,
   `stop`, `record`, `beep` and `away` are the only ways to change it.
 - Illegal states can't be written down: a sound can't play while the
@@ -38,7 +38,7 @@ each where it showed would have left the shape that caused them.
   browser is still asking; a microphone granted after that goes straight
   back.
 - The browser is behind a port, `AudioDevices`, as the API's adapters are.
-  `app/audio.ts` is the real one; `lib/audio.test.ts` drives the rules with
+  `app/devices/audio.ts` is the real one; `lib/audio.test.ts` drives the rules with
   a fake that records every call in order, since Chromium, and so the e2e,
   can reproduce none of iOS's rules.
 

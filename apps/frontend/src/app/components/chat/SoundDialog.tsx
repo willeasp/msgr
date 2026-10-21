@@ -17,7 +17,7 @@ import { firstPart, type Part } from '../../../lib/trim';
 import Button from '../../../sacred/components/Button';
 import { useModals } from '../../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../../sacred/modules/hotkeys';
-import { audio } from '../../audio';
+import { audio } from '../../devices/audio';
 import { useSoundPlayer } from '../../hooks/use-sound';
 import { DialogButtons, DialogMessage, MacDialog } from '../MacDialog';
 import { SPEAKER } from '../icons';

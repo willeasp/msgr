@@ -1,10 +1,10 @@
 import { useEffect, useId, useState, useSyncExternalStore } from 'react';
 import type { SoundCodes } from '@msgr/bitmap';
 import { soundCodes, soundKey, type WireSound } from '../../lib/sound-wire';
-import { audio } from '../audio';
+import { audio } from '../devices/audio';
 
 /**
- * A player for one sound, on the page's one audio (`app/audio.ts`): whether
+ * A player for one sound, on the page's one audio (`app/devices/audio.ts`): whether
  * it's the one playing, and how far in, in seconds, updated every frame
  * while it plays. Starting it stops any other sound. Its sound stops when it
  * goes: sent, removed, or its window closed.

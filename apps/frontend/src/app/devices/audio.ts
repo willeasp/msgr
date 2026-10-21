@@ -3,7 +3,7 @@ import {
   type AudioDevices,
   type Input,
   type Output,
-} from '../lib/audio';
+} from '../../lib/audio';
 
 /*
  * The browser's side of the page's audio (`lib/audio.ts` holds the rules):

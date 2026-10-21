@@ -4,7 +4,7 @@ import {
   serializeAlertPreferences,
   shouldAlert,
 } from '../../lib/alerts';
-import { audio } from '../audio';
+import { audio } from '../devices/audio';
 
 const STORAGE_KEY = 'alerts';
 const TITLE = document.title;
