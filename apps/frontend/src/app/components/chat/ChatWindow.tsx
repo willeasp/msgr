@@ -15,6 +15,8 @@ import { PaintDialog } from './PaintDialog';
 import type { Attachment } from './attachment';
 import { firstMedia, isVideo } from './movie-from-file';
 import { pictureFromFile } from './picture-from-file';
+import { isAudio } from './sound-from-file';
+import { SoundDialog } from './SoundDialog';
 import { TrimDialog } from './TrimDialog';
 import styles from './ChatWindow.module.css';
 import { PixelText } from '../PixelText';
@@ -64,8 +66,8 @@ export function ChatWindow({
   const chat = data?.chat;
   const title = chat?.title ?? (loading ? 'Loading…' : 'Chat');
   const { open } = useModals();
-  // The picture or movie going with the next message: drawn, or made from
-  // a file.
+  // The picture, movie or sound going with the next message: drawn,
+  // recorded, or made from a file.
   const [attachment, setAttachment] = useState<Attachment | null>(null);
   const [attachError, setAttachError] = useState<string | null>(null);
   const attach = (next: Attachment) => {
@@ -77,7 +79,18 @@ export function ChatWindow({
     setAttachment((now) => (now === sent ? null : now));
     setAttachError(null);
   };
+  // Recorded, or from a file picked there or dropped here.
+  const makeSound = (file?: File) =>
+    open(SoundDialog, {
+      title: `Sound for ${title}`,
+      file,
+      onDone: (codes) => attach({ kind: 'sound', codes }),
+    });
   const attachFile = async (file: File) => {
+    if (isAudio(file)) {
+      makeSound(file);
+      return;
+    }
     if (isVideo(file)) {
       open(TrimDialog, {
         title: `Movie for ${title}`,
@@ -118,10 +131,11 @@ export function ChatWindow({
       onDone: (drawn: Drawing) =>
         attach({ kind: 'movie', movie, drawing: drawn }),
     });
-  const edit = (attached: Attachment) =>
-    attached.kind === 'picture'
-      ? draw(attached.bits)
-      : drawOver(attached.movie, attached.drawing);
+  const edit = (attached: Attachment) => {
+    if (attached.kind === 'picture') draw(attached.bits);
+    else if (attached.kind === 'movie')
+      drawOver(attached.movie, attached.drawing);
+  };
   const drawOn = async (picture: WirePicture) => {
     const bits = await pictureBits(picture);
     if (bits) draw(bits);
@@ -159,7 +173,7 @@ export function ChatWindow({
       }
       fill
     >
-      {/* A picture or video dropped anywhere on the chat is attached. */}
+      {/* A picture, video or sound dropped anywhere on the chat is attached. */}
       <div
         className={styles.dropZone}
         onDragOver={(e) => {
@@ -185,6 +199,7 @@ export function ChatWindow({
           attachError={attachError}
           onDraw={() => draw()}
           onEdit={edit}
+          onSound={() => makeSound()}
           onAttachFile={(file) => void attachFile(file)}
           onDetach={detach}
         />

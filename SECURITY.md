@@ -35,7 +35,8 @@ by any other site are refused.
 **The page.** The app and API share one origin. Responses carry a
 Content-Security-Policy that allows scripts, styles and connections only from
 that origin, and media only from it or from `blob:` URLs the page made itself
-(a video the viewer picked, played on their device to make a movie), and forbids framing, plus `X-Content-Type-Options: nosniff` and
+(a video the viewer picked, played on their device to make a movie; sounds
+play through Web Audio, which needs none), and forbids framing, plus `X-Content-Type-Options: nosniff` and
 `Referrer-Policy: same-origin`. Messages are rendered as text, never HTML.
 
 **Pictures.** A photo is shrunk and dithered to 1 bit on the sender's device;
@@ -67,6 +68,18 @@ sending many at once), and the WebSocket takes only subscriptions. Someone
 signed in can still send movie after movie, each costing that work; there is
 no per-person limit on sending yet, which an invite-only service can afford
 for now.
+
+**Sounds.** A recording or a sound file is cut, made one channel at 8,000
+samples a second and squashed on the sender's device; only the squashed codes
+are uploaded, never the recording or the file or its metadata. The server takes
+a sound's stated length (2 to 3,001 frames of 20 ms, a minute at most) only as
+a claim: it refuses a payload longer than any honest sound of that length
+before decoding it, decodes exactly the frames the length says, whatever the
+bytes, and takes only bytes identical to its own coding of what they decode to,
+as for movies. It refuses a silent one. Decoding and coding a minute takes
+about a tenth of a second. Making the codes into samples happens only in
+browsers. Recording asks for the microphone only when someone presses Record,
+and lets it go when they stop.
 
 **Link previews.** Our server, not the reader's browser, fetches a page to
 preview a link, so linked sites never see readers' addresses. Because anyone can

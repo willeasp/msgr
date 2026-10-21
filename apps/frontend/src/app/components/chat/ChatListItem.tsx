@@ -20,6 +20,7 @@ interface ChatListItemProps {
       id: string;
       content?: string | null;
       movie?: { frames: number } | null;
+      sound?: { frames: number } | null;
       createdAt: string;
     }>;
   };
@@ -57,7 +58,11 @@ export function ChatListItem({ chat, isSelected }: ChatListItemProps) {
                 text={
                   latestMessage
                     ? latestMessage.content ??
-                      (latestMessage.movie ? 'Movie' : 'Picture')
+                      (latestMessage.movie
+                        ? 'Movie'
+                        : latestMessage.sound
+                        ? 'Sound'
+                        : 'Picture')
                     : 'No messages yet'
                 }
               />

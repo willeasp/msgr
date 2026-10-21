@@ -129,6 +129,18 @@ keyboard, notifications, layout) is checked here.
       other window like a GIF with nothing to press, at its own shape, 2× (1×
       on a phone), repaints in a new theme, and the chat list says "Movie".
       On an iPhone, try one from the camera roll in Safari.
+- [ ] **Sounds:** Sound… then Record: the browser asks for the microphone
+      once; speak for a few seconds and Stop (it stops by itself at a
+      minute). Choose File… a song (MP3, M4A, and a WAV), and drop one on the
+      conversation. The timeline shows the whole of it; drag the window and its
+      handles (at most 60 s). Play plays the part squashed, crunchy, exactly as
+      it will be sent; Make Sound attaches it above the message box with its
+      own Play. Sent, the other window shows Play, the sound's shape and its
+      length; Play fills the shape in as it plays and counts up, a click on the
+      shape plays from there, and playing another sound stops it. The chat
+      list says "Sound", a notification "Sent a sound." On an iPhone, record
+      in Safari, and play with the ringer switch both ways: it plays on silent
+      too.
 - [ ] **Draw on It:** under any picture or movie, opens it in the paint window at its
       size; attaching and sending adds a new message and leaves the original.
 - [ ] **Discarding:** Cancel or Esc on a canvas you've drawn on asks "Discard

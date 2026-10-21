@@ -15,9 +15,9 @@ const clamp = (v: number, lo: number, hi: number) =>
   Math.min(hi, Math.max(lo, v));
 
 /** Where choosing starts: from the beginning, as long as allowed. */
-export const firstPart = (duration: number): Part => ({
+export const firstPart = (duration: number, longest = LONGEST): Part => ({
   start: 0,
-  end: Math.min(LONGEST, duration),
+  end: Math.min(longest, duration),
 });
 
 /** The part moved whole to start at `start`, inside the video. */
@@ -28,17 +28,26 @@ export function moveTo(part: Part, start: number, duration: number): Part {
 }
 
 /** The part with its start dragged to `start`; its end stays. */
-export const setStart = (part: Part, start: number): Part => ({
-  start: clamp(start, Math.max(0, part.end - LONGEST), part.end - SHORTEST),
+export const setStart = (
+  part: Part,
+  start: number,
+  longest = LONGEST
+): Part => ({
+  start: clamp(start, Math.max(0, part.end - longest), part.end - SHORTEST),
   end: part.end,
 });
 
 /** The part with its end dragged to `end`; its start stays. */
-export const setEnd = (part: Part, end: number, duration: number): Part => ({
+export const setEnd = (
+  part: Part,
+  end: number,
+  duration: number,
+  longest = LONGEST
+): Part => ({
   start: part.start,
   end: clamp(
     end,
     part.start + SHORTEST,
-    Math.min(duration, part.start + LONGEST)
+    Math.min(duration, part.start + longest)
   ),
 });

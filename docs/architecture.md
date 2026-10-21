@@ -27,10 +27,11 @@ transport. `main.ts` is the only file that picks adapters.
 
 ## How a message travels
 
-1. The composer calls `sendMessage` with text, a picture or a movie, or text
-   with one of them. `MessageService` parses each (a picture is inflated and a
-   movie decoded, each checked against its size; see
-   [ADR 0007](adr/0007-movies-coded-pixel-by-pixel.md)), checks the viewer is a
+1. The composer calls `sendMessage` with text, a picture, a movie or a sound,
+   or text with one of them. `MessageService` parses each (a picture is
+   inflated, a movie or a sound decoded, each checked against its size; see
+   [ADR 0007](adr/0007-movies-coded-pixel-by-pixel.md) and
+   [ADR 0008](adr/0008-sounds-squashed-on-purpose.md)), checks the viewer is a
    participant, stores the message and marks the chat active, in one
    repository call.
 2. It publishes the message to every participant through the in-process

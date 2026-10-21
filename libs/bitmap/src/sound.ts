@@ -36,7 +36,10 @@ export const LONGEST_SOUND = 60;
 export const MAX_SOUND_FRAMES = (LONGEST_SOUND * SOUND_RATE) / FRAME_LENGTH + 1;
 
 /** Where each band's frequencies start, and the last one ends. */
-const EDGES = [0, 4, 9, 15, 22, 30, 39, 50, 63, 78, 96, 117, 142, 160];
+export const BAND_EDGES: readonly number[] = [
+  0, 4, 9, 15, 22, 30, 39, 50, 63, 78, 96, 117, 142, 160,
+];
+const EDGES = BAND_EDGES;
 const BANDS = EDGES.length - 1;
 
 /** A band's loudness runs from 0, silent, to this, in 3 dB steps. */

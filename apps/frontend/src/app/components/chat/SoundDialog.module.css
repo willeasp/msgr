@@ -1,0 +1,19 @@
+.recording {
+  font-variant-numeric: tabular-nums;
+}
+
+.problem {
+  margin-top: calc(var(--line) * 0.5);
+  padding: 0 1ch;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

@@ -7,10 +7,12 @@ import { isOnlyEmoji } from '../../../lib/emoji';
 import { firstLink, splitLinks } from '../../../lib/links';
 import type { WireMovie } from '../../../lib/movie-wire';
 import type { WirePicture } from '../../../lib/picture-wire';
+import type { WireSound } from '../../../lib/sound-wire';
 import { Face, type Person } from '../Face';
 import { PixelText } from '../PixelText';
 import { MessageMovie } from './MessageMovie';
 import { MessagePicture } from './MessagePicture';
+import { MessageSound } from './MessageSound';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import styles from './MessageBubble.module.css';
 
@@ -20,6 +22,7 @@ interface MessageBubbleProps {
     content?: string | null;
     picture?: WirePicture | null;
     movie?: WireMovie | null;
+    sound?: WireSound | null;
     sender: Person & { name: string };
     createdAt: string;
   };
@@ -45,7 +48,7 @@ export function MessageBubble({
 }: MessageBubbleProps) {
   const Bubble = isCurrentUser ? MessageViewer : Message;
   const now = useClock();
-  const { picture, movie } = message;
+  const { picture, movie, sound } = message;
   const content = message.content ?? '';
 
   return (
@@ -69,6 +72,7 @@ export function MessageBubble({
           <Bubble>
             {picture && <MessagePicture picture={picture} />}
             {movie && <MessageMovie movie={movie} />}
+            {sound && <MessageSound sound={sound} />}
             {content && (
               <span
                 className={styles.content}

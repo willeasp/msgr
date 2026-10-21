@@ -26,6 +26,13 @@ export default defineConfig({
   use: {
     ...devices['Desktop Chrome'],
     baseURL: SITE,
+    // A pretend microphone that beeps, granted without asking, for sounds.
+    launchOptions: {
+      args: [
+        '--use-fake-device-for-media-stream',
+        '--use-fake-ui-for-media-stream',
+      ],
+    },
     trace: 'retain-on-failure',
     // Every browser starts with the notifications offer dismissed, so it stays
     // out of the way; notifications.spec.ts makes browsers without it.
