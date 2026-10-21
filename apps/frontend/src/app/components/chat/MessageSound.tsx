@@ -13,7 +13,8 @@ export function MessageSound({ sound }: { sound: WireSound }) {
   const onScreen = useOnScreen(ref);
   const codes = useSoundCodes(onScreen.ever ? sound : null);
   return (
-    <span ref={ref} role="group" aria-label="Sound">
+    // Its waveform's clicks play from there, rather than opening Get Info.
+    <span ref={ref} role="group" aria-label="Sound" data-own-clicks>
       <SoundPlayer frames={sound.frames} codes={codes} />
     </span>
   );

@@ -57,6 +57,10 @@ test('a file becomes a sound: part of it chosen, heard squashed, sent and played
   await expect(sound.getByRole('button', { name: 'Play sound' })).toBeVisible({
     timeout: 5_000,
   });
+  // Playing is not a click on the message: Get Info stays shut.
+  await expect(test.getByRole('dialog', { name: 'Message Info' })).toHaveCount(
+    0
+  );
 
   // Without text, the chat list says what it is.
   await expect(

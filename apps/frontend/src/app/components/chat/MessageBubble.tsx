@@ -76,8 +76,13 @@ export function MessageBubble({
             className={styles.pick}
             data-pressable={onGetInfo ? true : undefined}
             onClick={(e) => {
-              // A link opens itself, and dragging over the words selects them.
-              if ((e.target as Element).closest('a')) return;
+              // A link opens itself, a sound's controls play it, and
+              // dragging over the words selects them.
+              if (
+                (e.target as Element).closest('a, button, [data-own-clicks]')
+              ) {
+                return;
+              }
               if (window.getSelection()?.toString()) return;
               onGetInfo?.();
             }}
