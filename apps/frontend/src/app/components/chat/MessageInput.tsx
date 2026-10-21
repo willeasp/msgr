@@ -11,6 +11,7 @@ import Button from '../../../sacred/components/Button';
 import TextArea from '../../../sacred/components/TextArea';
 import { pixelSize, useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
 import { recordMessage } from '../../hooks/use-chat-feed';
+import { Menu } from '../MenuBar';
 import { useMediaQuery } from '../../hooks/use-media-query';
 import { useMovieTick } from '../../hooks/use-movie';
 import type { Attachment } from './attachment';
@@ -329,26 +330,21 @@ export function MessageInput({
           }}
         />
       ))}
-      <Button
-        theme="SECONDARY"
-        type="button"
-        onClick={() => pictureRef.current?.click()}
-      >
-        Picture…
-      </Button>
-      <Button
-        theme="SECONDARY"
-        type="button"
-        onClick={() => movieRef.current?.click()}
-      >
-        Movie…
-      </Button>
-      <Button theme="SECONDARY" type="button" onClick={() => onSound()}>
-        Sound…
-      </Button>
-      <Button theme="SECONDARY" type="button" onClick={() => onDraw()}>
-        Draw…
-      </Button>
+      {/* Everything that goes with a message, in one pull-down menu. */}
+      <Menu
+        title="Attach"
+        button={
+          <Button theme="SECONDARY" type="button" aria-haspopup="menu">
+            Attach
+          </Button>
+        }
+        items={[
+          { label: 'Picture…', onClick: () => pictureRef.current?.click() },
+          { label: 'Movie…', onClick: () => movieRef.current?.click() },
+          { label: 'Sound…', onClick: onSound },
+          { label: 'Draw…', onClick: onDraw },
+        ]}
+      />
       {preparing || loading ? (
         <Button isDisabled>Sending</Button>
       ) : (

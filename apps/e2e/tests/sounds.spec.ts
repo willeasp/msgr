@@ -1,6 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
-import { anotherPerson, chatWindow, chatsWindow, signIn } from './support';
+import {
+  anotherPerson,
+  attach,
+  chatsWindow,
+  chatWindow,
+  signIn,
+} from './support';
 
 // Two seconds of a 440 Hz beep.
 const BEEP = fileURLToPath(new URL('../fixtures/beep.wav', import.meta.url));
@@ -18,7 +24,7 @@ test('a file becomes a sound: part of it chosen, heard squashed, sent and played
   await chatsWindow(test).getByText('Charlie Brown', { exact: true }).click();
   const chat = chatWindow(page, 'Test User');
 
-  await chat.getByRole('button', { name: 'Sound…' }).click();
+  await attach(chat, 'Sound…');
   const dialog = page.getByRole('dialog', { name: 'Sound for Test User' });
   const chooser = page.waitForEvent('filechooser');
   await dialog.getByRole('button', { name: 'Choose File…' }).click();
@@ -67,7 +73,7 @@ test('a sound is recorded from the microphone', async ({ browser }) => {
   await chatsWindow(page).getByText('Test User', { exact: true }).click();
   const chat = chatWindow(page, 'Test User');
 
-  await chat.getByRole('button', { name: 'Sound…' }).click();
+  await attach(chat, 'Sound…');
   const dialog = page.getByRole('dialog', { name: 'Sound for Test User' });
   await dialog.getByRole('button', { name: 'Record' }).click();
   await expect(dialog.getByText(/Recording… 0:0[2-9]/)).toBeVisible({
@@ -89,7 +95,7 @@ test('a file that is not a sound is turned away', async ({ page }) => {
   await chatsWindow(page).getByText('Test User', { exact: true }).click();
   const chat = chatWindow(page, 'Test User');
 
-  await chat.getByRole('button', { name: 'Sound…' }).click();
+  await attach(chat, 'Sound…');
   const dialog = page.getByRole('dialog', { name: 'Sound for Test User' });
   const chooser = page.waitForEvent('filechooser');
   await dialog.getByRole('button', { name: 'Choose File…' }).click();

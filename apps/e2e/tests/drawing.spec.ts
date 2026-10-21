@@ -1,8 +1,9 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import {
   anotherPerson,
-  chatWindow,
+  attach,
   chatsWindow,
+  chatWindow,
   chooseMenu,
   signIn,
 } from './support';
@@ -83,9 +84,7 @@ test('a drawing goes with a message to Bob, live, and comes back drawn on', asyn
   await chatsWindow(page).getByText('Bob Smith', { exact: true }).click();
   await chatsWindow(bob).getByText('Test User', { exact: true }).click();
 
-  await chatWindow(page, 'Bob Smith')
-    .getByRole('button', { name: 'Draw…' })
-    .click();
+  await attach(chatWindow(page, 'Bob Smith'), 'Draw…');
   await expect(paintWindow(page)).toHaveAccessibleName('Drawing for Bob Smith');
   await scribble(page, [0.1, 0.2], [0.9, 0.8]);
   await paintWindow(page).getByRole('button', { name: 'Attach' }).click();
@@ -138,9 +137,7 @@ test('Undo brings back what Clear wiped, and Cancel asks before discarding', asy
   await page.goto('/login');
   await signIn(page, 'charlie@example.com');
   await chatsWindow(page).getByText('Test User', { exact: true }).click();
-  await chatWindow(page, 'Test User')
-    .getByRole('button', { name: 'Draw…' })
-    .click();
+  await attach(chatWindow(page, 'Test User'), 'Draw…');
   // A blank canvas can't be attached: Attach is only a greyed-out label.
   const send = paintWindow(page).getByRole('button', { name: 'Attach' });
   await expect(send).toHaveCount(0);
@@ -170,9 +167,7 @@ test('a second finger on the canvas does not draw', async ({ browser }) => {
   await page.goto('/login');
   await signIn(page, 'diana@example.com');
   await chatsWindow(page).getByText('Project Team', { exact: true }).click();
-  await chatWindow(page, 'Project Team')
-    .getByRole('button', { name: 'Draw…' })
-    .click();
+  await attach(chatWindow(page, 'Project Team'), 'Draw…');
   const canvas = paintWindow(page).locator('canvas');
   const box = await canvas.boundingBox();
   if (!box) throw new Error('The paint window has no canvas');

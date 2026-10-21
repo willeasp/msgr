@@ -1,4 +1,9 @@
-import { expect, type Browser, type Page } from '@playwright/test';
+import {
+  expect,
+  type Browser,
+  type Locator,
+  type Page,
+} from '@playwright/test';
 
 /** Every seeded account's password (apps/api/prisma/seed.ts). */
 export const SEEDED_PASSWORD = 'password123';
@@ -22,6 +27,12 @@ export async function signIn(page: Page, email: string) {
 export async function chooseMenu(page: Page, menu: string, item: string) {
   await menuBar(page).getByRole('button', { name: menu, exact: true }).click();
   await page.getByRole('menuitem', { name: item }).click();
+}
+
+/** Picks `item` from a chat's Attach menu: "Picture…", "Movie…", "Sound…" or "Draw…". */
+export async function attach(chat: Locator, item: string) {
+  await chat.getByRole('button', { name: 'Attach', exact: true }).click();
+  await chat.page().getByRole('menuitem', { name: item }).click();
 }
 
 /** Someone else, in a browser of their own: no shared cookies. */

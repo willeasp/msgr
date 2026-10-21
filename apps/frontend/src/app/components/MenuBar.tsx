@@ -17,8 +17,19 @@ export interface MenuItem {
   onClick: () => void;
 }
 
-/** A pull-down menu: a title in the menu bar that opens Sacred's DropdownMenu. */
-export function Menu({ title, items }: { title: string; items: MenuItem[] }) {
+/**
+ * A pull-down menu: a title in the menu bar, or another button such as the
+ * composer's Attach, that opens Sacred's DropdownMenu.
+ */
+export function Menu({
+  title,
+  items,
+  button = <ActionButton>{title}</ActionButton>,
+}: {
+  title: string;
+  items: MenuItem[];
+  button?: React.ReactElement<React.HTMLAttributes<HTMLElement>>;
+}) {
   return (
     <DropdownMenuTrigger
       items={items.map(({ label, shortcut, checked, onClick }) => ({
@@ -32,7 +43,7 @@ export function Menu({ title, items }: { title: string; items: MenuItem[] }) {
         onClick,
       }))}
     >
-      <ActionButton>{title}</ActionButton>
+      {button}
     </DropdownMenuTrigger>
   );
 }

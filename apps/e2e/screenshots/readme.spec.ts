@@ -1,7 +1,13 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { chatWindow, chatsWindow, menuBar, signIn } from '../tests/support';
+import {
+  attach,
+  chatsWindow,
+  chatWindow,
+  menuBar,
+  signIn,
+} from '../tests/support';
 import { animatedPng } from './animated-png';
 
 /**
@@ -121,9 +127,7 @@ test('on a phone', async ({ browser }) => {
 test('a drawing, in the paint window', async ({ browser }) => {
   const page = await screen(browser, { email: 'test@example.com' });
   await openChat(page, 'Bob Smith', 'Great work!');
-  await chatWindow(page, 'Bob Smith')
-    .getByRole('button', { name: 'Draw…' })
-    .click();
+  await attach(chatWindow(page, 'Bob Smith'), 'Draw…');
   const paint = page.getByRole('dialog', { name: 'Drawing for Bob Smith' });
   const canvas = paint.locator('canvas');
   const box = await canvas.boundingBox();
@@ -319,7 +323,7 @@ test('a photo and a link, in a chat', async ({ browser }) => {
   };
 
   const chooser = page.waitForEvent('filechooser');
-  await chat.getByRole('button', { name: 'Picture…' }).click();
+  await attach(chat, 'Picture…');
   await (await chooser).setFiles(MACINTOSH);
   await expect(
     chat.getByRole('button', { name: 'Edit picture' })

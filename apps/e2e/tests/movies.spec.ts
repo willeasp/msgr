@@ -1,6 +1,12 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
-import { anotherPerson, chatWindow, chatsWindow, signIn } from './support';
+import {
+  anotherPerson,
+  attach,
+  chatsWindow,
+  chatWindow,
+  signIn,
+} from './support';
 
 // Two seconds of a black square sliding right across white, 320×180.
 const VIDEO = fileURLToPath(
@@ -64,7 +70,7 @@ test('a video becomes a movie: part of it chosen, drawn on, sent, and looping li
   const chat = chatWindow(page, 'Project Team');
 
   const chooser = page.waitForEvent('filechooser');
-  await chat.getByRole('button', { name: 'Movie…' }).click();
+  await attach(chat, 'Movie…');
   await (await chooser).setFiles(VIDEO);
 
   // The whole two seconds to start with; the end handle takes half off.
@@ -124,7 +130,7 @@ test('a video longer than ten minutes is turned away', async ({ page }) => {
   });
 
   const chooser = page.waitForEvent('filechooser');
-  await chat.getByRole('button', { name: 'Movie…' }).click();
+  await attach(chat, 'Movie…');
   await (await chooser).setFiles(VIDEO);
 
   const trim = page.getByRole('dialog', { name: 'Movie for Project Team' });
