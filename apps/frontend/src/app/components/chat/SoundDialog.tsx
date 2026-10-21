@@ -5,23 +5,18 @@ import {
   SOUND_RATE,
   type SoundCodes,
 } from '@msgr/media';
-import {
-  clock,
-  samplePeaks,
-  SOUND_FILES,
-  squash,
-  waveform,
-} from '../../../lib/sound';
+import { clock, samplePeaks, squash, waveform } from '../../../lib/sound';
 import type { Recording } from '../../../lib/audio';
+import { SOUND_FILES } from '../../../lib/files';
 import { firstPart, type Part } from '../../../lib/trim';
 import Button from '../../../sacred/components/Button';
 import { useModals } from '../../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../../sacred/modules/hotkeys';
-import { audio } from '../../devices/audio';
+import { audio, canRecord } from '../../browser/audio';
 import { useSoundPlayer } from '../../hooks/use-sound';
 import { DialogButtons, DialogMessage, MacDialog } from '../MacDialog';
 import { SPEAKER } from '../icons';
-import { readSound } from './sound-from-file';
+import { readSound } from '../../browser/sound-file';
 import { Timeline } from './Timeline';
 import styles from './SoundDialog.module.css';
 
@@ -55,7 +50,7 @@ const BARS = 240;
 
 /** Why recording failed, in words for the person. */
 function recordingProblem(error: unknown): string {
-  if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices) {
+  if (!canRecord()) {
     return 'This browser can’t record. Choose a file instead.';
   }
   if (error instanceof DOMException && error.name === 'NotAllowedError') {

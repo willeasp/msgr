@@ -3,8 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   clock,
   evenOut,
-  isSoundFile,
-  SOUND_FILES,
   mono,
   partOf,
   samplePeaks,
@@ -82,24 +80,6 @@ describe('making a sound', () => {
   it('squashes the part, as long as it is', () => {
     const codes = squash(tone(440, 10), { start: 2, end: 4 });
     expect(secondsOf(codes.frames)).toBeCloseTo(2, 1);
-  });
-});
-
-describe('picking a sound file', () => {
-  it('knows one by its type, or by its name when it has none', () => {
-    expect(isSoundFile({ type: 'audio/mpeg', name: 'song' })).toBe(true);
-    expect(isSoundFile({ type: 'audio/x-m4a', name: 'memo.m4a' })).toBe(true);
-    expect(isSoundFile({ type: '', name: 'Song.MP3' })).toBe(true);
-    expect(isSoundFile({ type: '', name: 'notes.txt' })).toBe(false);
-    expect(isSoundFile({ type: 'image/png', name: 'cover.mp3' })).toBe(false);
-    expect(isSoundFile({ type: 'video/mp4', name: 'clip.mp4' })).toBe(false);
-  });
-
-  it('asks a picker for files by name, never for every audio type', () => {
-    expect(SOUND_FILES.split(',')).toEqual(
-      expect.arrayContaining(['.mp3', '.m4a', '.wav'])
-    );
-    expect(SOUND_FILES).not.toContain('audio/');
   });
 });
 

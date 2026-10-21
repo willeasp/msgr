@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useQuery } from '@apollo/client/react';
-import { gql } from '../../../lib/__generated__';
+import { GET_CHAT_MESSAGES } from '../../data/chats';
 import { useReading } from '../../hooks/use-reading';
 import { LoadingState } from '../LoadingState';
 import { Muted } from '../Muted';
@@ -8,40 +8,6 @@ import type { WireMovie } from '../../../lib/movie-wire';
 import type { WirePicture } from '../../../lib/picture-wire';
 import { MessageBubble } from './MessageBubble';
 import styles from './MessageList.module.css';
-
-export const GET_CHAT_MESSAGES = gql(`
-  query GetChatMessages($chatId: ID!) {
-    messages(chatId: $chatId, limit: 50) {
-      id
-      content
-      picture {
-        width
-        height
-        bits
-      }
-      movie {
-        width
-        height
-        frames
-        bits
-      }
-      sound {
-        frames
-        bits
-      }
-      sender {
-        id
-        name
-        avatar {
-          width
-          height
-          bits
-        }
-      }
-      createdAt
-    }
-  }
-`);
 
 interface MessageListProps {
   chatId: string;

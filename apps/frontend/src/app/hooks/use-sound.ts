@@ -1,7 +1,7 @@
 import { useEffect, useId, useState, useSyncExternalStore } from 'react';
 import type { SoundCodes } from '@msgr/media';
 import { soundCodes, soundKey, type WireSound } from '../../lib/sound-wire';
-import { audio } from '../devices/audio';
+import { audio } from '../browser/audio';
 
 /**
  * A player for one sound, on the page's one audio (`app/devices/audio.ts`): whether

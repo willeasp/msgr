@@ -9,7 +9,7 @@ import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { createClient } from 'graphql-ws';
 import { ModalProvider } from './sacred/components/page/ModalContext';
 import { createCache } from './lib/cache';
-import { applyTheme, loadTheme } from './lib/theme';
+import { applyTheme, loadTheme } from './app/browser/theme';
 import { registerServiceWorker } from './app/hooks/use-service-worker';
 
 applyTheme(loadTheme());

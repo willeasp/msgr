@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import type { Inks } from '../../lib/pixels';
-import { THEME_CHANGED } from '../../lib/theme';
+import { THEME_CHANGED } from '../browser/theme';
 
 /** The screen's ink and paper, and the tones pictures keep on it. */
 export interface ThemeInks {

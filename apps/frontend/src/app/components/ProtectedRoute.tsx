@@ -1,23 +1,8 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { gql } from '../../lib/__generated__';
+import { ME } from '../data/me';
 import { useQuery } from '@apollo/client/react';
-import { LoadingState } from '../components/LoadingState';
-
-export const ME = gql(`
-  query GetMe {
-    me {
-      id
-      email
-      name
-      avatar {
-        width
-        height
-        bits
-      }
-    }
-  }
-`);
+import { LoadingState } from './LoadingState';
 
 const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({
   children,

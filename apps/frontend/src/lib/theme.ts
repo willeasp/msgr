@@ -21,8 +21,6 @@ export interface Theme {
   tint: Tint | null;
 }
 
-const STORAGE_KEY = 'theme';
-
 const isMode = (value: unknown): value is Mode =>
   value === 'light' || value === 'dark';
 
@@ -49,27 +47,4 @@ export function parseTheme(stored: string | null, prefersDark: boolean): Theme {
 
 export function themeClasses({ mode, tint }: Theme): string[] {
   return tint ? [`theme-${mode}`, `tint-${tint}`] : [`theme-${mode}`];
-}
-
-export function loadTheme(): Theme {
-  return parseTheme(
-    localStorage.getItem(STORAGE_KEY),
-    window.matchMedia('(prefers-color-scheme: dark)').matches
-  );
-}
-
-/** Fired on `window` whenever the theme changes, for what CSS can't repaint. */
-export const THEME_CHANGED = 'msgr:theme-changed';
-
-/** Puts the theme on <body> and remembers it for the next visit. */
-export function applyTheme(theme: Theme, { save = false } = {}): void {
-  const { classList } = document.body;
-  for (const name of Array.from(classList)) {
-    if (name.startsWith('theme-') || name.startsWith('tint-')) {
-      classList.remove(name);
-    }
-  }
-  classList.add(...themeClasses(theme));
-  if (save) localStorage.setItem(STORAGE_KEY, serializeTheme(theme));
-  window.dispatchEvent(new Event(THEME_CHANGED));
 }

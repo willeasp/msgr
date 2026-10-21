@@ -6,7 +6,12 @@ import Button from '../../../sacred/components/Button';
 import { useModals } from '../../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../../sacred/modules/hotkeys';
 import { DialogButtons, MacDialog } from '../MacDialog';
-import { captureGrey, LONGEST_VIDEO, movieSize, seek } from './movie-from-file';
+import { LONGEST_VIDEO } from '../../../lib/files';
+import {
+  captureGrey,
+  movieSize,
+  thumbnailStrip,
+} from '../../browser/video-file';
 import { Timeline } from './Timeline';
 import styles from './TrimDialog.module.css';
 
@@ -78,7 +83,6 @@ export function TrimDialog({ title, file, onDone }: TrimDialogProps) {
     const v = video.current;
     const box = track.current;
     if (!ready || !url || !v || !box) return;
-    let current = true;
     const height = 24;
     const width = Math.max(
       1,
@@ -88,56 +92,14 @@ export function TrimDialog({ title, file, onDone }: TrimDialogProps) {
       8,
       Math.round((height * v.videoWidth) / v.videoHeight)
     );
-    const thumbs = document.createElement('video');
-    Object.assign(thumbs, {
-      muted: true,
-      playsInline: true,
-      preload: 'auto',
-      src: url,
-    });
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext('2d', { willReadFrequently: true });
-    void (async () => {
-      try {
-        await new Promise((loaded, failed) => {
-          thumbs.onloadeddata = loaded;
-          thumbs.onerror = failed;
-          // A video that never loads still lets the copy go.
-          setTimeout(failed, 8000);
-        });
-        await thumbs.play().catch(() => undefined);
-        thumbs.pause();
-        const cells = Math.ceil(width / cell);
-        for (let i = 0; i < cells && current && context; i++) {
-          await seek(
-            thumbs,
-            Math.min(duration - 0.05, ((i + 0.5) / cells) * duration),
-            3000
-          );
-          context.drawImage(thumbs, i * cell, 0, cell, height);
-        }
-        if (!current || !context) return;
-        const rgba = context.getImageData(0, 0, width, height).data;
-        const light = Array.from(
-          { length: width * height },
-          (_, i) =>
-            (0.299 * rgba[i * 4] +
-              0.587 * rgba[i * 4 + 1] +
-              0.114 * rgba[i * 4 + 2]) /
-            255
-        );
-        setStrip(atkinson(light, width, height));
-      } catch {
-        // The timeline works without its pictures.
-      } finally {
-        thumbs.removeAttribute('src');
-        thumbs.load();
+    const signal = { stopped: false };
+    void thumbnailStrip(url, duration, { width, height, cell }, signal).then(
+      (light) => {
+        if (light && !signal.stopped) setStrip(atkinson(light, width, height));
       }
-    })();
+    );
     return () => {
-      current = false;
+      signal.stopped = true;
     };
   }, [ready, url, duration]);
 

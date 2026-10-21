@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { formatTime } from '../../../lib/utils/time';
+import { formatTime } from '../../../lib/time';
 import { useClock } from '../../hooks/use-clock';
 import Avatar from '../../../sacred/components/Avatar';
 import Indent from '../../../sacred/components/Indent';

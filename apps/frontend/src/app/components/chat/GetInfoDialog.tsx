@@ -8,11 +8,11 @@ import {
   readers,
   type Reader,
 } from '../../../lib/info';
-import { formatStamp } from '../../../lib/utils/time';
+import { formatStamp } from '../../../lib/time';
 import Button from '../../../sacred/components/Button';
 import { useModals } from '../../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../../sacred/modules/hotkeys';
-import { ME } from '../../auth/protected-route';
+import { ME } from '../../data/me';
 import { useClock } from '../../hooks/use-clock';
 import { Face } from '../Face';
 import {

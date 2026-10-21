@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation } from '@apollo/client/react';
 import { gql } from '../../lib/__generated__';
-import { useSessionChange } from '../auth/use-session-change';
+import { useSessionChange } from '../hooks/use-session-change';
 import AlertBanner from '../../sacred/components/AlertBanner';
 import Button from '../../sacred/components/Button';
 import Divider from '../../sacred/components/Divider';

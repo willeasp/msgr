@@ -11,7 +11,7 @@ import { useModals } from '../../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../../sacred/modules/hotkeys';
 import { DialogButtons, MacDialog } from '../MacDialog';
 import { Muted } from '../Muted';
-import { useJoinChannel } from './use-join-channel';
+import { useJoinChannel } from '../../hooks/use-join-channel';
 import styles from './JoinChannelDialog.module.css';
 
 const CHANNELS = gql(`

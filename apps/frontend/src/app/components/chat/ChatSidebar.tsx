@@ -1,45 +1,11 @@
 import { useQuery } from '@apollo/client/react';
-import { gql } from '../../../lib/__generated__';
+import { GET_CHATS } from '../../data/chats';
 import Button from '../../../sacred/components/Button';
 import { LoadingState } from '../LoadingState';
 import { MacWindow } from '../MacWindow';
 import { Muted } from '../Muted';
 import { ChatListItem } from './ChatListItem';
 import styles from './ChatSidebar.module.css';
-
-export const GET_CHATS = gql(`
-  query GetChats {
-    chats {
-      id
-      kind
-      title
-      counterpart {
-        id
-        name
-        avatar {
-          width
-          height
-          bits
-        }
-      }
-      participants {
-        id
-        name
-      }
-      messages(limit: 1) {
-        id
-        content
-        movie {
-          frames
-        }
-        sound {
-          frames
-        }
-        createdAt
-      }
-    }
-  }
-`);
 
 interface ChatSidebarProps {
   selectedChatId: string | undefined;

@@ -12,7 +12,7 @@ import { useHotkeys } from '../../../sacred/modules/hotkeys';
 import { LoadingState } from '../LoadingState';
 import { DialogButtons, MacDialog } from '../MacDialog';
 import { Muted } from '../Muted';
-import { GET_CHATS } from './ChatSidebar';
+import { GET_CHATS } from '../../data/chats';
 import styles from './NewChatModal.module.css';
 import { PixelText } from '../PixelText';
 

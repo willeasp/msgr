@@ -5,7 +5,7 @@ import Chat from './pages/chat';
 import LoginPage from './pages/login';
 import NotFound from './pages/not-found';
 import SignUpPage from './pages/sign-up';
-import ProtectedRoute from './auth/protected-route';
+import ProtectedRoute from './components/ProtectedRoute';
 import styles from './app.module.css';
 
 /** Dims the page behind Sacred's modal stack, which draws no backdrop itself. */

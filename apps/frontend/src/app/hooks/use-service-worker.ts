@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { NavigateFunction, useNavigate, useParams } from 'react-router-dom';
 
 /** Installs /sw.js, which shows notifications and opens their chats. */
@@ -18,8 +18,11 @@ export function useOpenChatFromNotifications() {
   const navigate = useNavigate();
   const { chatId } = useParams<{ chatId: string }>();
 
-  // A notification that opened Msgr lands on its chat with no history behind it.
+  // A notification that opened Msgr lands on its chat with no history behind
+  // it. Only where the page arrived counts, not where it goes after.
+  const arrival = useRef({ chatId, navigate });
   useEffect(() => {
+    const { chatId, navigate } = arrival.current;
     if (chatId && window.history.state?.idx === 0)
       openOverList(navigate, chatId);
   }, []);

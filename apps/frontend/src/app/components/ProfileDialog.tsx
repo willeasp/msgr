@@ -9,11 +9,12 @@ import Button from '../../sacred/components/Button';
 import Input from '../../sacred/components/Input';
 import { useModals } from '../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../sacred/modules/hotkeys';
-import { ME } from '../auth/protected-route';
+import { ME } from '../data/me';
 import { useInks } from '../hooks/use-inks';
 import { usePicture } from '../hooks/use-picture';
 import { PaintDialog } from './chat/PaintDialog';
-import { firstImage, pictureFromFile } from './chat/picture-from-file';
+import { firstPicture } from '../../lib/files';
+import { pictureFromFile } from '../browser/picture-file';
 import { DialogButtons, MacDialog } from './MacDialog';
 import styles from './ProfileDialog.module.css';
 
@@ -154,7 +155,7 @@ export function ProfileDialog() {
             tabIndex={-1}
             aria-hidden
             onChange={(e) => {
-              const file = firstImage(e.target.files);
+              const file = firstPicture(e.target.files);
               e.target.value = '';
               if (file) void choose(file);
             }}

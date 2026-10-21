@@ -1,17 +1,5 @@
 import { fitWithin, MOVIE_FPS } from '@msgr/media';
-import type { Part } from '../../../lib/trim';
-import { isAudio } from './sound-from-file';
-
-/** The longest video a movie can be cut from, in seconds. */
-export const LONGEST_VIDEO = 10 * 60;
-
-export const isVideo = (file: Blob) => file.type.startsWith('video/');
-
-/** The first picture, video or sound among dropped or pasted files, if any. */
-export const firstMedia = (files: FileList | null | undefined) =>
-  Array.from(files ?? []).find(
-    (file) => file.type.startsWith('image/') || isVideo(file) || isAudio(file)
-  ) ?? null;
+import type { Part } from '../../lib/trim';
 
 /** A movie's size for this video: shrunk to fit 320 on its long side. */
 export const movieSize = (video: HTMLVideoElement) =>
@@ -128,4 +116,64 @@ export async function captureGrey(
     onFrame(++done, count);
   }
   return grey;
+}
+
+/**
+ * Thumbnails along a whole video, side by side, `width`×`height` in all and
+ * each `cell` wide, as lightness from 0 to 1, read from a second, muted
+ * copy of it. Null if the video won't load within 8 s, or once `signal` is
+ * stopped; the copy is let go either way.
+ */
+export async function thumbnailStrip(
+  url: string,
+  duration: number,
+  { width, height, cell }: { width: number; height: number; cell: number },
+  signal: { readonly stopped: boolean }
+): Promise<number[] | null> {
+  const thumbs = document.createElement('video');
+  Object.assign(thumbs, {
+    muted: true,
+    playsInline: true,
+    preload: 'auto',
+    src: url,
+  });
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  try {
+    await new Promise((loaded, failed) => {
+      thumbs.onloadeddata = loaded;
+      thumbs.onerror = failed;
+      // A video that never loads still lets the copy go.
+      setTimeout(failed, 8000);
+    });
+    await thumbs.play().catch(() => undefined);
+    thumbs.pause();
+    const cells = Math.ceil(width / cell);
+    for (let i = 0; i < cells && !signal.stopped && context; i++) {
+      await seek(
+        thumbs,
+        Math.min(duration - 0.05, ((i + 0.5) / cells) * duration),
+        3000
+      );
+      context.drawImage(thumbs, i * cell, 0, cell, height);
+    }
+    if (signal.stopped || !context) return null;
+    const rgba = context.getImageData(0, 0, width, height).data;
+    return Array.from(
+      { length: width * height },
+      (_, i) =>
+        (0.299 * rgba[i * 4] +
+          0.587 * rgba[i * 4 + 1] +
+          0.114 * rgba[i * 4 + 2]) /
+        255
+    );
+  } catch {
+    // The timeline works without its pictures.
+    return null;
+  } finally {
+    thumbs.removeAttribute('src');
+    thumbs.load();
+  }
 }

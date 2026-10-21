@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@apollo/client/react';
 import { gql } from '../../lib/__generated__';
-import { ME } from '../auth/protected-route';
-import { useSessionChange } from '../auth/use-session-change';
+import { ME } from '../data/me';
+import { useSessionChange } from '../hooks/use-session-change';
 import { useForgetBrowser } from '../hooks/use-notifications';
 import { Menu, MenuBar } from './MenuBar';
 import { ThemeMenu } from './ThemeMenu';

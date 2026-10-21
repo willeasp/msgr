@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, type CSSProperties } from 'react';
 import type { Bits } from '@msgr/media';
 import { inkRuns } from '../../lib/paint';
-import { THEME_CHANGED } from '../../lib/theme';
+import { THEME_CHANGED } from '../browser/theme';
 
 /** A canvas's size for CSS, which scales its pixels (2× in chats, 1× on phones). */
 export const pixelSize = ({ width, height }: Pick<Bits, 'width' | 'height'>) =>
