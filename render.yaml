@@ -19,3 +19,9 @@ services:
         sync: false
       - key: VAPID_PRIVATE_KEY
         sync: false
+      # Who may see the admin page (Special → Storage…), comma-separated.
+      - key: ADMIN_EMAILS
+        sync: false
+      # The database plan's storage allowance, for the admin page's "left".
+      - key: STORAGE_LIMIT_MB
+        sync: false

@@ -5,7 +5,9 @@ import type {
   LinkPreviewer,
   PasswordHasher,
   PushSender,
+  StorageGauge,
 } from '../application/ports.js';
+import type { StorageUsage } from '../domain/storage.js';
 import type { LinkPreview } from '../domain/link-preview.js';
 import type { Notification, PushSubscription } from '../domain/push.js';
 import { createScope } from '../application/scope.js';
@@ -61,6 +63,11 @@ export function recordingPushSender(gone: readonly string[] = []) {
   };
   return { sender, sent };
 }
+
+/** Measures the same database every time; an empty one by default. */
+export const fakeStorageGauge = (
+  usage: StorageUsage = { databaseBytes: 0, tables: [], contents: [] }
+): StorageGauge => ({ measure: async () => usage });
 
 /** Valid, predictable invite codes: `invite0000000000000001`, then `…02`. */
 export function sequentialInviteCodes(): InviteCodes {
@@ -123,6 +130,9 @@ export function createTestApp(overrides: Partial<Dependencies> = {}) {
     pushSender: recordingPushSender().sender,
     pushKey: TEST_PUSH_KEY,
     watching: createMemoryWatching(),
+    admins: [],
+    storageGauge: fakeStorageGauge(),
+    storageLimit: null,
     ...overrides,
   };
   return {

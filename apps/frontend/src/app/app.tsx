@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import ModalStack from '../sacred/components/ModalStack';
 import { useModals } from '../sacred/components/page/ModalContext';
+import AdminPage from './pages/admin';
 import Chat from './pages/chat';
 import LoginPage from './pages/login';
 import NotFound from './pages/not-found';
@@ -25,6 +26,14 @@ export function App() {
           element={
             <ProtectedRoute>
               <Chat />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminPage />
             </ProtectedRoute>
           }
         />

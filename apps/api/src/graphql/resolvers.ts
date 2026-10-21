@@ -9,6 +9,7 @@ import type { User } from '../domain/user.js';
 import type {
   ChatAddedReason,
   ChatKind,
+  ContentKind,
   Resolvers,
 } from './__generated__/resolvers.js';
 import { requireViewer, startSession } from './context.js';
@@ -45,6 +46,7 @@ export const resolvers: Resolvers = {
     pushKey: (_, __, ctx) => ctx.services.push.key(),
     inviteRedeemable: (_, { code }, ctx) =>
       ctx.services.invites.isRedeemable(code),
+    admin: (_, __, ctx) => ctx.services.admin.admit(requireViewer(ctx)),
   },
 
   Mutation: {
@@ -126,6 +128,18 @@ export const resolvers: Resolvers = {
         ctx.services.push.watch(requireViewer(ctx), chatId),
       resolve: () => true,
     },
+  },
+
+  Admin: {
+    storage: (_, __, ctx) => ctx.services.admin.storage(),
+  },
+
+  Storage: {
+    usedBytes: (storage) => storage.databaseBytes,
+  },
+
+  StoredContent: {
+    kind: (content) => content.kind.toUpperCase() as ContentKind,
   },
 
   ChatAdded: {

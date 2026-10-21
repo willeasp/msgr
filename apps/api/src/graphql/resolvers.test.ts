@@ -2,12 +2,13 @@ import { graphql, parse, subscribe, type ExecutionResult } from 'graphql';
 import { describe, expect, it, vi } from 'vitest';
 import type { Dependencies } from '../application/ports.js';
 import type { Url } from '../domain/link.js';
-import type { User } from '../domain/user.js';
+import type { Email, User } from '../domain/user.js';
 import {
   createTestApp,
   fakeBrowser,
   fakeHash,
   fakeLinkPreviewer,
+  fakeStorageGauge,
   nextEvent,
   TEST_PUSH_KEY,
 } from '../testing/harness.js';
@@ -1006,5 +1007,51 @@ describe('typing', () => {
       data: { typing: { chatId: direct.id, user: { name: 'Ada' } } },
     });
     expect(await toLinus).toBe('nothing');
+  });
+});
+
+describe('admin', () => {
+  const storage = `{ admin { storage {
+    usedBytes limitBytes freeBytes
+    contents { kind count bytes }
+    tables { name bytes }
+  } } }`;
+
+  it("shows the server's admins how full the database is", async () => {
+    const { app, ada } = await world({
+      admins: ['ada@example.com' as Email],
+      storageGauge: fakeStorageGauge({
+        databaseBytes: 3_000_000_000,
+        tables: [{ name: 'Message', bytes: 2_900_000_000 }],
+        contents: [{ kind: 'movie', count: 7, bytes: 2_500_000_000 }],
+      }),
+      storageLimit: 4_000_000_000,
+    });
+
+    expect((await execute(app, storage, { as: ada })).data).toEqual({
+      admin: {
+        storage: {
+          usedBytes: 3_000_000_000,
+          limitBytes: 4_000_000_000,
+          freeBytes: 1_000_000_000,
+          contents: [{ kind: 'MOVIE', count: 7, bytes: 2_500_000_000 }],
+          tables: [{ name: 'Message', bytes: 2_900_000_000 }],
+        },
+      },
+    });
+  });
+
+  it('is nothing to anyone else, and needs a sign-in', async () => {
+    const measure = vi.fn();
+    const { app, grace } = await world({
+      admins: ['ada@example.com' as Email],
+      storageGauge: { measure },
+    });
+
+    expect((await execute(app, storage, { as: grace })).data).toEqual({
+      admin: null,
+    });
+    expect(codeOf(await execute(app, storage))).toBe('UNAUTHENTICATED');
+    expect(measure).not.toHaveBeenCalled();
   });
 });

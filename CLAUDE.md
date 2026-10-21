@@ -89,10 +89,10 @@ sendMessage: async (_, { input }, ctx) =>
 
 ```
 apps/frontend/src/
-  app/pages/       routes: chat (the desktop), login, sign-up (/invite/:code), not-found
+  app/pages/       routes: chat (the desktop), login, sign-up (/invite/:code), admin (/admin, storage), not-found
   app/components/  Mac chrome (MenuBar, MacWindow, MacDialog, PixelIcon), chat/ windows and dialogs
   app/hooks/       useChatFeed (the live subscriptions), useAlerts, useNotifications, useWatching, useTypists / useSayTyping, useReading, useInstallPrompt, useClock (the one clock), useMovie (the movies' one timer), useSoundPlayer (the page's one sound playing), useMediaQuery
-  lib/             pure logic, each with a test: theme, alerts, push, commands, chat-list, pixels, paint, emoji, links, photo, picture-wire, movie, movie-wire, sound, sound-wire, trim, cache, typing, info
+  lib/             pure logic, each with a test: theme, alerts, push, commands, chat-list, pixels, paint, emoji, links, photo, picture-wire, movie, movie-wire, sound, sound-wire, trim, cache, typing, info, storage
   sacred/          vendored Sacred Computer components (read its README first)
   skin.css         the Macintosh skin over them
 ```
@@ -120,6 +120,7 @@ Keep these true; [SECURITY.md](SECURITY.md) explains the model.
 - **Never expose a `Chat` the viewer isn't in.** `Chat` fields walk messages and participants. A listing of chats beyond the viewer's own needs its own type without them, as `ChannelListing` does.
 - **Invites are secrets.** Store only their SHA-256 hash; redeem atomically (claim the invite, create the user and link them in one transaction). Reject a bad code before paying for bcrypt.
 - **Throttle guessing.** `login` counts attempts per email through the `Throttle` port.
+- **The admin page is for `ADMIN_EMAILS` only.** `Query.admin` is null for anyone else, and `/admin` then shows the not-found page. Only `Admin.admit` (`domain/admin.ts`) mints an `Admin`, and everything an admin sees hangs off the `Admin` type, so never expose it anywhere else.
 - **Push only to push services.** The server POSTs wherever a push endpoint points, so `PushSubscription.parse` (`domain/push.ts`) accepts only the browser vendors' push hosts. Never loosen it.
 - **A browser notifies one user at a time.** Logging out removes it (`disablePush`, while still signed in), and every visit re-registers it for whoever is signed in.
 

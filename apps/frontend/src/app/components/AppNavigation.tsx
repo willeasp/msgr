@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from '@apollo/client/react';
+import { useNavigate } from 'react-router-dom';
 import { gql } from '../../lib/__generated__';
 import { ME } from '../auth/protected-route';
 import { useSessionChange } from '../auth/use-session-change';
@@ -34,6 +35,15 @@ interface AppNavigationProps {
   onInstall?: () => void;
 }
 
+// Asks only whether there is an admin page, without measuring anything.
+const IS_ADMIN = gql(`
+  query IsAdmin {
+    admin {
+      __typename
+    }
+  }
+`);
+
 /** The signed-in menu bar. */
 export function AppNavigation({
   alerts,
@@ -55,6 +65,8 @@ export function AppNavigation({
     onCompleted: () => changeSession('/login'),
   });
   const forgetBrowser = useForgetBrowser();
+  const navigate = useNavigate();
+  const isAdmin = !!useQuery(IS_ADMIN).data?.admin;
 
   return (
     <MenuBar
@@ -103,6 +115,9 @@ export function AppNavigation({
               },
               ...(onInstall
                 ? [{ label: 'Install Msgr…', onClick: onInstall }]
+                : []),
+              ...(isAdmin
+                ? [{ label: 'Storage…', onClick: () => navigate('/admin') }]
                 : []),
             ]}
           />

@@ -1,0 +1,80 @@
+/* About This Macintosh: the total on top, then what fills it, each with a bar. */
+.head {
+  display: flex;
+  gap: 2ch;
+  align-items: center;
+  margin-top: calc(var(--line) * 0.5);
+  padding-bottom: calc(var(--line) * 0.5);
+  border-bottom: 1px solid var(--ink);
+
+  & > svg {
+    flex-shrink: 0;
+  }
+
+  & p {
+    margin: 0;
+  }
+}
+
+.total {
+  flex: 1;
+  min-width: 0;
+}
+
+.used {
+  font-family: var(--font-family-chrome);
+}
+
+.heading {
+  margin: calc(var(--line) * 0.5) 0 0;
+  font-family: var(--font-family-chrome);
+  font-size: var(--font-size);
+  font-weight: 400;
+}
+
+.sizes {
+  width: 100%;
+  border-collapse: collapse;
+  padding-bottom: calc(var(--line) * 0.5);
+  border-bottom: 1px solid var(--ink);
+
+  & th {
+    padding-right: 2ch;
+    font-weight: 400;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  & td {
+    padding-right: 2ch;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  & td:last-child {
+    width: 100%;
+    min-width: 4ch;
+    padding-right: 0;
+  }
+}
+
+.bar {
+  display: block;
+  height: calc(var(--line) * 0.5);
+  border: 1px solid var(--ink);
+  background: var(--paper);
+
+  & > span {
+    display: block;
+    height: 100%;
+    background: var(--ink);
+  }
+}
+
+.total .bar {
+  margin-top: calc(var(--line) * 0.25);
+}
+
+.note {
+  margin: calc(var(--line) * 0.5) 0 0;
+}

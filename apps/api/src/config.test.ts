@@ -126,4 +126,28 @@ describe('parseConfig', () => {
       ],
     });
   });
+
+  it('lets the people in ADMIN_EMAILS see the admin page, and nobody by default', () => {
+    expect(parseConfig({})).toMatchObject({ value: { admins: [] } });
+    expect(
+      parseConfig({ ADMIN_EMAILS: ' Ada@Example.com, grace@example.com,' })
+    ).toMatchObject({
+      value: { admins: ['ada@example.com', 'grace@example.com'] },
+    });
+    expect(parseConfig({ ADMIN_EMAILS: 'ada' })).toEqual({
+      ok: false,
+      error: ['ADMIN_EMAILS has "ada", which is not an email'],
+    });
+  });
+
+  it("takes the database plan's allowance in megabytes, when there is one", () => {
+    expect(parseConfig({})).toMatchObject({ value: { storageLimit: null } });
+    expect(parseConfig({ STORAGE_LIMIT_MB: '512' })).toMatchObject({
+      value: { storageLimit: 512 * 1024 * 1024 },
+    });
+    expect(parseConfig({ STORAGE_LIMIT_MB: 'lots' })).toEqual({
+      ok: false,
+      error: ['STORAGE_LIMIT_MB must be a positive number of megabytes'],
+    });
+  });
 });

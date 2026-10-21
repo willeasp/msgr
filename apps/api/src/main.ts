@@ -15,6 +15,7 @@ import {
 } from './infrastructure/push-sender.js';
 import { PrismaClient } from './infrastructure/prisma/client.js';
 import { prismaRepositories } from './infrastructure/prisma/repositories.js';
+import { prismaStorageGauge } from './infrastructure/prisma/storage-gauge.js';
 import { createMemoryThrottle } from './infrastructure/throttle.js';
 import { createJwtTokenService } from './infrastructure/token-service.js';
 import { createMemoryWatching } from './infrastructure/watching.js';
@@ -66,6 +67,9 @@ const server = await startServer(
     pushSender: push ? createWebPushSender(push) : noPushSender,
     pushKey: push?.publicKey ?? null,
     watching: createMemoryWatching(),
+    admins: config.value.admins,
+    storageGauge: prismaStorageGauge(db),
+    storageLimit: config.value.storageLimit,
   },
   config.value
 );

@@ -1,3 +1,4 @@
+import { createAdminService, type AdminService } from './admin.service.js';
 import { createAuthService, type AuthService } from './auth.service.js';
 import { createChatService, type ChatService } from './chat.service.js';
 import { createInviteService, type InviteService } from './invite.service.js';
@@ -22,6 +23,7 @@ export interface Services {
   readonly invites: InviteService;
   readonly linkPreviews: LinkPreviewService;
   readonly push: PushService;
+  readonly admin: AdminService;
 }
 
 /** One operation's worth of application: services and loaders sharing one cache. */
@@ -42,6 +44,7 @@ export function createScope(deps: Dependencies, options: LoaderOptions): Scope {
       invites: createInviteService(deps),
       linkPreviews: createLinkPreviewService(deps, loaders),
       push: createPushService(deps),
+      admin: createAdminService(deps),
     },
   };
 }
