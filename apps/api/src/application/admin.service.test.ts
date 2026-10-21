@@ -29,9 +29,11 @@ describe('admin', () => {
   });
 
   it("reports how full the database is against the plan's allowance", async () => {
-    const { admin } = await adaIsAdmin();
+    const { ada, admin } = await adaIsAdmin();
+    const admitted = admin.admit(ada);
+    if (!admitted) throw new Error('Ada is an admin');
 
-    expect(await admin.storage()).toEqual({
+    expect(await admin.storage(admitted)).toEqual({
       ...usage,
       limitBytes: 1000,
       freeBytes: 600,

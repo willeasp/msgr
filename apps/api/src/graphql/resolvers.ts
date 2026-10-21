@@ -46,7 +46,7 @@ export const resolvers: Resolvers = {
     pushKey: (_, __, ctx) => ctx.services.push.key(),
     inviteRedeemable: (_, { code }, ctx) =>
       ctx.services.invites.isRedeemable(code),
-    admin: (_, __, ctx) => ctx.services.admin.admit(requireViewer(ctx)),
+    admin: (_, __, ctx) => ctx.viewer && ctx.services.admin.admit(ctx.viewer),
   },
 
   Mutation: {
@@ -131,7 +131,7 @@ export const resolvers: Resolvers = {
   },
 
   Admin: {
-    storage: (_, __, ctx) => ctx.services.admin.storage(),
+    storage: (admin, _, ctx) => ctx.services.admin.storage(admin),
   },
 
   Storage: {

@@ -255,7 +255,7 @@ export const typeDefs = /* GraphQL */ `
     inviteRedeemable(code: String!): Boolean!
     "The key browsers subscribe to Web Push with (VAPID, base64url); null while push is off. Needs no sign-in."
     pushKey: String
-    "The admin page, if the viewer is one of the server's admins (ADMIN_EMAILS); null for everyone else."
+    "The admin page, if the viewer is one of the server's admins (ADMIN_EMAILS); null for everyone else, signed in or not."
     admin: Admin
   }
 

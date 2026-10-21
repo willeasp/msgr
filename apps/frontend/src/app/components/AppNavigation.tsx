@@ -1,10 +1,16 @@
-import { useMutation, useQuery } from '@apollo/client/react';
+import { useMutation } from '@apollo/client/react';
 import { useNavigate } from 'react-router-dom';
 import { gql } from '../../lib/__generated__';
-import { ME } from '../auth/protected-route';
+import { useModals } from '../../sacred/components/page/ModalContext';
+import { useHotkeys } from '../../sacred/modules/hotkeys';
 import { useSessionChange } from '../auth/use-session-change';
 import { useForgetBrowser } from '../hooks/use-notifications';
+import { useSignedIn } from '../signed-in/signed-in';
+import { JoinChannelDialog } from './chat/JoinChannelDialog';
+import { NewChatModal } from './chat/NewChatModal';
+import { InviteDialog } from './InviteDialog';
 import { Menu, MenuBar } from './MenuBar';
+import { ProfileDialog } from './ProfileDialog';
 import { ThemeMenu } from './ThemeMenu';
 import { PixelText } from './PixelText';
 
@@ -14,15 +20,8 @@ const LOGOUT_MUTATION = gql(`
   }
 `);
 
+/** What the view on screen adds to the File menu; everything else is the same everywhere. */
 interface AppNavigationProps {
-  alerts: { sound: boolean; onToggleSound: () => void };
-  /** Special → Notifications, where this browser can have them. */
-  notifications?: { label: string; checked?: boolean; onClick: () => void };
-  onNewChat: () => void;
-  onNewChannel: () => void;
-  onJoinChannel: () => void;
-  onInvite: () => void;
-  onProfile: () => void;
   /** Present while a channel is open. */
   onAddPeople?: () => void;
   /** Present while a chat is open. */
@@ -31,42 +30,29 @@ interface AppNavigationProps {
   onGetInfo?: () => void;
   /** Present while a channel is open. */
   onLeaveChannel?: () => void;
-  /** Present while the browser offers to install Msgr. */
-  onInstall?: () => void;
 }
 
-// Asks only whether there is an admin page, without measuring anything.
-const IS_ADMIN = gql(`
-  query IsAdmin {
-    admin {
-      __typename
-    }
-  }
-`);
-
-/** The signed-in menu bar. */
+/** The signed-in menu bar, for every view under `SignedIn`. */
 export function AppNavigation({
-  alerts,
-  notifications,
-  onNewChat,
-  onNewChannel,
-  onJoinChannel,
-  onInvite,
-  onProfile,
   onAddPeople,
   onCloseChat,
   onGetInfo,
   onLeaveChannel,
-  onInstall,
 }: AppNavigationProps) {
+  const { viewer, isAdmin, alertSound, notifications, install } = useSignedIn();
+  const { open } = useModals();
+  const navigate = useNavigate();
   const changeSession = useSessionChange();
-  const { data } = useQuery(ME);
   const [logout] = useMutation(LOGOUT_MUTATION, {
     onCompleted: () => changeSession('/login'),
   });
   const forgetBrowser = useForgetBrowser();
-  const navigate = useNavigate();
-  const isAdmin = !!useQuery(IS_ADMIN).data?.admin;
+
+  const newChat = () => open(NewChatModal, {});
+  useHotkeys('ctrl+k', newChat, {
+    enableOnFormTags: true,
+    preventDefault: true,
+  });
 
   return (
     <MenuBar
@@ -75,10 +61,20 @@ export function AppNavigation({
           <Menu
             title="File"
             items={[
-              { label: 'New Chat…', shortcut: '⌃K', onClick: onNewChat },
-              { label: 'New Channel…', onClick: onNewChannel },
-              { label: 'Join Channel…', onClick: onJoinChannel },
-              { label: 'Invite a Friend…', onClick: onInvite },
+              { label: 'New Chat…', shortcut: '⌃K', onClick: newChat },
+              {
+                label: 'New Channel…',
+                onClick: () =>
+                  open(JoinChannelDialog, { mode: 'new' as const }),
+              },
+              {
+                label: 'Join Channel…',
+                onClick: () => open(JoinChannelDialog, {}),
+              },
+              {
+                label: 'Invite a Friend…',
+                onClick: () => open(InviteDialog, {}),
+              },
               ...(onAddPeople
                 ? [{ label: 'Add People to Channel…', onClick: onAddPeople }]
                 : []),
@@ -91,7 +87,7 @@ export function AppNavigation({
               ...(onLeaveChannel
                 ? [{ label: 'Leave Channel', onClick: onLeaveChannel }]
                 : []),
-              { label: 'Profile…', onClick: onProfile },
+              { label: 'Profile…', onClick: () => open(ProfileDialog, {}) },
               {
                 label: 'Log Out',
                 // While still signed in, so the server lets go of this browser
@@ -110,11 +106,11 @@ export function AppNavigation({
               ...(notifications ? [notifications] : []),
               {
                 label: 'Alert Sound',
-                checked: alerts.sound,
-                onClick: alerts.onToggleSound,
+                checked: alertSound.on,
+                onClick: alertSound.toggle,
               },
-              ...(onInstall
-                ? [{ label: 'Install Msgr…', onClick: onInstall }]
+              ...(install
+                ? [{ label: 'Install Msgr…', onClick: install }]
                 : []),
               ...(isAdmin
                 ? [{ label: 'Storage…', onClick: () => navigate('/admin') }]
@@ -123,7 +119,7 @@ export function AppNavigation({
           />
         </>
       }
-      status={data?.me && <PixelText text={data.me.name} />}
+      status={<PixelText text={viewer.name} />}
     />
   );
 }

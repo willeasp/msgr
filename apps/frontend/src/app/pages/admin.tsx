@@ -1,15 +1,19 @@
 import { useQuery } from '@apollo/client/react';
 import { useNavigate } from 'react-router-dom';
 import { gql } from '../../lib/__generated__';
+import type { StorageQuery } from '../../lib/__generated__/graphql';
 import { CONTENT_NAMES, formatBytes, share } from '../../lib/storage';
 import Button from '../../sacred/components/Button';
-import { COMPUTER } from '../components/icons';
+import { AppNavigation } from '../components/AppNavigation';
+import { BOMB, COMPUTER } from '../components/icons';
 import { LoadingState } from '../components/LoadingState';
-import { DialogButtons, MacDialog } from '../components/MacDialog';
-import { MenuBar } from '../components/MenuBar';
+import {
+  DialogButtons,
+  DialogMessage,
+  MacDialog,
+} from '../components/MacDialog';
 import { Muted } from '../components/Muted';
 import { PixelIcon } from '../components/PixelIcon';
-import { ThemeMenu } from '../components/ThemeMenu';
 import NotFound from './not-found';
 import page from './page.module.css';
 import styles from './admin.module.css';
@@ -46,83 +50,113 @@ function Bar({ part, whole }: { part: number; whole: number }) {
 
 /** The admin page: how full the database is, and with what. Anyone else finds nothing here. */
 export function AdminPage() {
-  const navigate = useNavigate();
-  const { data, loading, error } = useQuery(STORAGE, {
+  const { data, loading, error, refetch } = useQuery(STORAGE, {
     fetchPolicy: 'network-only',
+    notifyOnNetworkStatusChange: true,
   });
 
   if (loading) return <LoadingState label="Measuring" fill />;
-  const storage = data?.admin?.storage;
-  if (error || !storage) return <NotFound />;
+  // Only someone who isn't an admin gets no admin, and without an error.
+  if (!error && !data?.admin) return <NotFound />;
 
+  return (
+    <div className={page.screen}>
+      <AppNavigation />
+      <main className={page.desktop}>
+        {data?.admin ? (
+          <StorageDialog storage={data.admin.storage} />
+        ) : (
+          <MacDialog title="Storage">
+            <DialogMessage icon={BOMB}>
+              <p className={page.title}>The database couldn't be measured.</p>
+              <Muted>{error?.message}</Muted>
+            </DialogMessage>
+            <DialogButtons>
+              <BackToChats />
+              <Button autoFocus onClick={() => void refetch()}>
+                Try Again
+              </Button>
+            </DialogButtons>
+          </MacDialog>
+        )}
+      </main>
+    </div>
+  );
+}
+
+function BackToChats({ autoFocus }: { autoFocus?: boolean }) {
+  const navigate = useNavigate();
+  return (
+    <Button autoFocus={autoFocus} onClick={() => navigate('/')}>
+      Back to Chats
+    </Button>
+  );
+}
+
+type Storage = NonNullable<StorageQuery['admin']>['storage'];
+
+function StorageDialog({ storage }: { storage: Storage }) {
   // Each row's bar is its share of what's used: the plan's whole would leave them empty.
   const whole = storage.usedBytes;
   return (
-    <div className={page.screen}>
-      <MenuBar menus={<ThemeMenu />} />
-      <main className={page.desktop}>
-        <MacDialog title="Storage" wide>
-          <div className={styles.head}>
-            <PixelIcon bitmap={COMPUTER} scale={2} />
-            <div className={styles.total}>
-              <p className={styles.used}>
-                {formatBytes(storage.usedBytes)} used
-                {storage.limitBytes != null &&
-                  ` of ${formatBytes(storage.limitBytes)}`}
-              </p>
-              {storage.freeBytes != null && (
-                <p>{formatBytes(storage.freeBytes)} left</p>
-              )}
-              {storage.limitBytes != null && (
-                <Bar part={storage.usedBytes} whole={storage.limitBytes} />
-              )}
-            </div>
-          </div>
-
-          <h2 className={styles.heading}>Contents</h2>
-          <table className={styles.sizes}>
-            <tbody>
-              {storage.contents.map(({ kind, count, bytes }) => (
-                <tr key={kind}>
-                  <th scope="row">{CONTENT_NAMES[kind]}</th>
-                  <td>{count.toLocaleString('en')}</td>
-                  <td>{formatBytes(bytes)}</td>
-                  <td>
-                    <Bar part={bytes} whole={whole} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <h2 className={styles.heading}>Tables</h2>
-          <table className={styles.sizes}>
-            <tbody>
-              {storage.tables.map(({ name, bytes }) => (
-                <tr key={name}>
-                  <th scope="row">{name}</th>
-                  <td>{formatBytes(bytes)}</td>
-                  <td>
-                    <Bar part={bytes} whole={whole} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <p className={styles.note}>
-            <Muted>
-              As Postgres counts it. Your host may count a little differently.
-            </Muted>
+    <MacDialog title="Storage" wide>
+      <div className={styles.head}>
+        <PixelIcon bitmap={COMPUTER} scale={2} />
+        <div className={styles.total}>
+          <p className={styles.used}>
+            {formatBytes(storage.usedBytes)} used
+            {storage.limitBytes != null &&
+              ` of ${formatBytes(storage.limitBytes)}`}
           </p>
-          <DialogButtons>
-            <Button autoFocus onClick={() => navigate('/')}>
-              Back to Chats
-            </Button>
-          </DialogButtons>
-        </MacDialog>
-      </main>
-    </div>
+          {storage.freeBytes != null && (
+            <p>{formatBytes(storage.freeBytes)} left</p>
+          )}
+          {storage.limitBytes != null && (
+            <Bar part={storage.usedBytes} whole={storage.limitBytes} />
+          )}
+        </div>
+      </div>
+
+      <h2 className={styles.heading}>Contents</h2>
+      <table className={styles.sizes}>
+        <tbody>
+          {storage.contents.map(({ kind, count, bytes }) => (
+            <tr key={kind}>
+              <th scope="row">{CONTENT_NAMES[kind]}</th>
+              <td>{count.toLocaleString('en')}</td>
+              <td>{formatBytes(bytes)}</td>
+              <td>
+                <Bar part={bytes} whole={whole} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <h2 className={styles.heading}>Tables</h2>
+      <table className={styles.sizes}>
+        <tbody>
+          {storage.tables.map(({ name, bytes }) => (
+            <tr key={name}>
+              <th scope="row">{name}</th>
+              <td>{formatBytes(bytes)}</td>
+              <td>
+                <Bar part={bytes} whole={whole} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <p className={styles.note}>
+        <Muted>
+          As Postgres counts it. Your host may count a little differently.
+        </Muted>
+      </p>
+      <DialogButtons>
+        <BackToChats autoFocus />
+      </DialogButtons>
+    </MacDialog>
   );
 }
 

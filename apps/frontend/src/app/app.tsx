@@ -6,7 +6,7 @@ import Chat from './pages/chat';
 import LoginPage from './pages/login';
 import NotFound from './pages/not-found';
 import SignUpPage from './pages/sign-up';
-import ProtectedRoute from './auth/protected-route';
+import { SignedIn } from './signed-in/signed-in';
 import styles from './app.module.css';
 
 /** Dims the page behind Sacred's modal stack, which draws no backdrop itself. */
@@ -21,30 +21,13 @@ export function App() {
   return (
     <>
       <Routes>
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <Chat />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute>
-              <AdminPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/:chatId"
-          element={
-            <ProtectedRoute>
-              <Chat />
-            </ProtectedRoute>
-          }
-        />
+        {/* Every signed-in view lives under SignedIn, which keeps the live
+            feed, alerts and notifications going whichever is on screen. */}
+        <Route element={<SignedIn />}>
+          <Route path="/" element={<Chat />} />
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/:chatId" element={<Chat />} />
+        </Route>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/invite/:code" element={<SignUpPage />} />
         <Route path="*" element={<NotFound />} />

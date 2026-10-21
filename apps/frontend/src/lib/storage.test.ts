@@ -15,6 +15,12 @@ describe('formatBytes', () => {
     expect(formatBytes(512 * 1024 * 1024)).toBe('512 MB');
     expect(formatBytes(2.25 * 1024 ** 3)).toBe('2.3 GB');
   });
+
+  it('moves up a unit when rounding reaches it', () => {
+    expect(formatBytes(1024 ** 2 - 1)).toBe('1 MB');
+    expect(formatBytes(1023.7 * 1024 ** 2)).toBe('1 GB');
+    expect(formatBytes(9.96 * 1024)).toBe('10 KB');
+  });
 });
 
 describe('share', () => {

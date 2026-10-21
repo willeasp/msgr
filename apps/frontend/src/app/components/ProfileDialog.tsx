@@ -9,7 +9,7 @@ import Button from '../../sacred/components/Button';
 import Input from '../../sacred/components/Input';
 import { useModals } from '../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../sacred/modules/hotkeys';
-import { ME } from '../auth/protected-route';
+import { ME } from '../signed-in/me';
 import { useInks } from '../hooks/use-inks';
 import { usePicture } from '../hooks/use-picture';
 import { PaintDialog } from './chat/PaintDialog';

@@ -28,16 +28,13 @@ export interface StorageReport extends StorageUsage {
   readonly limitBytes: number | null;
   /** What's left of the allowance, never below nothing; null without one. */
   readonly freeBytes: number | null;
-  /** Biggest first. */
-  readonly tables: readonly TableSize[];
-  /** Biggest first. */
-  readonly contents: readonly StoredContent[];
 }
 
 const biggestFirst = <T extends { readonly bytes: number }>(
   sizes: readonly T[]
 ) => [...sizes].sort((a, b) => b.bytes - a.bytes);
 
+/** The usage against the allowance, its tables and contents biggest first. */
 export function storageReport(
   usage: StorageUsage,
   limitBytes: number | null

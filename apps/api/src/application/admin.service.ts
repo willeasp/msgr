@@ -14,8 +14,8 @@ export function createAdminService({
     /** The viewer as an admin; null for everyone else. */
     admit: (viewer: User): Admin | null => Admin.admit(viewer, admins),
 
-    /** How full the database is, and with what. Only `Admin.storage` asks, so only an admin. */
-    async storage(): Promise<StorageReport> {
+    /** How full the database is, and with what. Only an admin may ask. */
+    async storage(_admin: Admin): Promise<StorageReport> {
       return storageReport(await storageGauge.measure(), storageLimit);
     },
   };

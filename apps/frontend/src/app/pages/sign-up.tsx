@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@apollo/client/react';
 import { CombinedGraphQLErrors } from '@apollo/client';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { gql } from '../../lib/__generated__';
-import { ME } from '../auth/protected-route';
+import { ME } from '../signed-in/me';
 import { useSessionChange } from '../auth/use-session-change';
 import AlertBanner from '../../sacred/components/AlertBanner';
 import Button from '../../sacred/components/Button';

@@ -1041,7 +1041,7 @@ describe('admin', () => {
     });
   });
 
-  it('is nothing to anyone else, and needs a sign-in', async () => {
+  it('is nothing to anyone else, signed in or not', async () => {
     const measure = vi.fn();
     const { app, grace } = await world({
       admins: ['ada@example.com' as Email],
@@ -1051,7 +1051,7 @@ describe('admin', () => {
     expect((await execute(app, storage, { as: grace })).data).toEqual({
       admin: null,
     });
-    expect(codeOf(await execute(app, storage))).toBe('UNAUTHENTICATED');
+    expect((await execute(app, storage)).data).toEqual({ admin: null });
     expect(measure).not.toHaveBeenCalled();
   });
 });

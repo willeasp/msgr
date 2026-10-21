@@ -10,6 +10,9 @@ import { InMemoryCache, type Reference } from '@apollo/client';
 export const createCache = () =>
   new InMemoryCache({
     typePolicies: {
+      // The admin page has no id: the menu bar asks only whether it's there
+      // (GetMe), the page reads its storage, and neither may wipe the other.
+      Admin: { merge: true },
       // A movie or sound has no id of its own: the chat list's preview
       // reads only that there is one, and mustn't wipe the bits the history
       // read. Get Info reads only a picture's size, and a movie's.

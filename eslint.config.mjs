@@ -17,6 +17,12 @@ export default [
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
     rules: {
+      // A leading underscore marks a parameter that's there on purpose:
+      // a position to skip, or proof the caller may ask (`_admin: Admin`).
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_' },
+      ],
       '@nx/enforce-module-boundaries': [
         'error',
         {
