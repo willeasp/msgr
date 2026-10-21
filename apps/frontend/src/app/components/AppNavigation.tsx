@@ -26,8 +26,6 @@ interface AppNavigationProps {
   onAddPeople?: () => void;
   /** Present while a chat is open. */
   onCloseChat?: () => void;
-  /** Present while a message is selected. */
-  onGetInfo?: () => void;
   /** Present while a channel is open. */
   onLeaveChannel?: () => void;
   /** Present while the browser offers to install Msgr. */
@@ -45,7 +43,6 @@ export function AppNavigation({
   onProfile,
   onAddPeople,
   onCloseChat,
-  onGetInfo,
   onLeaveChannel,
   onInstall,
 }: AppNavigationProps) {
@@ -72,9 +69,6 @@ export function AppNavigation({
                 : []),
               ...(onCloseChat
                 ? [{ label: 'Close Chat', onClick: onCloseChat }]
-                : []),
-              ...(onGetInfo
-                ? [{ label: 'Get Info', shortcut: '⌃I', onClick: onGetInfo }]
                 : []),
               ...(onLeaveChannel
                 ? [{ label: 'Leave Channel', onClick: onLeaveChannel }]

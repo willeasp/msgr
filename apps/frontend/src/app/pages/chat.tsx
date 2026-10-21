@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { gql } from '../../lib/__generated__';
 import { ChatKind } from '../../lib/__generated__/graphql';
@@ -113,25 +113,7 @@ export function Chat() {
     onTyping: typists.started,
   });
 
-  // The message picked out in the open chat, for Get Info. Another chat's
-  // selection is no selection.
-  const [selection, setSelection] = useState<{
-    chatId: string;
-    messageId: string;
-  } | null>(null);
-  const selectedMessageId =
-    selection && selection.chatId === chatId ? selection.messageId : undefined;
-  const selectMessage = (messageId: string | null) =>
-    setSelection(chatId && messageId ? { chatId, messageId } : null);
   const getInfo = (messageId: string) => open(GetInfoDialog, { messageId });
-  const getSelectedInfo = selectedMessageId
-    ? () => getInfo(selectedMessageId)
-    : undefined;
-  useHotkeys('ctrl+i', () => getSelectedInfo?.(), {
-    enabled: !!getSelectedInfo,
-    enableOnFormTags: true,
-    preventDefault: true,
-  });
 
   const { data: chatData } = useQuery(GET_CHAT_DATA, {
     variables: { chatId: chatId ?? '' },
@@ -173,8 +155,6 @@ export function Chat() {
       onClose={closeChat}
       onAddPeople={addPeople}
       typists={typists}
-      selectedMessageId={selectedMessageId}
-      onSelectMessage={selectMessage}
       onGetInfo={getInfo}
     />
   ) : (
@@ -200,7 +180,6 @@ export function Chat() {
         onProfile={() => open(ProfileDialog, {})}
         onAddPeople={addPeople}
         onCloseChat={chatId ? closeChat : undefined}
-        onGetInfo={getSelectedInfo}
         onLeaveChannel={leaveOpenChannel}
         onInstall={install}
       />

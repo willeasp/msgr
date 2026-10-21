@@ -53,9 +53,7 @@ interface ChatWindowProps {
   onAddPeople?: () => void;
   /** Who is writing where, for the title bar. */
   typists: Typists;
-  /** The message picked out with a click, if any. */
-  selectedMessageId?: string;
-  onSelectMessage: (messageId: string | null) => void;
+  /** Opens Get Info on a message, when it's clicked. */
   onGetInfo: (messageId: string) => void;
 }
 
@@ -66,8 +64,6 @@ export function ChatWindow({
   onClose,
   onAddPeople,
   typists,
-  selectedMessageId,
-  onSelectMessage,
   onGetInfo,
 }: ChatWindowProps) {
   const { data, loading } = useQuery(GET_CHAT_DATA, {
@@ -191,8 +187,6 @@ export function ChatWindow({
           showNames={!!chat && chat.kind !== ChatKind.Direct}
           onDrawOnIt={drawOn}
           onDrawOnMovie={drawOnMovie}
-          selectedMessageId={selectedMessageId}
-          onSelectMessage={onSelectMessage}
           onGetInfo={onGetInfo}
         />
         <MessageInput

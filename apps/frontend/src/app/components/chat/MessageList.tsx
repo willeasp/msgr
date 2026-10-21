@@ -46,10 +46,7 @@ interface MessageListProps {
   showNames: boolean;
   onDrawOnIt?: (picture: WirePicture) => void;
   onDrawOnMovie?: (movie: WireMovie) => void;
-  /** The message picked out with a click, if any. */
-  selectedMessageId?: string;
-  /** Picks out a message, or none when the click was on nothing. */
-  onSelectMessage?: (messageId: string | null) => void;
+  /** Opens Get Info on a message: a click on it. */
   onGetInfo?: (messageId: string) => void;
 }
 
@@ -59,8 +56,6 @@ export function MessageList({
   showNames,
   onDrawOnIt,
   onDrawOnMovie,
-  selectedMessageId,
-  onSelectMessage,
   onGetInfo,
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -109,17 +104,7 @@ export function MessageList({
   }
 
   return (
-    <div
-      className={styles.root}
-      role="log"
-      aria-label="Messages"
-      // A click on nothing in particular lets go of the selected message.
-      onClick={(e) => {
-        if (!(e.target as Element).closest('button, a')) {
-          onSelectMessage?.(null);
-        }
-      }}
-    >
+    <div className={styles.root} role="log" aria-label="Messages">
       {messages.map((message, index) => (
         <MessageBubble
           key={message.id}
@@ -129,8 +114,6 @@ export function MessageList({
           showName={showNames}
           onDrawOnIt={onDrawOnIt}
           onDrawOnMovie={onDrawOnMovie}
-          selected={message.id === selectedMessageId}
-          onSelect={onSelectMessage && (() => onSelectMessage(message.id))}
           onGetInfo={onGetInfo && (() => onGetInfo(message.id))}
         />
       ))}
