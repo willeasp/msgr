@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { atkinson, blank, type Bits, type Frames } from '@msgr/bitmap';
+import { atkinson, blank, type Bits, type Frames } from '@msgr/media';
 import { makeMovie } from '../../../lib/movie';
 import { firstPart, LONGEST, type Part } from '../../../lib/trim';
 import Button from '../../../sacred/components/Button';

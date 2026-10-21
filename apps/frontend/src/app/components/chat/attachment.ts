@@ -1,4 +1,4 @@
-import type { Bits, Frames, SoundCodes } from '@msgr/bitmap';
+import type { Bits, Frames, SoundCodes } from '@msgr/media';
 import type { Drawing } from '../../../lib/movie';
 
 /**

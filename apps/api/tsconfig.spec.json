@@ -11,5 +11,5 @@
   // Checks app sources directly rather than through tsconfig.app.json's
   // outputs, which the build's own type-check leaves without declarations.
   "include": ["src/**/*.ts", "prisma/seed.ts", "vitest.config.ts"],
-  "references": [{ "path": "../../libs/bitmap/tsconfig.lib.json" }]
+  "references": [{ "path": "../../libs/media/tsconfig.lib.json" }]
 }

@@ -1,4 +1,4 @@
-import { atkinson, type Bits } from '@msgr/bitmap';
+import { atkinson, type Bits } from '@msgr/media';
 
 /**
  * A photo's RGBA pixels, row by row, as a 1-bit picture: each pixel's

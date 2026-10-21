@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@apollo/client/react';
-import { isBlank, type Bits, type Frames } from '@msgr/bitmap';
+import { isBlank, type Bits, type Frames } from '@msgr/media';
 import { gql } from '../../../lib/__generated__';
 import { ChatKind } from '../../../lib/__generated__/graphql';
 import { isBlankMovie, type Drawing } from '../../../lib/movie';

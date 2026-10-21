@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, type CSSProperties } from 'react';
-import type { Bits } from '@msgr/bitmap';
+import type { Bits } from '@msgr/media';
 import { inkRuns } from '../../lib/paint';
 import { THEME_CHANGED } from '../../lib/theme';
 

@@ -1,4 +1,4 @@
-import { fitWithin, MOVIE_FPS } from '@msgr/bitmap';
+import { fitWithin, MOVIE_FPS } from '@msgr/media';
 import type { Part } from '../../../lib/trim';
 import { isAudio } from './sound-from-file';
 

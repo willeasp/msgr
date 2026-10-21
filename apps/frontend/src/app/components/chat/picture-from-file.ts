@@ -1,4 +1,4 @@
-import { fitWithin, type Bits } from '@msgr/bitmap';
+import { fitWithin, type Bits } from '@msgr/media';
 import { ditherPhoto } from '../../../lib/photo';
 
 /**

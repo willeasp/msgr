@@ -1,4 +1,4 @@
-import { MAX_FRAMES, MOVIE_FPS } from '@msgr/bitmap';
+import { MAX_FRAMES, MOVIE_FPS } from '@msgr/media';
 
 /** The longest part of a video a movie can be made of, in seconds. */
 export const LONGEST = MAX_FRAMES / MOVIE_FPS;

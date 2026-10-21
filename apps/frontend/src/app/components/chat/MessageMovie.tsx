@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { blank, frameOf } from '@msgr/bitmap';
+import { blank, frameOf } from '@msgr/media';
 import type { WireMovie } from '../../../lib/movie-wire';
 import { pixelSize, useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
 import { useMovie, useMovieTick, useOnScreen } from '../../hooks/use-movie';

@@ -1,4 +1,4 @@
-import { blank, getPixel, setPixel, toBase64 } from '@msgr/bitmap';
+import { blank, getPixel, setPixel, toBase64 } from '@msgr/media';
 import { deflateRawSync, inflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { fromWire, pictureBits, toWire } from './picture-wire';

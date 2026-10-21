@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client/react';
-import { blank, isBlank, type Bits } from '@msgr/bitmap';
+import { blank, isBlank, type Bits } from '@msgr/media';
 import { gql } from '../../lib/__generated__';
 import { identicon, pictureImage } from '../../lib/pixels';
 import { toWire } from '../../lib/picture-wire';

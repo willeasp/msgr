@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, useSyncExternalStore } from 'react';
-import type { SoundCodes } from '@msgr/bitmap';
+import type { SoundCodes } from '@msgr/media';
 import { soundCodes, soundKey, type WireSound } from '../../lib/sound-wire';
 import { audio } from '../devices/audio';
 

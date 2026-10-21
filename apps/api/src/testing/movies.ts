@@ -4,7 +4,7 @@ import {
   frameOf,
   setPixel,
   toBase64,
-} from '@msgr/bitmap';
+} from '@msgr/media';
 import { Movie } from '../domain/movie.js';
 
 /**

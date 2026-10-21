@@ -1,4 +1,4 @@
-import { analyseSound, SOUND_RATE, type SoundCodes } from '@msgr/bitmap';
+import { analyseSound, SOUND_RATE, type SoundCodes } from '@msgr/media';
 import { describe, expect, it, vi } from 'vitest';
 import {
   createAudio,

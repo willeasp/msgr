@@ -10,7 +10,7 @@ import {
   MAX_FRAMES,
   MAX_SIDE,
   toBase64,
-} from '@msgr/bitmap';
+} from '@msgr/media';
 import type { MessageEvents } from '../application/ports.js';
 import type { User } from '../domain/user.js';
 import { createPubSubMessageEvents } from '../infrastructure/message-events.js';

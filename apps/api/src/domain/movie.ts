@@ -8,14 +8,14 @@ import {
   MAX_FRAMES,
   MAX_SIDE,
   maxCodedLength,
-} from '@msgr/bitmap';
+} from '@msgr/media';
 import type { Brand } from './brand.js';
 import { invalidInput, type InvalidInput } from './errors.js';
 import { err, ok, type Result } from './result.js';
 
 /**
  * A black-and-white movie, 1 to 320 pixels a side and 1 to 48 frames, played
- * at 8 frames a second, looping. Its frames are in the `@msgr/bitmap` layout,
+ * at 8 frames a second, looping. Its frames are in the `@msgr/media` layout,
  * coded exactly as `encodeMovie` codes them. Never blank. Its size, frames
  * and bits were checked against each other once, here.
  */

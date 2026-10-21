@@ -1,4 +1,4 @@
-import { blank, getPixel, setPixel, type Bits } from '@msgr/bitmap';
+import { blank, getPixel, setPixel, type Bits } from '@msgr/media';
 import type { Bitmap } from './pixels';
 
 /*

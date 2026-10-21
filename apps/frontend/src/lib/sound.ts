@@ -7,7 +7,7 @@ import {
   soundLength,
   type Bits,
   type SoundCodes,
-} from '@msgr/bitmap';
+} from '@msgr/media';
 import type { Part } from './trim';
 
 /**

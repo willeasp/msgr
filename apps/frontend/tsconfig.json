@@ -3,7 +3,7 @@
   "include": [],
   "references": [
     {
-      "path": "../../libs/bitmap"
+      "path": "../../libs/media"
     },
     {
       "path": "./tsconfig.app.json"

@@ -1,4 +1,4 @@
-import { SOUND_RATE } from '@msgr/bitmap';
+import { SOUND_RATE } from '@msgr/media';
 import { isSoundFile, LONGEST_FILE, mono } from '../../../lib/sound';
 
 export const isAudio = (file: File) => isSoundFile(file);

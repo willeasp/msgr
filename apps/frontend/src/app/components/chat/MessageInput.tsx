@@ -1,6 +1,6 @@
 import { useId, useMemo, useRef, useState } from 'react';
 import { useMutation } from '@apollo/client/react';
-import { blank, type Bits } from '@msgr/bitmap';
+import { blank, type Bits } from '@msgr/media';
 import { parseCommand } from '../../../lib/commands';
 import { gql } from '../../../lib/__generated__';
 import { drawnOver, frameShown } from '../../../lib/movie';

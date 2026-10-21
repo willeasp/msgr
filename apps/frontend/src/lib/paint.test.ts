@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blank, getPixel, setPixel } from '@msgr/bitmap';
+import { blank, getPixel, setPixel } from '@msgr/media';
 import {
   PATTERNS,
   coverStroke,

@@ -4,7 +4,7 @@ import {
   LONGEST_SOUND,
   SOUND_RATE,
   type SoundCodes,
-} from '@msgr/bitmap';
+} from '@msgr/media';
 import {
   clock,
   samplePeaks,

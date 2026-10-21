@@ -1,4 +1,4 @@
-import { SOUND_RATE, synthesizeSound, type SoundCodes } from '@msgr/bitmap';
+import { SOUND_RATE, synthesizeSound, type SoundCodes } from '@msgr/media';
 
 /*
  * The page's audio, all in one place: the speaker, the microphone, the
