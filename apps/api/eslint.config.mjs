@@ -22,4 +22,6 @@ export default [
   layer('domain', ['application', 'infrastructure', 'graphql', 'testing']),
   layer('application', ['infrastructure', 'graphql', 'testing']),
   layer('infrastructure', ['graphql', 'testing']),
+  // Only main.ts picks adapters: the transport knows ports, never their makers.
+  layer('graphql', ['infrastructure', 'testing']),
 ];

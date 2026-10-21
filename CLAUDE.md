@@ -42,7 +42,7 @@ apps/api/src/
   config.ts        env → typed Config, validated once at boot
 ```
 
-**Dependency rule** (enforced by ESLint in `apps/api/eslint.config.mjs`): `domain` ← `application` ← `infrastructure` / `graphql`. Inner layers never import outer ones.
+**Dependency rule** (enforced by ESLint in `apps/api/eslint.config.mjs`): `domain` ← `application` ← `infrastructure` / `graphql`. Inner layers never import outer ones, and `infrastructure` and `graphql` never import each other: only `main.ts` picks adapters.
 
 ### How a request flows
 
