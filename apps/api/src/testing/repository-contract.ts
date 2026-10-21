@@ -15,6 +15,7 @@ import {
 } from '../domain/message.js';
 import type { PushSubscription } from '../domain/push.js';
 import { exampleMovie } from './movies.js';
+import { exampleSound } from './sounds.js';
 import { exampleAvatar, examplePicture } from './pictures.js';
 import {
   Email,
@@ -58,6 +59,7 @@ export function repositoryContract(
       content: content as MessageContent,
       picture: null,
       movie: null,
+      sound: null,
       createdAt: new Date(createdAt),
     });
 
@@ -433,6 +435,7 @@ export function repositoryContract(
         content: null,
         picture: examplePicture(256, 160),
         movie: null,
+        sound: null,
         createdAt: new Date('2030-01-01T00:01:00Z'),
       });
       const captioned = await repositories.messages.append({
@@ -441,6 +444,7 @@ export function repositoryContract(
         content: 'a tall one' as MessageContent,
         picture: examplePicture(9, 320, 319),
         movie: null,
+        sound: null,
         createdAt: new Date('2030-01-01T00:02:00Z'),
       });
 
@@ -467,6 +471,7 @@ export function repositoryContract(
         content: null,
         picture: null,
         movie: exampleMovie(320, 180, 48),
+        sound: null,
         createdAt: new Date('2030-01-01T00:01:00Z'),
       });
       const captioned = await repositories.messages.append({
@@ -475,6 +480,7 @@ export function repositoryContract(
         content: 'a short one' as MessageContent,
         picture: null,
         movie: exampleMovie(9, 320, 1),
+        sound: null,
         createdAt: new Date('2030-01-01T00:02:00Z'),
       });
 
@@ -492,7 +498,46 @@ export function repositoryContract(
       ).toEqual([alone, captioned]);
     });
 
-    it('finds messages by id, with and without pictures and movies, and skips unknown ids', async () => {
+    it('stores sounds, alone or with text, and reads them back unchanged', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const chat = await repositories.chats.saveDirect(pairOf(ada, grace));
+      const alone = await repositories.messages.append({
+        chatId: chat.id,
+        senderId: grace.id,
+        content: null,
+        picture: null,
+        movie: null,
+        sound: exampleSound(60),
+        createdAt: new Date('2030-01-01T00:01:00Z'),
+      });
+      const captioned = await repositories.messages.append({
+        chatId: chat.id,
+        senderId: ada.id,
+        content: 'a short one' as MessageContent,
+        picture: null,
+        movie: null,
+        sound: exampleSound(0.02, 220),
+        createdAt: new Date('2030-01-01T00:02:00Z'),
+      });
+
+      expect(alone).toMatchObject({
+        content: null,
+        picture: null,
+        movie: null,
+        sound: { frames: 3001 },
+      });
+      expect(alone.sound).toEqual(exampleSound(60));
+      expect(captioned.sound).toEqual(exampleSound(0.02, 220));
+      expect(
+        await repositories.messages.findPages([chat.id], {
+          limit: 5,
+          offset: 0,
+        })
+      ).toEqual([alone, captioned]);
+    });
+
+    it('finds messages by id, with and without pictures, movies and sounds, and skips unknown ids', async () => {
       const ada = await fixtures.user({ name: 'Ada' });
       const grace = await fixtures.user({ name: 'Grace' });
       const chat = await repositories.chats.saveDirect(pairOf(ada, grace));
@@ -503,6 +548,7 @@ export function repositoryContract(
         content: null,
         picture: examplePicture(),
         movie: null,
+        sound: null,
         createdAt: new Date('2030-01-01T00:01:00Z'),
       });
       const movie = await repositories.messages.append({
@@ -511,17 +557,28 @@ export function repositoryContract(
         content: null,
         picture: null,
         movie: exampleMovie(),
+        sound: null,
         createdAt: new Date('2030-01-01T00:02:00Z'),
+      });
+      const sound = await repositories.messages.append({
+        chatId: chat.id,
+        senderId: grace.id,
+        content: null,
+        picture: null,
+        movie: null,
+        sound: exampleSound(),
+        createdAt: new Date('2030-01-01T00:03:00Z'),
       });
 
       const found = await repositories.messages.findByIds([
         picture.id,
         movie.id,
+        sound.id,
         text.id,
         MessageId('missing'),
       ]);
 
-      expect(sortById(found)).toEqual(sortById([text, picture, movie]));
+      expect(sortById(found)).toEqual(sortById([text, picture, movie, sound]));
       expect(await repositories.messages.findByIds([])).toEqual([]);
     });
 

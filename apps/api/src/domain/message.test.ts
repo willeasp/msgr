@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MessageBody, MessageContent } from './message.js';
 import type { Movie } from './movie.js';
 import type { Picture } from './picture.js';
+import type { Sound } from './sound.js';
 import { err, ok } from './result.js';
 
 describe('MessageContent.parse', () => {
@@ -43,42 +44,52 @@ describe('MessageBody.of', () => {
     frames: 1,
     coded: new Uint8Array(),
   } as Movie;
+  const sound = { frames: 2, coded: new Uint8Array() } as Sound;
+  const none = { picture: null, movie: null, sound: null };
 
-  it('takes text, a picture or a movie, or text with either', () => {
-    expect(MessageBody.of(text, null, null)).toEqual(
-      ok({ content: text, picture: null, movie: null })
+  it('takes text, a picture, a movie or a sound, or text with one of them', () => {
+    expect(MessageBody.of(text, null, null, null)).toEqual(
+      ok({ content: text, ...none })
     );
-    expect(MessageBody.of(null, picture, null)).toEqual(
-      ok({ content: null, picture, movie: null })
+    const alone = (attached: object) =>
+      ok({ content: null, ...none, ...attached });
+    const captioned = (attached: object) =>
+      ok({ content: text, ...none, ...attached });
+    expect(MessageBody.of(null, picture, null, null)).toEqual(
+      alone({ picture })
     );
-    expect(MessageBody.of(text, picture, null)).toEqual(
-      ok({ content: text, picture, movie: null })
+    expect(MessageBody.of(text, picture, null, null)).toEqual(
+      captioned({ picture })
     );
-    expect(MessageBody.of(null, null, movie)).toEqual(
-      ok({ content: null, picture: null, movie })
+    expect(MessageBody.of(null, null, movie, null)).toEqual(alone({ movie }));
+    expect(MessageBody.of(text, null, movie, null)).toEqual(
+      captioned({ movie })
     );
-    expect(MessageBody.of(text, null, movie)).toEqual(
-      ok({ content: text, picture: null, movie })
+    expect(MessageBody.of(null, null, null, sound)).toEqual(alone({ sound }));
+    expect(MessageBody.of(text, null, null, sound)).toEqual(
+      captioned({ sound })
     );
   });
 
   it('refuses a message with nothing in it', () => {
-    expect(MessageBody.of(null, null, null)).toEqual(
+    expect(MessageBody.of(null, null, null, null)).toEqual(
       err({
         type: 'InvalidInput',
         field: 'content',
-        reason: 'Write something or attach a picture or a movie',
+        reason: 'Write something or attach a picture, a movie or a sound',
       })
     );
   });
 
-  it('refuses a picture and a movie together', () => {
-    expect(MessageBody.of(text, picture, movie)).toEqual(
+  it('refuses two things attached', () => {
+    const two = (field: string) =>
       err({
         type: 'InvalidInput',
-        field: 'movie',
-        reason: 'Attach a picture or a movie, not both',
-      })
-    );
+        field,
+        reason: 'Attach one picture, movie or sound, not two',
+      });
+    expect(MessageBody.of(text, picture, movie, null)).toEqual(two('movie'));
+    expect(MessageBody.of(text, picture, null, sound)).toEqual(two('sound'));
+    expect(MessageBody.of(null, null, movie, sound)).toEqual(two('sound'));
   });
 });

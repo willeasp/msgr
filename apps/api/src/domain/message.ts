@@ -4,6 +4,7 @@ import { invalidInput, type InvalidInput } from './errors.js';
 import type { Movie } from './movie.js';
 import type { Picture } from './picture.js';
 import { err, ok, type Result } from './result.js';
+import type { Sound } from './sound.js';
 import type { UserId } from './user.js';
 
 export type MessageId = Brand<string, 'MessageId'>;
@@ -16,16 +17,22 @@ interface Sent {
   readonly createdAt: Date;
 }
 
-/** A picture or a movie, never both. */
+/** A picture, a movie or a sound: one of them, never two. */
 type Attached =
-  | { readonly picture: Picture; readonly movie: null }
-  | { readonly picture: null; readonly movie: Movie };
-type Unattached = { readonly picture: null; readonly movie: null };
+  | { readonly picture: Picture; readonly movie: null; readonly sound: null }
+  | { readonly picture: null; readonly movie: Movie; readonly sound: null }
+  | { readonly picture: null; readonly movie: null; readonly sound: Sound };
+type Unattached = {
+  readonly picture: null;
+  readonly movie: null;
+  readonly sound: null;
+};
+const unattached: Unattached = { picture: null, movie: null, sound: null };
 
 /**
- * What a message says: text, a picture or a movie, or text with one of them;
- * never neither. When there is no text, something is attached, and the type
- * says so.
+ * What a message says: text, a picture, a movie or a sound, or text with one
+ * of them; never neither. When there is no text, something is attached, and
+ * the type says so.
  */
 export type MessageBody =
   | ({ readonly content: MessageContent } & (Attached | Unattached))
@@ -34,25 +41,33 @@ export const MessageBody = {
   of(
     content: MessageContent | null,
     picture: Picture | null,
-    movie: Movie | null
+    movie: Movie | null,
+    sound: Sound | null
   ): Result<MessageBody, InvalidInput> {
-    if (picture !== null && movie !== null) {
+    const count = [picture, movie, sound].filter((it) => it !== null).length;
+    if (count > 1) {
       return err(
-        invalidInput('movie', 'Attach a picture or a movie, not both')
+        invalidInput(
+          sound ? 'sound' : 'movie',
+          'Attach one picture, movie or sound, not two'
+        )
       );
     }
     const attached: Attached | null =
       picture !== null
-        ? { picture, movie: null }
+        ? { ...unattached, picture }
         : movie !== null
-        ? { picture: null, movie }
+        ? { ...unattached, movie }
+        : sound !== null
+        ? { ...unattached, sound }
         : null;
-    if (content !== null) {
-      return ok({ content, ...(attached ?? { picture: null, movie: null }) });
-    }
+    if (content !== null) return ok({ content, ...(attached ?? unattached) });
     if (attached !== null) return ok({ content, ...attached });
     return err(
-      invalidInput('content', 'Write something or attach a picture or a movie')
+      invalidInput(
+        'content',
+        'Write something or attach a picture, a movie or a sound'
+      )
     );
   },
 };

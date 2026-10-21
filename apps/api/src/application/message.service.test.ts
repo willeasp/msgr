@@ -3,6 +3,7 @@ import type { Message } from '../domain/message.js';
 import { Page } from '../domain/page.js';
 import { exampleMovie, movieInput } from '../testing/movies.js';
 import { examplePicture, pictureInput } from '../testing/pictures.js';
+import { exampleSound, soundInput } from '../testing/sounds.js';
 import {
   createTestApp,
   expectOk,
@@ -40,6 +41,7 @@ describe('sending a message', () => {
       content: 'hi',
       picture: null,
       movie: null,
+      sound: null,
       createdAt: sentAt,
     });
   });
@@ -149,6 +151,7 @@ describe('sending a picture', () => {
       content: null,
       picture: examplePicture(),
       movie: null,
+      sound: null,
       createdAt: expect.any(Date),
     });
     expect(captioned).toMatchObject({
@@ -218,6 +221,7 @@ describe('sending a movie', () => {
       content: null,
       picture: null,
       movie: exampleMovie(),
+      sound: null,
       createdAt: expect.any(Date),
     });
     expect(captioned).toMatchObject({ content: 'look', movie: exampleMovie() });
@@ -239,6 +243,61 @@ describe('sending a movie', () => {
       ).toMatchObject({
         ok: false,
         error: { type: 'InvalidInput', field: 'movie' },
+      });
+    }
+  });
+});
+
+describe('sending a sound', () => {
+  it('stores it alone or with text, coded by the server, and delivers it live', async () => {
+    const { services, ada, grace, chat } = await team();
+    const toGrace = nextEvent(services().messages.feed(grace));
+
+    const alone = expectOk(
+      await services().messages.send(ada, {
+        chatId: chat.id,
+        sound: soundInput(),
+      })
+    );
+    const captioned = expectOk(
+      await services().messages.send(ada, {
+        chatId: chat.id,
+        content: 'listen',
+        sound: soundInput(),
+      })
+    );
+
+    expect(alone).toEqual({
+      id: alone.id,
+      chatId: chat.id,
+      senderId: ada.id,
+      content: null,
+      picture: null,
+      movie: null,
+      sound: exampleSound(),
+      createdAt: expect.any(Date),
+    });
+    expect(captioned).toMatchObject({
+      content: 'listen',
+      sound: exampleSound(),
+    });
+    expect(await toGrace).toEqual(alone);
+  });
+
+  it('rejects a bad sound, or a sound with something else, before looking at the chat', async () => {
+    const { services, ada } = await team();
+
+    for (const input of [
+      { sound: soundInput(1, 0) },
+      { sound: { ...soundInput(), frames: 3002 } },
+      { content: 'hi', movie: movieInput(), sound: soundInput() },
+      { picture: pictureInput(), sound: soundInput() },
+    ]) {
+      expect(
+        await services().messages.send(ada, { chatId: 'missing', ...input })
+      ).toMatchObject({
+        ok: false,
+        error: { type: 'InvalidInput', field: 'sound' },
       });
     }
   });

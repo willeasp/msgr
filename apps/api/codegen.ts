@@ -20,6 +20,7 @@ const config: CodegenConfig = {
           Movie: '../../domain/movie.js#Movie',
           Picture: '../../domain/picture.js#Picture',
           SignUpPayload: '../../application/auth.service.js#Welcome',
+          Sound: '../../domain/sound.js#Sound',
           User: '../../domain/user.js#User',
         },
         mapperTypeSuffix: 'Model',

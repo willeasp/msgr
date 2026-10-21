@@ -34,6 +34,7 @@ async function team(overrides: Partial<Dependencies> = {}) {
       content: content as MessageContent,
       picture: null,
       movie: null,
+      sound: null,
       createdAt: new Date(0),
     } satisfies Message);
   const notifier = createNotifier(app.deps);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ChatId, type ChannelName, type Chat, type ChatAdded } from './chat.js';
 import type { Movie } from './movie.js';
+import type { Sound } from './sound.js';
 import type { Picture } from './picture.js';
 import { invalidInput } from './errors.js';
 import { MessageId, type Message, type MessageContent } from './message.js';
@@ -94,6 +95,7 @@ const text = (content: string, chat: Chat = direct): Message => ({
   content: content as MessageContent,
   picture: null,
   movie: null,
+  sound: null,
   createdAt: new Date(0),
 });
 
@@ -119,13 +121,14 @@ describe('messageNotification', () => {
       content: null,
       picture,
       movie: null,
+      sound: null,
     };
     expect(messageNotification(alone, bob, direct).body).toBe(
       'Sent a picture.'
     );
     expect(
       messageNotification(
-        { ...text('look'), picture, movie: null },
+        { ...text('look'), picture, movie: null, sound: null },
         bob,
         direct
       ).body
@@ -139,15 +142,35 @@ describe('messageNotification', () => {
       content: null,
       picture: null,
       movie,
+      sound: null,
     };
     expect(messageNotification(alone, bob, direct).body).toBe('Sent a movie.');
     expect(
       messageNotification(
-        { ...text('look'), picture: null, movie },
+        { ...text('look'), picture: null, movie, sound: null },
         bob,
         direct
       ).body
     ).toBe('look');
+  });
+
+  it('says a sound was sent, unless it came with text', () => {
+    const sound = {} as Sound;
+    const alone: Message = {
+      ...text('x'),
+      content: null,
+      picture: null,
+      movie: null,
+      sound,
+    };
+    expect(messageNotification(alone, bob, direct).body).toBe('Sent a sound.');
+    expect(
+      messageNotification(
+        { ...text('listen'), picture: null, movie: null, sound },
+        bob,
+        direct
+      ).body
+    ).toBe('listen');
   });
 
   it('cuts long text to 200 characters without splitting an emoji', () => {
