@@ -12,6 +12,7 @@ import {
 } from '../domain/message.js';
 import { Movie, type RawMovie } from '../domain/movie.js';
 import { Picture, type RawPicture } from '../domain/picture.js';
+import { Sound, type RawSound } from '../domain/sound.js';
 import { Page } from '../domain/page.js';
 import { err, ok, type Result } from '../domain/result.js';
 import { typingRecipients, type Typing } from '../domain/typing.js';
@@ -89,8 +90,8 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
     },
 
     /**
-     * Text, a picture or a movie, or text with one of them; each is checked
-     * before the chat is looked up.
+     * Text, a picture, a movie or a sound, or text with one of them; each is
+     * checked before the chat is looked up.
      */
     async send(
       viewer: User,
@@ -99,6 +100,7 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
         readonly content?: string | null;
         readonly picture?: RawPicture | null;
         readonly movie?: RawMovie | null;
+        readonly sound?: RawSound | null;
       }
     ): Promise<Result<Message, InvalidInput | NotFound>> {
       const content =
@@ -111,7 +113,14 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
       if (!picture.ok) return picture;
       const movie = input.movie == null ? ok(null) : Movie.parse(input.movie);
       if (!movie.ok) return movie;
-      const body = MessageBody.of(content.value, picture.value, movie.value);
+      const sound = input.sound == null ? ok(null) : Sound.parse(input.sound);
+      if (!sound.ok) return sound;
+      const body = MessageBody.of(
+        content.value,
+        picture.value,
+        movie.value,
+        sound.value
+      );
       if (!body.ok) return body;
       return post(viewer, input.chatId, body.value);
     },

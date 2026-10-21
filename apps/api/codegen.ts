@@ -22,6 +22,7 @@ const config: CodegenConfig = {
           Picture: '../../domain/picture.js#Picture',
           Typing: '../../domain/typing.js#Typing',
           SignUpPayload: '../../application/auth.service.js#Welcome',
+          Sound: '../../domain/sound.js#Sound',
           User: '../../domain/user.js#User',
         },
         mapperTypeSuffix: 'Model',

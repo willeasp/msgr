@@ -25,6 +25,10 @@ export const GET_CHAT_MESSAGES = gql(`
         frames
         bits
       }
+      sound {
+        frames
+        bits
+      }
       sender {
         id
         name

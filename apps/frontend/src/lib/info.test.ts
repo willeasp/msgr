@@ -9,6 +9,8 @@ import {
 
 const picture = { width: 256, height: 160 };
 const movie = { width: 320, height: 180, frames: 48 };
+// 2.5 seconds: frames overlap by half, so 126 of them play 125 × 20 ms.
+const sound = { frames: 126 };
 
 describe('messageName', () => {
   it("quotes the text's first line, cut short", () => {
@@ -21,6 +23,7 @@ describe('messageName', () => {
   it('names a picture or a movie alone', () => {
     expect(messageName({ content: null, picture })).toBe('Picture');
     expect(messageName({ content: null, movie })).toBe('Movie');
+    expect(messageName({ content: null, sound })).toBe('Sound');
   });
 });
 
@@ -33,6 +36,8 @@ describe('messageKind', () => {
       'Text with a picture'
     );
     expect(messageKind({ content: 'look', movie })).toBe('Text with a movie');
+    expect(messageKind({ content: null, sound })).toBe('Sound');
+    expect(messageKind({ content: 'listen', sound })).toBe('Text with a sound');
   });
 });
 
@@ -55,6 +60,13 @@ describe('messageSize', () => {
     expect(messageSize({ movie: { ...movie, frames: 1 } })).toBe(
       '320 × 180 pixels, 1 frame'
     );
+  });
+
+  it('gives how long a sound runs', () => {
+    expect(messageSize({ content: 'listen', sound })).toBe(
+      '6 characters; 2.5 seconds'
+    );
+    expect(messageSize({ sound: { frames: 3001 } })).toBe('60 seconds');
   });
 });
 

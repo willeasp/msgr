@@ -1,4 +1,5 @@
 import { byteLength, type Bits } from './bits.js';
+import { adaptiveOdds, rangeDecoder, rangeEncoder } from './range-coder.js';
 
 /** Every movie plays at this many frames a second, looping. */
 export const MOVIE_FPS = 8;
@@ -38,40 +39,15 @@ export function frameOf(movie: Frames, index: number): Bits {
 
 /*
  * A movie is coded pixel by pixel, in reading order, frame after frame, with
- * a binary range coder (LZMA's). Each pixel's odds come from its context: 11
+ * the binary range coder. Each pixel's odds come from its context: 11
  * pixels of its own frame already coded, above and to the left, and 5 around
  * it in the frame before. What stands still is foretold by the frame before
  * and costs next to nothing; ink beside ink is foretold by its neighbours.
- * Each context counts the zeros and ones it has seen, halving both past
- * COUNT_LIMIT so its odds follow the movie as it changes.
  */
 
-const TOP = 1 << 24;
-const PROBABILITY_BITS = 12;
-const ONE = 1 << PROBABILITY_BITS;
+/** Each context halves its counts past this, to follow the movie as it changes. */
 const COUNT_LIMIT = 1023;
-
-/** Each context's counts of zeros and ones, and the odds of a zero. */
-function model() {
-  const zeros = new Uint16Array(1 << 16);
-  const ones = new Uint16Array(1 << 16);
-  return {
-    /** The chance of a 0, out of ONE, never certain either way. */
-    zero(context: number): number {
-      const z = zeros[context];
-      const p = Math.floor(((2 * z + 1) * ONE) / (2 * (z + ones[context]) + 2));
-      return Math.min(ONE - 1, Math.max(1, p));
-    },
-    saw(context: number, bit: number): void {
-      if (bit) ones[context]++;
-      else zeros[context]++;
-      if (zeros[context] + ones[context] > COUNT_LIMIT) {
-        zeros[context] = (zeros[context] + 1) >> 1;
-        ones[context] = (ones[context] + 1) >> 1;
-      }
-    },
-  };
-}
+const model = () => adaptiveOdds(1 << 16, COUNT_LIMIT);
 
 /**
  * Two frames' pixels, one byte each, with margins of blank paper so every
@@ -124,25 +100,7 @@ export function encodeMovie(movie: Frames): Uint8Array<ArrayBuffer> {
   const size = rowBytes * height;
   const odds = model();
   const page = canvases(width, height);
-  const out: number[] = [];
-  let low = 0;
-  let range = 0xffffffff;
-  let cache = 0;
-  let pending = 1;
-  // Hands on the top byte of `low` once a carry can no longer reach it.
-  const shiftLow = () => {
-    if (low < 0xff000000 || low >= 0x100000000) {
-      const carry = low >= 0x100000000 ? 1 : 0;
-      let byte = cache;
-      do {
-        out.push((byte + carry) & 0xff);
-        byte = 0xff;
-      } while (--pending !== 0);
-      cache = (low >>> 24) & 0xff;
-    }
-    pending++;
-    low = (low & 0x00ffffff) * 256;
-  };
+  const coder = rangeEncoder();
   for (let f = 0; f < count; f++) {
     const base = f * size;
     for (let y = 0; y < height; y++) {
@@ -151,26 +109,14 @@ export function encodeMovie(movie: Frames): Uint8Array<ArrayBuffer> {
         const bit =
           (movie.bytes[base + y * rowBytes + (x >> 3)] >> (7 - (x & 7))) & 1;
         const c = context(page.current, page.previous, i, page.stride);
-        const bound = (range >>> PROBABILITY_BITS) * odds.zero(c);
-        if (bit) {
-          low += bound;
-          range -= bound;
-        } else {
-          range = bound;
-        }
-        odds.saw(c, bit);
-        while (range < TOP) {
-          range = (range * 256) >>> 0;
-          shiftLow();
-        }
+        coder.code(odds, c, bit);
         page.current[i] = bit;
       }
     }
     [page.previous, page.current] = [page.current, page.previous];
     page.current.fill(0);
   }
-  for (let i = 0; i < 5; i++) shiftLow();
-  return Uint8Array.from(out);
+  return coder.finish();
 }
 
 /**
@@ -188,31 +134,14 @@ export function decodeMovie(
   const bytes = new Uint8Array(size * count);
   const odds = model();
   const page = canvases(width, height);
-  let position = 0;
-  const next = () => (position < coded.length ? coded[position++] : 0);
-  let range = 0xffffffff;
-  let code = 0;
-  for (let i = 0; i < 5; i++) code = (code * 256 + next()) >>> 0;
+  const coder = rangeDecoder(coded);
   for (let f = 0; f < count; f++) {
     const base = f * size;
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const i = page.at(x, y);
         const c = context(page.current, page.previous, i, page.stride);
-        const bound = (range >>> PROBABILITY_BITS) * odds.zero(c);
-        let bit = 0;
-        if (code < bound) {
-          range = bound;
-        } else {
-          code -= bound;
-          range -= bound;
-          bit = 1;
-        }
-        odds.saw(c, bit);
-        while (range < TOP) {
-          range = (range * 256) >>> 0;
-          code = (code * 256 + next()) >>> 0;
-        }
+        const bit = coder.code(odds, c);
         page.current[i] = bit;
         if (bit) bytes[base + y * rowBytes + (x >> 3)] |= 0x80 >> (x & 7);
       }

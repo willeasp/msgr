@@ -1,4 +1,5 @@
 import { MOVIE_FPS } from '@msgr/bitmap';
+import { secondsOf } from './sound';
 
 /** What Get Info needs to know of a message's body. */
 export interface Body {
@@ -9,10 +10,11 @@ export interface Body {
     readonly height: number;
     readonly frames: number;
   } | null;
+  readonly sound?: { readonly frames: number } | null;
 }
 
 /** What it shows at the top, as Finder shows a file's name. */
-export function messageName({ content, picture, movie }: Body): string {
+export function messageName({ content, picture, movie, sound }: Body): string {
   const line = content?.split('\n')[0]?.trim();
   if (line) {
     const letters = [...line];
@@ -22,21 +24,30 @@ export function messageName({ content, picture, movie }: Body): string {
         : line;
     return `“${name}”`;
   }
-  return picture ? 'Picture' : movie ? 'Movie' : 'Message';
+  return picture ? 'Picture' : movie ? 'Movie' : sound ? 'Sound' : 'Message';
 }
 
-/** "Text", "Picture", "Movie", "Text with a picture", "Text with a movie". */
-export function messageKind({ content, picture, movie }: Body): string {
-  const attached = picture ? 'picture' : movie ? 'movie' : null;
-  if (!content) return attached === 'picture' ? 'Picture' : 'Movie';
-  return attached ? `Text with a ${attached}` : 'Text';
+/** "Text", "Picture", "Movie", "Sound", or "Text with a picture" and so on. */
+export function messageKind({ content, picture, movie, sound }: Body): string {
+  const attached = picture
+    ? 'picture'
+    : movie
+    ? 'movie'
+    : sound
+    ? 'sound'
+    : null;
+  if (content) return attached ? `Text with a ${attached}` : 'Text';
+  return attached ? attached[0].toUpperCase() + attached.slice(1) : 'Text';
 }
 
 const plural = (n: number, one: string, many = `${one}s`) =>
   `${n} ${n === 1 ? one : many}`;
 
-/** "42 characters; 256 × 160 pixels", or a movie's frames and how long it runs. */
-export function messageSize({ content, picture, movie }: Body): string {
+/**
+ * "42 characters; 256 × 160 pixels", a movie's frames and how long it runs,
+ * or how long a sound runs.
+ */
+export function messageSize({ content, picture, movie, sound }: Body): string {
   const parts: string[] = [];
   if (content) parts.push(plural([...content].length, 'character'));
   if (picture) parts.push(`${picture.width} × ${picture.height} pixels`);
@@ -49,6 +60,9 @@ export function messageSize({ content, picture, movie }: Body): string {
             movie.frames
           } frames, ${plural(seconds, 'second')}`
     );
+  }
+  if (sound) {
+    parts.push(plural(Math.round(secondsOf(sound.frames) * 10) / 10, 'second'));
   }
   return parts.join('; ');
 }

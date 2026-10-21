@@ -135,7 +135,8 @@ export async function startServer(
     PATH,
     cors({ origin: config.corsOrigin, credentials: true }),
     // A message's largest honest movie, 48 frames of 320×320, is under 0.95
-    // MB as base64 (domain/movie.ts); a picture is far less.
+    // MB as base64 (domain/movie.ts); a minute's sound is at most 0.4 MB,
+    // and a picture far less.
     express.json({ limit: '1mb' }),
     cookieParser(),
     expressMiddleware(apollo, {

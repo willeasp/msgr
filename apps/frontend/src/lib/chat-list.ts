@@ -15,7 +15,7 @@ export type ReceivedMessage =
  */
 export function withReceivedMessage(
   chats: readonly ChatRow[],
-  { chat, id, content, movie, createdAt }: ReceivedMessage
+  { chat, id, content, movie, sound, createdAt }: ReceivedMessage
 ): readonly ChatRow[] {
   const preview = chats.find((row) => row.id === chat.id)?.messages[0];
   if (preview && Date.parse(preview.createdAt) > Date.parse(createdAt))
@@ -24,7 +24,13 @@ export function withReceivedMessage(
     {
       ...chat,
       messages: [
-        { id, content, movie: movie && { frames: movie.frames }, createdAt },
+        {
+          id,
+          content,
+          movie: movie && { frames: movie.frames },
+          sound: sound && { frames: sound.frames },
+          createdAt,
+        },
       ],
     },
     ...chats.filter((row) => row.id !== chat.id),

@@ -26,4 +26,16 @@ describe('the part of a video made a movie', () => {
       end: 60,
     });
   });
+
+  it("takes another longest, as a sound's minute", () => {
+    expect(firstPart(600, 60)).toEqual({ start: 0, end: 60 });
+    expect(setStart({ start: 100, end: 130 }, 10, 60)).toEqual({
+      start: 70,
+      end: 130,
+    });
+    expect(setEnd({ start: 100, end: 130 }, 400, 600, 60)).toEqual({
+      start: 100,
+      end: 160,
+    });
+  });
 });

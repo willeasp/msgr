@@ -6,15 +6,18 @@ import { gql } from '../../../lib/__generated__';
 import { drawnOver, frameShown } from '../../../lib/movie';
 import { toWire as movieToWire } from '../../../lib/movie-wire';
 import { toWire } from '../../../lib/picture-wire';
+import { toWire as soundToWire } from '../../../lib/sound-wire';
 import Button from '../../../sacred/components/Button';
 import TextArea from '../../../sacred/components/TextArea';
 import { pixelSize, useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
 import { recordMessage } from '../../hooks/use-chat-feed';
+import { Menu } from '../MenuBar';
 import { useMediaQuery } from '../../hooks/use-media-query';
 import { useMovieTick } from '../../hooks/use-movie';
 import { useSayTyping } from '../../hooks/use-typing';
 import type { Attachment } from './attachment';
 import { firstMedia } from './movie-from-file';
+import { SoundPlayer } from './SoundPlayer';
 import { useJoinChannel } from './use-join-channel';
 import styles from './MessageInput.module.css';
 
@@ -24,6 +27,7 @@ const SEND_MESSAGE = gql(`
     $content: String
     $picture: PictureInput
     $movie: MovieInput
+    $sound: SoundInput
   ) {
     sendMessage(
       input: {
@@ -31,6 +35,7 @@ const SEND_MESSAGE = gql(`
         content: $content
         picture: $picture
         movie: $movie
+        sound: $sound
       }
     ) {
       id
@@ -43,6 +48,10 @@ const SEND_MESSAGE = gql(`
       movie {
         width
         height
+        frames
+        bits
+      }
+      sound {
         frames
         bits
       }
@@ -80,7 +89,7 @@ const SEND_MESSAGE = gql(`
 
 interface MessageInputProps {
   chatId: string;
-  /** The picture or movie going with the message, if any; sent with or without text. */
+  /** The picture, movie or sound going with the message, if any; sent with or without text. */
   attachment: Attachment | null;
   /** Why the last photo couldn't be attached. */
   attachError: string | null;
@@ -88,7 +97,9 @@ interface MessageInputProps {
   onDraw: () => void;
   /** Opens the paint window on the attachment. */
   onEdit: (attachment: Attachment) => void;
-  /** Attaches a photo or video picked, pasted or dropped. */
+  /** Opens the sound window, to record or choose a file. */
+  onSound: () => void;
+  /** Attaches a photo, video or sound picked, pasted or dropped. */
   onAttachFile: (file: File) => void;
   /** Takes off this attachment, once sent or removed. */
   onDetach: (attachment: Attachment) => void;
@@ -155,6 +166,7 @@ export function MessageInput({
   attachError,
   onDraw,
   onEdit,
+  onSound,
   onAttachFile,
   onDetach,
 }: MessageInputProps) {
@@ -217,6 +229,7 @@ export function MessageInput({
                     : sent.movie
                 )
               : null,
+          sound: sent?.kind === 'sound' ? soundToWire(sent.codes) : null,
         },
       });
       if (data) typing.sent();
@@ -258,11 +271,18 @@ export function MessageInput({
               bits={attachment.bits}
               onEdit={() => onEdit(attachment)}
             />
-          ) : (
+          ) : attachment.kind === 'movie' ? (
             <AttachedMovie
               attachment={attachment}
               onEdit={() => onEdit(attachment)}
             />
+          ) : (
+            <span role="group" aria-label="Attached sound">
+              <SoundPlayer
+                frames={attachment.codes.frames}
+                codes={attachment.codes}
+              />
+            </span>
           )}
           <Button theme="SECONDARY" onClick={() => onDetach(attachment)}>
             Remove
@@ -315,23 +335,21 @@ export function MessageInput({
           }}
         />
       ))}
-      <Button
-        theme="SECONDARY"
-        type="button"
-        onClick={() => pictureRef.current?.click()}
-      >
-        Picture…
-      </Button>
-      <Button
-        theme="SECONDARY"
-        type="button"
-        onClick={() => movieRef.current?.click()}
-      >
-        Movie…
-      </Button>
-      <Button theme="SECONDARY" type="button" onClick={() => onDraw()}>
-        Draw…
-      </Button>
+      {/* Everything that goes with a message, in one pull-down menu. */}
+      <Menu
+        title="Attach"
+        button={
+          <Button theme="SECONDARY" type="button" aria-haspopup="menu">
+            Attach
+          </Button>
+        }
+        items={[
+          { label: 'Picture…', onClick: () => pictureRef.current?.click() },
+          { label: 'Movie…', onClick: () => movieRef.current?.click() },
+          { label: 'Sound…', onClick: onSound },
+          { label: 'Draw…', onClick: onDraw },
+        ]}
+      />
       {preparing || loading ? (
         <Button isDisabled>Sending</Button>
       ) : (

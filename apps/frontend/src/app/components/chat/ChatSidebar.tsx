@@ -32,6 +32,9 @@ export const GET_CHATS = gql(`
         movie {
           frames
         }
+        sound {
+          frames
+        }
         createdAt
       }
     }

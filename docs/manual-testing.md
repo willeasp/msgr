@@ -108,7 +108,10 @@ keyboard, notifications, layout) is checked here.
       titles are black-and-white pixel art in the text's colour, white in your
       own bubbles and in the theme's ink in Dark and the tints. A message of one
       to three emoji shows them big. Copying a message gives the real emoji.
-- [ ] **Drawing:** Draw… opens "Drawing for _chat_". Try each tool: the pencil
+- [ ] **Attach:** the button beside Send opens a menu of Picture…, Movie…,
+      Sound… and Draw…, above it, by mouse, touch or keyboard (arrows, Return,
+      Esc).
+- [ ] **Drawing:** Attach → Draw… opens "Drawing for _chat_". Try each tool: the pencil
       (starting on black, it draws white), the brush and the paint bucket in a
       few patterns, and the eraser. Undo (⌘Z or Ctrl+Z) steps back through
       strokes, fills and Clear. Attach is greyed out while the canvas is blank.
@@ -116,11 +119,11 @@ keyboard, notifications, layout) is checked here.
       paint on it again, or Remove it. Send it alone and with text: it arrives
       live in the other window, the chat list previews a picture alone as
       "Picture", and a notification says "Sent a picture."
-- [ ] **Photos:** Picture… a big landscape photo, a portrait one and a PNG with
+- [ ] **Photos:** Attach → Picture… a big landscape photo, a portrait one and a PNG with
       transparency; paste one; drop one on the conversation. Each arrives
       dithered at its own shape, at most 320 pixels a side. A file that isn't a
       picture the browser can open says so.
-- [ ] **Movies:** Movie… a phone video, landscape, portrait and square, and
+- [ ] **Movies:** Attach → Movie… a phone video, landscape, portrait and square, and
       one longer than ten minutes, which is refused. The timeline shows the
       whole video; drag the window, and its handles (at most 6 s, at least half
       a second); Play loops the part. Make Movie reads and dithers it, then it
@@ -129,6 +132,18 @@ keyboard, notifications, layout) is checked here.
       other window like a GIF with nothing to press, at its own shape, 2× (1×
       on a phone), repaints in a new theme, and the chat list says "Movie".
       On an iPhone, try one from the camera roll in Safari.
+- [ ] **Sounds:** Attach → Sound… then Record: the browser asks for the microphone
+      once; speak for a few seconds and Stop (it stops by itself at a
+      minute). Choose File… a song (MP3, M4A, and a WAV), and drop one on the
+      conversation. The timeline shows the whole of it; drag the window and its
+      handles (at most 60 s). Play plays the part squashed, crunchy, exactly as
+      it will be sent; Make Sound attaches it above the message box with its
+      own Play. Sent, the other window shows Play, the sound's shape and its
+      length; Play fills the shape in as it plays and counts up, a click on the
+      shape plays from there, and playing another sound stops it. The chat
+      list says "Sound", a notification "Sent a sound." On an iPhone, record
+      in Safari, and play with the ringer switch both ways: it plays on silent
+      too.
 - [ ] **Draw on It:** under any picture or movie, opens it in the paint window at its
       size; attaching and sending adds a new message and leaves the original.
 - [ ] **Discarding:** Cancel or Esc on a canvas you've drawn on asks "Discard

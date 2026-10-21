@@ -43,8 +43,9 @@ model Chat {
   updatedAt    DateTime  @updatedAt
 }
 
-/// Text, a picture, or both: at least one of `content` and `picture` is set,
-/// and a picture always has its size (enforced by a CHECK constraint).
+/// Text, a picture, a movie or a sound, or text with one of them: at least
+/// one is set, never two attached, and each attached one has its size
+/// (enforced by a CHECK constraint).
 model Message {
   id            String     @id @default(cuid())
   content       String?
@@ -57,6 +58,9 @@ model Message {
   movieWidth    Int?       @db.SmallInt
   movieHeight   Int?       @db.SmallInt
   movieFrames   Int?       @db.SmallInt
+  /// A squashed sound, its codes from `encodeSound`; see domain/sound.ts.
+  sound         Bytes?
+  soundFrames   Int?       @db.SmallInt
   senderId      String
   sender        User       @relation(fields: [senderId], references: [id], onDelete: Cascade)
   chatId        String
