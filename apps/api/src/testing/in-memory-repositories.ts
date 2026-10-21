@@ -11,6 +11,7 @@ import {
 import type { Invite, InviteCode } from '../domain/invite.js';
 import { MessageId, type Message } from '../domain/message.js';
 import type { PushSubscription } from '../domain/push.js';
+import type { Read } from '../domain/read.js';
 import { err, ok } from '../domain/result.js';
 import {
   Email,
@@ -44,6 +45,16 @@ export function createInMemoryRepositories(): {
     return !!record && !record.used && at < record.invite.expiresAt;
   };
   const messages: Message[] = [];
+  // Each reader's marks: how far they had read a chat, and when.
+  const marks: { messageId: MessageId; readerId: UserId; at: Date }[] = [];
+  const messageById = (id: MessageId) =>
+    messages.find((message) => message.id === id);
+  /** Marks at or after `message` in its chat. */
+  const marksFrom = (message: Message) =>
+    marks.filter((mark) => {
+      const seen = messageById(mark.messageId);
+      return seen?.chatId === message.chatId && !isBefore(seen, message);
+    });
   const pushSubscriptions = new Map<
     string,
     { userId: UserId; subscription: PushSubscription }
@@ -205,6 +216,34 @@ export function createInMemoryRepositories(): {
       },
     },
 
+    reads: {
+      markRead: async (message, readerId, at) => {
+        requireUser(readerId);
+        if (!messageById(message.id)) {
+          throw new Error(`Unknown message ${message.id}`);
+        }
+        const already = marksFrom(message).some(
+          (mark) => mark.readerId === readerId
+        );
+        if (!already) marks.push({ messageId: message.id, readerId, at });
+      },
+
+      findByMessageIds: async (ids) =>
+        distinct(ids).flatMap((id) => {
+          const message = messageById(id);
+          if (!message) return [];
+          const first = new Map<UserId, Date>();
+          for (const { readerId, at } of marksFrom(message)) {
+            if (readerId === message.senderId) continue;
+            const earlier = first.get(readerId);
+            if (!earlier || at < earlier) first.set(readerId, at);
+          }
+          return [...first].map(
+            ([readerId, at]): Read => ({ messageId: id, readerId, at })
+          );
+        }),
+    },
+
     pushSubscriptions: {
       save: async (userId, subscription) => {
         requireUser(userId);
@@ -251,6 +290,10 @@ export function createInMemoryRepositories(): {
 
   return { repositories, fixtures };
 }
+
+/** Earlier in its chat's history: by time, then by id, as pages are ordered. */
+const isBefore = (a: Message, b: Message) =>
+  (a.createdAt.getTime() - b.createdAt.getTime() || compare(a.id, b.id)) < 0;
 
 const distinct = <T>(values: readonly T[]): T[] => [...new Set(values)];
 

@@ -93,6 +93,21 @@ export const typeDefs = /* GraphQL */ `
     sender: User!
     chat: Chat!
     createdAt: DateTime!
+    "Everyone but the sender who has read it, whoever read it first first."
+    readBy: [MessageRead!]!
+  }
+
+  "That someone has read a message, and when they first did."
+  type MessageRead {
+    reader: User!
+    "When they first read it: reading a chat up to a message reads every message before it too."
+    at: DateTime!
+  }
+
+  "Someone writing a message to one of the viewer's chats. It lasts a few seconds unless it comes again; their message ends it."
+  type Typing {
+    chatId: ID!
+    user: User!
   }
 
   "A card for a link: what the page says about itself, as our server read it."
@@ -173,6 +188,8 @@ export const typeDefs = /* GraphQL */ `
     messages(chatId: ID!, limit: Int, offset: Int): [Message!]!
     "Every channel, by name, joined or not."
     channels: [ChannelListing!]!
+    "A message in a chat the viewer is in, or null."
+    message(id: ID!): Message
     "A card for the first link in a message the viewer can see, or null."
     linkPreview(messageId: ID!): LinkPreview
     "Whether an invite can still sign someone up. Used, expired and made-up codes all say false. Needs no sign-in."
@@ -191,6 +208,10 @@ export const typeDefs = /* GraphQL */ `
     "The viewer's direct chat with a user, created on first contact."
     findOrCreateChat(participantId: ID!): Chat!
     sendMessage(input: SendMessageInput!): Message!
+    "The viewer has read a chat up to and including this message."
+    markRead(messageId: ID!): Boolean!
+    "Tells a chat's other participants the viewer is writing to it. Say it again every few seconds while they are."
+    typing(chatId: ID!): Boolean!
     "Replaces the viewer's name and picture, and tells everyone who shares a chat with them."
     updateProfile(input: ProfileInput!): User!
     "Joins the channel called name, creating it if nobody has yet."
@@ -208,6 +229,8 @@ export const typeDefs = /* GraphQL */ `
   type Subscription {
     "Every message sent to a chat the viewer is in, including their own."
     messageReceived: Message!
+    "Everyone writing to a chat the viewer is in, each time they say so; never the viewer."
+    typing: Typing!
     "Every chat that comes to include the viewer without them opening it."
     chatAdded: ChatAdded!
     "Every change to the profile of someone who shares a chat with the viewer, their own included."

@@ -2,6 +2,7 @@ import DataLoader from 'dataloader';
 import type { Chat, ChatId } from '../domain/chat.js';
 import type { Message, MessageId } from '../domain/message.js';
 import type { Page } from '../domain/page.js';
+import { firstReadFirst, type Read } from '../domain/read.js';
 import type { User, UserId } from '../domain/user.js';
 import type { Repositories } from './ports.js';
 
@@ -13,6 +14,8 @@ export interface Loaders {
   readonly user: DataLoader<UserId, User | null>;
   readonly chat: DataLoader<ChatId, Chat | null>;
   readonly message: DataLoader<MessageId, Message | null>;
+  /** Each message's reads, whoever read it first first. */
+  readonly reads: DataLoader<MessageId, Read[]>;
   messages(page: Page): DataLoader<ChatId, Message[]>;
 }
 
@@ -25,7 +28,7 @@ export interface LoaderOptions {
 }
 
 export function createLoaders(
-  { users, chats, messages }: Repositories,
+  { users, chats, messages, reads }: Repositories,
   { cache }: LoaderOptions
 ): Loaders {
   const pages = new Map<string, DataLoader<ChatId, Message[]>>();
@@ -34,6 +37,16 @@ export function createLoaders(
     user: byId((ids) => users.findByIds(ids), cache),
     chat: byId((ids) => chats.findByIds(ids), cache),
     message: byId((ids) => messages.findByIds(ids), cache),
+    reads: new DataLoader(
+      async (messageIds) => {
+        const found = groupBy(
+          [...(await reads.findByMessageIds(messageIds))].sort(firstReadFirst),
+          (read) => read.messageId
+        );
+        return messageIds.map((id) => found.get(id) ?? []);
+      },
+      { cache }
+    ),
     messages(page) {
       const key = `${page.limit}:${page.offset}`;
       let loader = pages.get(key);

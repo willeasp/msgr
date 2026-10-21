@@ -21,7 +21,7 @@ describe.runIf(url)('prisma repositories', () => {
   afterAll(() => db.$disconnect());
 
   repositoryContract(async () => {
-    await db.$executeRaw`TRUNCATE "Invite", "Message", "Chat", "User" CASCADE`;
+    await db.$executeRaw`TRUNCATE "Invite", "ReadMark", "Message", "Chat", "User" CASCADE`;
     return {
       repositories: prismaRepositories(db),
       fixtures: prismaFixtures(db),

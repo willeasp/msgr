@@ -15,7 +15,7 @@ export type InvalidInput = {
 
 export type NotFound = {
   readonly type: 'NotFound';
-  readonly entity: 'Chat' | 'Invite' | 'User';
+  readonly entity: 'Chat' | 'Invite' | 'Message' | 'User';
 };
 
 /** Someone is guessing: the same thing was tried too often, too quickly. */

@@ -296,3 +296,73 @@ describe('reading messages', () => {
     });
   });
 });
+
+describe('reading a chat', () => {
+  it('marks every message up to the one read, each when it was first read', async () => {
+    const { services, deps, ada, grace, chat } = await team();
+    const readsOf = (id: Message['id']) =>
+      deps.repositories.reads.findByMessageIds([id]);
+    const first = expectOk(
+      await services().messages.send(ada, { chatId: chat.id, content: 'one' })
+    );
+    const second = expectOk(
+      await services().messages.send(ada, { chatId: chat.id, content: 'two' })
+    );
+
+    expectOk(await services().messages.markRead(grace, first.id));
+    const [firstRead] = await readsOf(first.id);
+    expectOk(await services().messages.markRead(grace, second.id));
+    const [secondRead] = await readsOf(second.id);
+
+    expect(firstRead).toEqual({
+      messageId: first.id,
+      readerId: grace.id,
+      at: expect.any(Date),
+    });
+    expect(await readsOf(first.id)).toEqual([firstRead]);
+    expect(secondRead?.at.getTime()).toBeGreaterThan(firstRead!.at.getTime());
+  });
+
+  it("answers for someone else's message exactly as for a missing one", async () => {
+    const { services, deps, ada, linus, chat } = await team();
+    const hello = expectOk(
+      await services().messages.send(ada, { chatId: chat.id, content: 'hi' })
+    );
+
+    const theirs = await services().messages.markRead(linus, hello.id);
+    const missing = await services().messages.markRead(linus, 'nope');
+
+    expect(theirs).toEqual(missing);
+    expect(theirs).toMatchObject({ ok: false, error: { type: 'NotFound' } });
+    expect(await services().messages.find(linus, hello.id)).toEqual(missing);
+    expect(await deps.repositories.reads.findByMessageIds([hello.id])).toEqual(
+      []
+    );
+  });
+});
+
+describe('typing', () => {
+  it("tells the chat's other participants, and nobody else", async () => {
+    const { services, ada, grace, linus, chat } = await team();
+    const toGrace = nextEvent(services().messages.typists(grace));
+    const toAda = nextEvent(services().messages.typists(ada));
+    const toLinus = nextEvent(services().messages.typists(linus));
+
+    expectOk(await services().messages.typing(ada, chat.id));
+
+    expect(await toGrace).toEqual({ chatId: chat.id, user: ada });
+    expect(await toAda).toBe('nothing');
+    expect(await toLinus).toBe('nothing');
+  });
+
+  it("refuses to type into someone else's chat", async () => {
+    const { services, linus, grace, chat } = await team();
+    const toGrace = nextEvent(services().messages.typists(grace));
+
+    expect(await services().messages.typing(linus, chat.id)).toMatchObject({
+      ok: false,
+      error: { type: 'NotFound', entity: 'Chat' },
+    });
+    expect(await toGrace).toBe('nothing');
+  });
+});

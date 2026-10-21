@@ -1,14 +1,20 @@
 import { ChatId, visibleTo } from '../domain/chat.js';
-import type { InvalidInput, NotFound } from '../domain/errors.js';
+import {
+  notFound,
+  type InvalidInput,
+  type NotFound,
+} from '../domain/errors.js';
 import {
   MessageBody,
   MessageContent,
+  MessageId,
   type Message,
 } from '../domain/message.js';
 import { Movie, type RawMovie } from '../domain/movie.js';
 import { Picture, type RawPicture } from '../domain/picture.js';
 import { Page } from '../domain/page.js';
-import { ok, type Result } from '../domain/result.js';
+import { err, ok, type Result } from '../domain/result.js';
+import { typingRecipients, type Typing } from '../domain/typing.js';
 import type { User } from '../domain/user.js';
 import type { Loaders } from './loaders.js';
 import { createNotifier } from './notifier.js';
@@ -17,7 +23,7 @@ import type { Dependencies } from './ports.js';
 export type MessageService = ReturnType<typeof createMessageService>;
 
 export function createMessageService(deps: Dependencies, loaders: Loaders) {
-  const { repositories, events, clock } = deps;
+  const { repositories, events, typingEvents, clock } = deps;
   const notifier = createNotifier(deps);
 
   /** Stores the message, then delivers it live to every participant. */
@@ -41,7 +47,23 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
     return ok(message);
   }
 
+  /**
+   * A message in one of the viewer's chats. Anyone else's answers exactly
+   * like a missing one.
+   */
+  async function visible(
+    viewer: User,
+    messageId: string
+  ): Promise<Result<Message, NotFound>> {
+    const message = await loaders.message.load(MessageId(messageId));
+    if (!message) return err(notFound('Message'));
+    const chat = visibleTo(await loaders.chat.load(message.chatId), viewer.id);
+    return chat.ok ? ok(message) : err(notFound('Message'));
+  }
+
   return {
+    find: visible,
+
     async list(
       viewer: User,
       input: {
@@ -88,6 +110,43 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
       const body = MessageBody.of(content.value, picture.value, movie.value);
       if (!body.ok) return body;
       return post(viewer, input.chatId, body.value);
+    },
+
+    /**
+     * The viewer has read the message's chat up to and including it: this
+     * message and every one before it.
+     */
+    async markRead(
+      viewer: User,
+      messageId: string
+    ): Promise<Result<true, NotFound>> {
+      const message = await visible(viewer, messageId);
+      if (!message.ok) return message;
+      await repositories.reads.markRead(message.value, viewer.id, clock());
+      return ok(true);
+    },
+
+    /** Tells the chat's other participants the viewer is writing to it. */
+    async typing(
+      viewer: User,
+      chatId: string
+    ): Promise<Result<true, NotFound>> {
+      const chat = visibleTo(
+        await loaders.chat.load(ChatId(chatId)),
+        viewer.id
+      );
+      if (!chat.ok) return chat;
+      const event: Typing = { chatId: chat.value.id, user: viewer };
+      await typingEvents.publish(
+        event,
+        typingRecipients(chat.value, viewer.id)
+      );
+      return ok(true);
+    },
+
+    /** Everyone writing to a chat the viewer is in, from now on; never the viewer. */
+    typists(viewer: User): AsyncIterableIterator<Typing> {
+      return typingEvents.subscribe(viewer.id);
     },
 
     /** Every message sent from now on to a chat the viewer is in. */
