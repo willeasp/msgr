@@ -56,25 +56,65 @@ function bufferOf(audio: AudioContext, codes: SoundCodes): AudioBuffer {
   return buffer;
 }
 
+/**
+ * What the page tells an iPhone it's doing with sound (Safari 16.4 on):
+ * playing like music, so the silent switch doesn't mute it; recording,
+ * which iOS refuses while the page says it only plays; or nothing special.
+ * It stays as set until changed, so recording sets it back when done.
+ */
+export function setAudioFor(purpose: 'playback' | 'play-and-record' | 'auto') {
+  const { audioSession } = navigator as { audioSession?: { type: string } };
+  if (audioSession) audioSession.type = purpose;
+}
+
+/**
+ * The page's audio, made afresh when the last one is closed or stuck: iOS
+ * leaves a context "interrupted" once the app has been away, for a call,
+ * the lock screen or a notification opening it, and resuming rarely brings
+ * it back. Call it from a click, which a new context needs.
+ */
+function audio(): AudioContext {
+  const state = context?.state as string | undefined;
+  if (context && (state === 'closed' || state === 'interrupted')) {
+    void context.close().catch(() => undefined);
+    context = null;
+  }
+  context ??= new AudioContext();
+  // Phones start a context suspended until something is pressed.
+  void context.resume();
+  return context;
+}
+
+// Away from the page, the sound stops and its audio is let go; the next
+// play makes new audio, rather than finding it stuck.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) return;
+    stopSound();
+    void context?.close().catch(() => undefined);
+    context = null;
+  });
+}
+
 /** Stops whatever sound is playing, or only `owner`'s if it's given. */
 export function stopSound(owner?: string) {
   if (!playing || (owner && playing.owner !== owner)) return;
   const { source } = playing;
   playing = null;
   source.onended = null;
-  source.stop();
+  try {
+    source.stop();
+  } catch {
+    // Already stopped with its context.
+  }
   changed();
 }
 
 /** Plays the sound from `from` seconds, stopping any other. Call it from a click. */
 function playSound(codes: SoundCodes, owner: string, from: number) {
   stopSound();
-  // Played like music, so an iPhone's silent switch doesn't mute it.
-  const { audioSession } = navigator as { audioSession?: { type: string } };
-  if (audioSession) audioSession.type = 'playback';
-  context ??= new AudioContext();
-  // Phones start a context suspended until something is pressed.
-  void context.resume();
+  setAudioFor('playback');
+  const context = audio();
   const buffer = bufferOf(context, codes);
   const source = context.createBufferSource();
   source.buffer = buffer;
@@ -85,7 +125,12 @@ function playSound(codes: SoundCodes, owner: string, from: number) {
     playing = null;
     changed();
   };
-  source.start(0, at);
+  try {
+    source.start(0, at);
+  } catch {
+    // A context closed under it: the next press makes a new one.
+    return;
+  }
   playing = {
     owner,
     source,

@@ -16,7 +16,7 @@ import { firstPart, type Part } from '../../../lib/trim';
 import Button from '../../../sacred/components/Button';
 import { useModals } from '../../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../../sacred/modules/hotkeys';
-import { useSoundPlayer } from '../../hooks/use-sound';
+import { setAudioFor, stopSound, useSoundPlayer } from '../../hooks/use-sound';
 import { DialogButtons, DialogMessage, MacDialog } from '../MacDialog';
 import { SPEAKER } from '../icons';
 import { readSound } from './sound-from-file';
@@ -52,7 +52,9 @@ function recordingProblem(error: unknown): string {
   if (error instanceof DOMException && error.name === 'NotFoundError') {
     return 'There’s no microphone to record with. Choose a file instead.';
   }
-  return 'That recording didn’t work. Try again, or choose a file.';
+  // Its name says what went wrong, for anyone reporting it.
+  const name = error instanceof Error && error.name ? ` (${error.name})` : '';
+  return `That recording didn’t work${name}. Try again, or choose a file.`;
 }
 
 /**
@@ -117,6 +119,7 @@ export function SoundDialog({ title, file, onDone }: SoundDialogProps) {
         r.stop();
       }
       r?.stream.getTracks().forEach((track) => track.stop());
+      if (r) setAudioFor('auto');
     },
     []
   );
@@ -134,21 +137,39 @@ export function SoundDialog({ title, file, onDone }: SoundDialogProps) {
 
   const record = async () => {
     setProblem(null);
+    // Nothing plays while recording, and an iPhone must be told it's
+    // recording: after a sound has played, it refuses the microphone.
+    stopSound();
+    setAudioFor('play-and-record');
+    let stream: MediaStream | null = null;
+    // The microphone always goes back, or it stays taken until the app
+    // quits, and every later Record fails.
+    const done = () => {
+      stream?.getTracks().forEach((track) => track.stop());
+      recorder.current = null;
+      setAudioFor('auto');
+    };
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const r = new MediaRecorder(stream);
       const chunks: Blob[] = [];
       r.ondataavailable = (e) => chunks.push(e.data);
       r.onstop = () => {
-        stream.getTracks().forEach((track) => track.stop());
-        recorder.current = null;
+        done();
         void open(new Blob(chunks, { type: r.mimeType }));
+      };
+      r.onerror = () => {
+        r.onstop = null;
+        done();
+        setProblem(recordingProblem(null));
+        setStage({ kind: 'start' });
       };
       recorder.current = r;
       r.start();
       setElapsed(0);
       setStage({ kind: 'recording', since: performance.now() });
     } catch (error) {
+      done();
       setProblem(recordingProblem(error));
     }
   };
