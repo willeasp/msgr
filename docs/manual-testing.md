@@ -143,7 +143,9 @@ keyboard, notifications, layout) is checked here.
       shape plays from there, and playing another sound stops it. The chat
       list says "Sound", a notification "Sent a sound." On an iPhone, record
       in Safari, and play with the ringer switch both ways: it plays on silent
-      too.
+      too. Play a sound, then Record: it records. Choose File… opens Files,
+      where MP3s and M4As can be chosen. Lock the phone or open Msgr from a
+      notification, then play a sound: it plays.
 - [ ] **Draw on It:** under any picture or movie, opens it in the paint window at its
       size; attaching and sending adds a new message and leaves the original.
 - [ ] **Discarding:** Cancel or Esc on a canvas you've drawn on asks "Discard

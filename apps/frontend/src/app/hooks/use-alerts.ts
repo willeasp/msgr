@@ -4,7 +4,7 @@ import {
   serializeAlertPreferences,
   shouldAlert,
 } from '../../lib/alerts';
-import { beep } from '../../lib/beep';
+import { audio } from '../devices/audio';
 
 const STORAGE_KEY = 'alerts';
 const TITLE = document.title;
@@ -41,7 +41,7 @@ export function useAlerts(viewerId: string | undefined, openChatId?: string) {
     if (document.visibilityState !== 'visible') {
       document.title = `(${++unread.current}) ${TITLE}`;
     }
-    if (prefs.sound) beep();
+    if (prefs.sound) audio.beep();
   }, [prefs]);
 
   const alert = useCallback(
@@ -63,7 +63,7 @@ export function useAlerts(viewerId: string | undefined, openChatId?: string) {
     const next = { ...prefs, sound };
     localStorage.setItem(STORAGE_KEY, serializeAlertPreferences(next));
     setPrefs(next);
-    if (sound) beep();
+    if (sound) audio.beep();
   };
 
   /** Always worth a beep: someone joined with your invite, or added you somewhere. */

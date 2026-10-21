@@ -1,5 +1,6 @@
 import { fitWithin, MOVIE_FPS } from '@msgr/bitmap';
 import type { Part } from '../../../lib/trim';
+import { isAudio } from './sound-from-file';
 
 /** The longest video a movie can be cut from, in seconds. */
 export const LONGEST_VIDEO = 10 * 60;
@@ -9,10 +10,7 @@ export const isVideo = (file: Blob) => file.type.startsWith('video/');
 /** The first picture, video or sound among dropped or pasted files, if any. */
 export const firstMedia = (files: FileList | null | undefined) =>
   Array.from(files ?? []).find(
-    (file) =>
-      file.type.startsWith('image/') ||
-      isVideo(file) ||
-      file.type.startsWith('audio/')
+    (file) => file.type.startsWith('image/') || isVideo(file) || isAudio(file)
   ) ?? null;
 
 /** A movie's size for this video: shrunk to fit 320 on its long side. */
