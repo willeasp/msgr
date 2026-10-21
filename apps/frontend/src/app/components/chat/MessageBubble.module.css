@@ -93,3 +93,16 @@
 canvas + .content {
   margin-top: 4px;
 }
+
+/* What a click picks out; skin.css inverts it once it's selected. */
+.pick {
+  min-width: 0;
+  cursor: default;
+}
+
+/* Draw on It and Get Info, side by side under the bubble. */
+.under {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1ch;
+}

@@ -320,7 +320,7 @@ describe('reading a chat', () => {
       at: expect.any(Date),
     });
     expect(await readsOf(first.id)).toEqual([firstRead]);
-    expect(secondRead?.at.getTime()).toBeGreaterThan(firstRead!.at.getTime());
+    expect(Number(secondRead?.at)).toBeGreaterThan(Number(firstRead?.at));
   });
 
   it("answers for someone else's message exactly as for a missing one", async () => {

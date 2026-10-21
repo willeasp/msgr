@@ -16,6 +16,7 @@ import type { Attachment } from './attachment';
 import { firstMedia, isVideo } from './movie-from-file';
 import { pictureFromFile } from './picture-from-file';
 import { TrimDialog } from './TrimDialog';
+import { TypingStatus } from './TypingStatus';
 import styles from './ChatWindow.module.css';
 import { PixelText } from '../PixelText';
 
@@ -49,6 +50,12 @@ interface ChatWindowProps {
   onClose: () => void;
   /** Given for channels, which can take more people. */
   onAddPeople?: () => void;
+  /** Everyone else writing to this chat right now, first to start first. */
+  typing: readonly string[];
+  /** The message picked out with a click, if any. */
+  selectedMessageId?: string;
+  onSelectMessage: (messageId: string | null) => void;
+  onGetInfo: (messageId: string) => void;
 }
 
 /** An open chat: its people up top, the conversation, and the composer. */
@@ -57,6 +64,10 @@ export function ChatWindow({
   currentUserId,
   onClose,
   onAddPeople,
+  typing,
+  selectedMessageId,
+  onSelectMessage,
+  onGetInfo,
 }: ChatWindowProps) {
   const { data, loading } = useQuery(GET_CHAT_DATA, {
     variables: { chatId },
@@ -140,6 +151,7 @@ export function ChatWindow({
     <MacWindow
       title={title}
       onClose={onClose}
+      status={<TypingStatus names={typing} />}
       info={
         chat && (
           <>
@@ -178,6 +190,9 @@ export function ChatWindow({
           showNames={!!chat && chat.kind !== ChatKind.Direct}
           onDrawOnIt={drawOn}
           onDrawOnMovie={drawOnMovie}
+          selectedMessageId={selectedMessageId}
+          onSelectMessage={onSelectMessage}
+          onGetInfo={onGetInfo}
         />
         <MessageInput
           chatId={chatId}

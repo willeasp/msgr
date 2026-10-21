@@ -51,6 +51,16 @@ now include them without them opening one: the direct chat a newcomer started by
 signing up with their invite, or a channel someone added them to. The chat goes
 to the top of the list, and `useAlerts` rings for it.
 
+A third, `typing`, carries "Ana is typing…": the composer calls the `typing`
+mutation every few seconds while there's text, and the server passes it to the
+chat's other participants through another in-process `PubSub`, storing nothing.
+
+Reads are stored. While a chat is open on a visible page, the page calls
+`markRead` with its newest message; the server keeps one `ReadMark` per
+advance, and a message was first read at the earliest mark on it or after it
+in its chat (never counting its sender). Get Info on a message reads them
+through `Message.readBy`.
+
 Because `PubSub` and the login throttle live in process memory, Msgr runs as a
 single instance (see [ADR 0005](adr/0005-free-single-instance-hosting.md)).
 

@@ -1,0 +1,22 @@
+/* A gap in the stripes, like the title's, holding the watch and the words. */
+.typing {
+  display: flex;
+  gap: 1ch;
+  align-items: center;
+  max-width: 100%;
+  padding: 0 1ch;
+  background: var(--paper);
+  font-family: var(--font-family-chrome);
+  line-height: var(--line);
+
+  & > svg {
+    flex-shrink: 0;
+  }
+}
+
+.line {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
