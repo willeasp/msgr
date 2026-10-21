@@ -12,11 +12,13 @@ import {
   squash,
   waveform,
 } from '../../../lib/sound';
+import type { Recording } from '../../../lib/audio';
 import { firstPart, type Part } from '../../../lib/trim';
 import Button from '../../../sacred/components/Button';
 import { useModals } from '../../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../../sacred/modules/hotkeys';
-import { setAudioFor, stopSound, useSoundPlayer } from '../../hooks/use-sound';
+import { audio } from '../../audio';
+import { useSoundPlayer } from '../../hooks/use-sound';
 import { DialogButtons, DialogMessage, MacDialog } from '../MacDialog';
 import { SPEAKER } from '../icons';
 import { readSound } from './sound-from-file';
@@ -32,9 +34,19 @@ interface SoundDialogProps {
   onDone: (codes: SoundCodes) => void;
 }
 
+/**
+ * Where the dialog is. Asking for the microphone and recording hold their
+ * recording, so the microphone goes back with whatever ends them, the dialog
+ * closing included.
+ */
 type Stage =
   | { readonly kind: 'start' }
-  | { readonly kind: 'recording'; readonly since: number }
+  | { readonly kind: 'asking'; readonly recording: Recording }
+  | {
+      readonly kind: 'recording';
+      readonly recording: Recording;
+      readonly since: number;
+    }
   | { readonly kind: 'reading' }
   | { readonly kind: 'ready'; readonly samples: Float32Array };
 
@@ -75,7 +87,6 @@ export function SoundDialog({ title, file, onDone }: SoundDialogProps) {
   );
   const [squashing, setSquashing] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  const recorder = useRef<MediaRecorder | null>(null);
   const picker = useRef<HTMLInputElement>(null);
   const preview = made?.part === part ? made.codes : null;
   const { playing, at, play: playPreview, stop } = useSoundPlayer(preview);
@@ -109,19 +120,22 @@ export function SoundDialog({ title, file, onDone }: SoundDialogProps) {
     if (file) void open(file);
   }, [file, open]);
 
-  // Stops recording when the dialog goes; the player stops its own sound.
-  useEffect(
-    () => () => {
-      const r = recorder.current;
-      if (r && r.state !== 'inactive') {
-        r.ondataavailable = null;
-        r.onstop = null;
-        r.stop();
-      }
-      r?.stream.getTracks().forEach((track) => track.stop());
-      if (r) setAudioFor('auto');
+  // The recording held, if any, is cancelled when it's let go: the dialog
+  // closing, or a stage after it. Cancelling one that's over does nothing.
+  const held =
+    stage.kind === 'asking' || stage.kind === 'recording'
+      ? stage.recording
+      : null;
+  useEffect(() => (held ? () => held.cancel() : undefined), [held]);
+
+  const finishRecording = useCallback(
+    async (recording: Recording) => {
+      setStage({ kind: 'reading' });
+      const said = await recording.finish();
+      if (said) void open(said);
+      else setStage({ kind: 'start' });
     },
-    []
+    [open]
   );
 
   // The recording's time, and its end at a minute.
@@ -130,47 +144,25 @@ export function SoundDialog({ title, file, onDone }: SoundDialogProps) {
     const timer = setInterval(() => {
       const seconds = (performance.now() - stage.since) / 1000;
       setElapsed(seconds);
-      if (seconds >= LONGEST_SOUND) recorder.current?.stop();
+      if (seconds >= LONGEST_SOUND) void finishRecording(stage.recording);
     }, 200);
     return () => clearInterval(timer);
-  }, [stage]);
+  }, [stage, finishRecording]);
 
   const record = async () => {
     setProblem(null);
-    // Nothing plays while recording, and an iPhone must be told it's
-    // recording: after a sound has played, it refuses the microphone.
-    stopSound();
-    setAudioFor('play-and-record');
-    let stream: MediaStream | null = null;
-    // The microphone always goes back, or it stays taken until the app
-    // quits, and every later Record fails.
-    const done = () => {
-      stream?.getTracks().forEach((track) => track.stop());
-      recorder.current = null;
-      setAudioFor('auto');
-    };
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const r = new MediaRecorder(stream);
-      const chunks: Blob[] = [];
-      r.ondataavailable = (e) => chunks.push(e.data);
-      r.onstop = () => {
-        done();
-        void open(new Blob(chunks, { type: r.mimeType }));
-      };
-      r.onerror = () => {
-        r.onstop = null;
-        done();
-        setProblem(recordingProblem(null));
-        setStage({ kind: 'start' });
-      };
-      recorder.current = r;
-      r.start();
-      setElapsed(0);
-      setStage({ kind: 'recording', since: performance.now() });
-    } catch (error) {
-      done();
+    const recording = audio.record((error) => {
       setProblem(recordingProblem(error));
+      setStage({ kind: 'start' });
+    });
+    setStage({ kind: 'asking', recording });
+    try {
+      if (!(await recording.started)) return;
+      setElapsed(0);
+      setStage({ kind: 'recording', recording, since: performance.now() });
+    } catch (error) {
+      setProblem(recordingProblem(error));
+      setStage({ kind: 'start' });
     }
   };
 
@@ -216,7 +208,10 @@ export function SoundDialog({ title, file, onDone }: SoundDialogProps) {
 
   useHotkeys(
     'Escape',
-    () => (stage.kind === 'recording' ? recorder.current?.stop() : close()),
+    () =>
+      stage.kind === 'recording'
+        ? void finishRecording(stage.recording)
+        : close(),
     { enableOnFormTags: true }
   );
 
@@ -228,6 +223,11 @@ export function SoundDialog({ title, file, onDone }: SoundDialogProps) {
             Record up to a minute, or choose a song or any sound. It’s squashed
             small, crunchy like an old Mac, before it’s sent.
           </p>
+        </DialogMessage>
+      )}
+      {stage.kind === 'asking' && (
+        <DialogMessage icon={SPEAKER}>
+          <p aria-live="polite">Waiting for the microphone…</p>
         </DialogMessage>
       )}
       {stage.kind === 'recording' && (
@@ -273,13 +273,15 @@ export function SoundDialog({ title, file, onDone }: SoundDialogProps) {
       />
       <DialogButtons>
         {stage.kind === 'recording' ? (
-          <Button onClick={() => recorder.current?.stop()}>Stop</Button>
+          <Button onClick={() => void finishRecording(stage.recording)}>
+            Stop
+          </Button>
         ) : (
           <>
             <Button theme="SECONDARY" onClick={() => close()}>
               Cancel
             </Button>
-            {stage.kind !== 'reading' && (
+            {(stage.kind === 'start' || stage.kind === 'ready') && (
               <>
                 <Button
                   theme="SECONDARY"
