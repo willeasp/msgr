@@ -1,7 +1,7 @@
 import { SOUND_RATE } from '@msgr/bitmap';
-import { LONGEST_FILE, mono } from '../../../lib/sound';
+import { isSoundFile, LONGEST_FILE, mono } from '../../../lib/sound';
 
-export const isAudio = (file: Blob) => file.type.startsWith('audio/');
+export const isAudio = (file: File) => isSoundFile(file);
 
 /** Bigger than any file of 15 minutes worth reading: a long lossless one. */
 const LARGEST_FILE = 200 * 1024 * 1024;

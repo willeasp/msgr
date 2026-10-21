@@ -5,7 +5,13 @@ import {
   SOUND_RATE,
   type SoundCodes,
 } from '@msgr/bitmap';
-import { clock, samplePeaks, squash, waveform } from '../../../lib/sound';
+import {
+  clock,
+  samplePeaks,
+  SOUND_FILES,
+  squash,
+  waveform,
+} from '../../../lib/sound';
 import { firstPart, type Part } from '../../../lib/trim';
 import Button from '../../../sacred/components/Button';
 import { useModals } from '../../../sacred/components/page/ModalContext';
@@ -234,7 +240,7 @@ export function SoundDialog({ title, file, onDone }: SoundDialogProps) {
       <input
         ref={picker}
         type="file"
-        accept="audio/*"
+        accept={SOUND_FILES}
         className={styles.hidden}
         tabIndex={-1}
         aria-hidden
