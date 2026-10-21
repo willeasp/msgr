@@ -79,6 +79,23 @@ describe('withReceivedMessage', () => {
     ]);
   });
 
+  it('previews a sound by its being one, not by its bits', () => {
+    const next = withReceivedMessage([row('a', 'x')], {
+      ...received('a', 'unused'),
+      content: null,
+      sound: { frames: 51, bits: 'AAAA' },
+    });
+
+    expect(next[0]?.messages).toEqual([
+      {
+        id: 'a-new',
+        content: null,
+        sound: { frames: 51 },
+        createdAt: '2026-01-02',
+      },
+    ]);
+  });
+
   it('keeps a later preview when an earlier message arrives after it', () => {
     const chats = [row('a', 'x'), row('b', 'y')];
     const late = { ...received('b', 'stale'), createdAt: '2025-12-31' };

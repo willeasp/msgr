@@ -111,6 +111,8 @@ export function messageNotification(
       ? cut(message.content)
       : message.movie
       ? 'Sent a movie.'
+      : message.sound
+      ? 'Sent a sound.'
       : 'Sent a picture.',
     chatId: chat.id,
   };

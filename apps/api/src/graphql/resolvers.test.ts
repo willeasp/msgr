@@ -14,6 +14,7 @@ import {
 import { createContext } from './context.js';
 import { toBase64 } from '@msgr/bitmap';
 import { exampleMovie, movieInput } from '../testing/movies.js';
+import { soundInput } from '../testing/sounds.js';
 import { examplePicture, pictureInput } from '../testing/pictures.js';
 import { schema } from './server.js';
 
@@ -625,6 +626,64 @@ describe('messages', () => {
       });
       expect(codeOf(result)).toBe('BAD_USER_INPUT');
       expect(result.errors?.[0]?.extensions['field']).toBe('movie');
+    }
+  });
+
+  const sendSound = `mutation ($chatId: ID!, $content: String, $movie: MovieInput, $sound: SoundInput) {
+    sendMessage(input: { chatId: $chatId, content: $content, movie: $movie, sound: $sound }) {
+      content
+      movie { frames }
+      sound { frames bits }
+    }
+  }`;
+
+  it('sends a sound, alone or with text, and reads it back', async () => {
+    const { app, ada, team } = await world();
+    const sound = soundInput(2);
+    const kept = { frames: sound.frames, bits: sound.bits };
+
+    const alone = await execute(app, sendSound, {
+      as: ada,
+      variables: { chatId: team.id, sound },
+    });
+    const captioned = await execute(app, sendSound, {
+      as: ada,
+      variables: { chatId: team.id, content: 'listen', sound },
+    });
+    const read = await execute(
+      app,
+      'query ($id: ID!) { messages(chatId: $id) { content movie { frames } sound { frames bits } } }',
+      { as: ada, variables: { id: team.id } }
+    );
+
+    expect(alone.data).toEqual({
+      sendMessage: { content: null, movie: null, sound: kept },
+    });
+    expect(captioned.data).toEqual({
+      sendMessage: { content: 'listen', movie: null, sound: kept },
+    });
+    expect(read.data).toEqual({
+      messages: [
+        { content: null, movie: null, sound: kept },
+        { content: 'listen', movie: null, sound: kept },
+      ],
+    });
+  });
+
+  it('rejects a bad sound, or a sound with a movie, as bad input', async () => {
+    const { app, ada, team } = await world();
+
+    for (const variables of [
+      { sound: { ...soundInput(), frames: 1 } },
+      { sound: soundInput(1, 0) },
+      { movie: movieInput(), sound: soundInput() },
+    ]) {
+      const result = await execute(app, sendSound, {
+        as: ada,
+        variables: { chatId: team.id, ...variables },
+      });
+      expect(codeOf(result)).toBe('BAD_USER_INPUT');
+      expect(result.errors?.[0]?.extensions['field']).toBe('sound');
     }
   });
 

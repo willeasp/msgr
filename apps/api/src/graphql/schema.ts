@@ -81,15 +81,17 @@ export const typeDefs = /* GraphQL */ `
     chatId: ID!
   }
 
-  "Text, a picture or a movie, or text with one of them: at least one of content, picture and movie is set, and never both picture and movie."
+  "Text, a picture, a movie or a sound, or text with one of them: at least one of content, picture, movie and sound is set, and never two of picture, movie and sound."
   type Message {
     id: ID!
-    "The text; null for a picture or a movie alone."
+    "The text; null for a picture, a movie or a sound alone."
     content: String
     "A picture, drawn or dithered from a photo; null without one."
     picture: Picture
     "A movie, dithered from a video and perhaps drawn on; null without one."
     movie: Movie
+    "A sound, recorded or picked and squashed; null without one."
+    sound: Sound
     sender: User!
     chat: Chat!
     createdAt: DateTime!
@@ -153,12 +155,27 @@ export const typeDefs = /* GraphQL */ `
     bits: String!
   }
 
-  "Text, a picture or a movie, or text with one of them."
+  "A squashed sound, up to a minute long: frames of 20 ms that overlap by half, so it plays (frames - 1) × 160 samples at 8,000 a second."
+  type Sound {
+    "2 to 3001."
+    frames: Int!
+    "Its codes, made by encodeSound from @msgr/bitmap, in base64."
+    bits: String!
+  }
+
+  "As Sound: the server decodes its bits to exactly its length and takes them only if they're exactly how encodeSound codes what they decode to, and never a silent one."
+  input SoundInput {
+    frames: Int!
+    bits: String!
+  }
+
+  "Text, a picture, a movie or a sound, or text with one of them."
   input SendMessageInput {
     chatId: ID!
     content: String
     picture: PictureInput
     movie: MovieInput
+    sound: SoundInput
   }
 
   "Everything someone shows others of themselves, saved at once."

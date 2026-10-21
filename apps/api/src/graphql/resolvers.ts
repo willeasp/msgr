@@ -184,6 +184,10 @@ export const resolvers: Resolvers = {
     bits: (movie) => toBase64(movie.coded),
   },
 
+  Sound: {
+    bits: (sound) => toBase64(sound.coded),
+  },
+
   Message: {
     sender: (message, _, { loaders }) =>
       loadExisting(loaders.user, message.senderId),

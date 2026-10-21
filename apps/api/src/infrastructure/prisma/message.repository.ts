@@ -8,6 +8,7 @@ import {
 } from '../../domain/message.js';
 import type { Movie } from '../../domain/movie.js';
 import type { Picture } from '../../domain/picture.js';
+import type { Sound } from '../../domain/sound.js';
 import { UserId } from '../../domain/user.js';
 import { Prisma, type PrismaClient } from './client.js';
 
@@ -23,6 +24,8 @@ const messageFields = {
   movieWidth: true,
   movieHeight: true,
   movieFrames: true,
+  sound: true,
+  soundFrames: true,
   createdAt: true,
 } satisfies Prisma.MessageSelect;
 
@@ -45,7 +48,7 @@ export function prismaMessageRepository(db: PrismaClient): MessageRepository {
       const rows = await db.$queryRaw<MessageRow[]>`
         SELECT "id", "chatId", "senderId", "content", "picture",
           "pictureWidth", "pictureHeight", "movie", "movieWidth",
-          "movieHeight", "movieFrames", "createdAt"
+          "movieHeight", "movieFrames", "sound", "soundFrames", "createdAt"
         FROM (
           SELECT *, ROW_NUMBER() OVER (
             PARTITION BY "chatId" ORDER BY "createdAt" DESC, "id" DESC
@@ -59,7 +62,8 @@ export function prismaMessageRepository(db: PrismaClient): MessageRepository {
     },
 
     async append(message) {
-      const { chatId, senderId, createdAt, content, picture, movie } = message;
+      const { chatId, senderId, createdAt, content, picture, movie, sound } =
+        message;
       const body = {
         content,
         picture: picture?.deflated ?? null,
@@ -69,6 +73,8 @@ export function prismaMessageRepository(db: PrismaClient): MessageRepository {
         movieWidth: movie?.width ?? null,
         movieHeight: movie?.height ?? null,
         movieFrames: movie?.frames ?? null,
+        sound: sound?.coded ?? null,
+        soundFrames: sound?.frames ?? null,
       };
       const [row] = await db.$transaction([
         db.message.create({
@@ -96,7 +102,8 @@ function toMessage(row: MessageRow): Message {
   const body = MessageBody.of(
     row.content as MessageContent | null,
     pictureOf(row),
-    movieOf(row)
+    movieOf(row),
+    soundOf(row)
   );
   if (!body.ok) {
     throw new Error(`Message ${row.id} breaks its CHECK: ${body.error.reason}`);
@@ -132,4 +139,13 @@ function movieOf({
     throw new Error(`Message ${id} has a movie without its size`);
   }
   return { width, height, frames, coded: new Uint8Array(movie) } as Movie;
+}
+
+/** Checked when it was sent, and held to its length by a CHECK since. */
+function soundOf({ id, sound, soundFrames: frames }: MessageRow): Sound | null {
+  if (sound === null) return null;
+  if (frames === null) {
+    throw new Error(`Message ${id} has a sound without its length`);
+  }
+  return { frames, coded: new Uint8Array(sound) } as Sound;
 }

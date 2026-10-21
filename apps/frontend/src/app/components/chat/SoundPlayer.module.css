@@ -1,0 +1,49 @@
+/* Play or stop, the sound's shape, and its time, in the bubble's own ink. */
+.player {
+  display: inline-flex;
+  gap: 1ch;
+  align-items: center;
+  max-width: 100%;
+}
+
+.button {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: calc(var(--line) * 1.25);
+  height: calc(var(--line) * 1.25);
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 1px dotted currentColor;
+    outline-offset: 2px;
+  }
+}
+
+/* The shape at 2× (1× on a phone), like a picture, clicked to play from there. */
+.wave {
+  display: block;
+  min-width: 0;
+  width: calc(var(--width) * 2px);
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: var(--width) / var(--height);
+  color: inherit;
+  background: transparent;
+  image-rendering: pixelated;
+  cursor: pointer;
+
+  @media (max-width: 760px) {
+    width: calc(var(--width) * 1px);
+  }
+}
+
+.time {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}

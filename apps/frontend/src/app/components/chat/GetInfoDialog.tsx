@@ -15,7 +15,12 @@ import { useHotkeys } from '../../../sacred/modules/hotkeys';
 import { ME } from '../../auth/protected-route';
 import { useClock } from '../../hooks/use-clock';
 import { Face } from '../Face';
-import { MOVIE_DOCUMENT, PICTURE_DOCUMENT, TEXT_DOCUMENT } from '../icons';
+import {
+  MOVIE_DOCUMENT,
+  PICTURE_DOCUMENT,
+  SOUND_DOCUMENT,
+  TEXT_DOCUMENT,
+} from '../icons';
 import { LoadingState } from '../LoadingState';
 import { DialogButtons, MacDialog } from '../MacDialog';
 import { Muted } from '../Muted';
@@ -23,8 +28,8 @@ import { PixelIcon } from '../PixelIcon';
 import { PixelText } from '../PixelText';
 import styles from './GetInfoDialog.module.css';
 
-// The picture's and movie's sizes only: the cache merges them, keeping the
-// pixels the history read.
+// The picture's and movie's sizes and the sound's length only: the cache
+// merges them, keeping the bits the history read.
 const MESSAGE_INFO = gql(`
   query MessageInfo($id: ID!) {
     message(id: $id) {
@@ -37,6 +42,9 @@ const MESSAGE_INFO = gql(`
       movie {
         width
         height
+        frames
+      }
+      sound {
         frames
       }
       createdAt
@@ -125,6 +133,8 @@ export function GetInfoDialog({ messageId }: { messageId: string }) {
               bitmap={
                 message.movie
                   ? MOVIE_DOCUMENT
+                  : message.sound
+                  ? SOUND_DOCUMENT
                   : message.picture
                   ? PICTURE_DOCUMENT
                   : TEXT_DOCUMENT

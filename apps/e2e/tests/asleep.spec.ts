@@ -1,8 +1,9 @@
 import { devices, expect, test, type Page } from '@playwright/test';
 import {
   anotherPerson,
-  chatWindow,
+  attach,
   chatsWindow,
+  chatWindow,
   menuBar,
   signIn,
 } from './support';
@@ -58,7 +59,7 @@ test('what you send while the connection is down still shows in the chat list', 
 
   const chat = chatWindow(page, '#general');
   const chooser = page.waitForEvent('filechooser');
-  await chat.getByRole('button', { name: 'Picture…' }).click();
+  await attach(chat, 'Picture…');
   await (
     await chooser
   ).setFiles({

@@ -1,5 +1,11 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { anotherPerson, chatWindow, chatsWindow, signIn } from './support';
+import {
+  anotherPerson,
+  attach,
+  chatsWindow,
+  chatWindow,
+  signIn,
+} from './support';
 
 // A 400×200 photo, `left` on the left and white on the right, drawn in the
 // browser so the test needs no files.
@@ -67,7 +73,7 @@ test('a photo goes with a message, dithered on the way, at its own shape', async
   const chat = chatWindow(page, 'Project Team');
 
   const chooser = page.waitForEvent('filechooser');
-  await chat.getByRole('button', { name: 'Picture…' }).click();
+  await attach(chat, 'Picture…');
   await (
     await chooser
   ).setFiles({
@@ -83,7 +89,10 @@ test('a photo goes with a message, dithered on the way, at its own shape', async
     .getByRole('img', { name: 'Canvas' });
   await expect(canvas).toHaveAttribute('width', '320');
   await expect(canvas).toHaveAttribute('height', '160');
-  await page.getByRole('button', { name: 'Attach' }).click();
+  await page
+    .getByRole('dialog', { name: /^Drawing for / })
+    .getByRole('button', { name: 'Attach' })
+    .click();
 
   await chat.getByRole('textbox', { name: 'Message' }).fill('the coast');
   await chat.getByRole('button', { name: 'Send', exact: true }).click();
@@ -130,9 +139,12 @@ test('pasting or dropping a photo attaches it; a broken one is refused', async (
   );
 
   // Attaching a drawing instead clears the complaint.
-  await chat.getByRole('button', { name: 'Draw…' }).click();
+  await attach(chat, 'Draw…');
   await page.getByRole('img', { name: 'Canvas' }).click();
-  await page.getByRole('button', { name: 'Attach' }).click();
+  await page
+    .getByRole('dialog', { name: /^Drawing for / })
+    .getByRole('button', { name: 'Attach' })
+    .click();
   await expect(preview).toBeVisible();
   await expect(chat.getByRole('alert')).toHaveCount(0);
 });

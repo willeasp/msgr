@@ -1,20 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { atkinson, blank, type Bits, type Frames } from '@msgr/bitmap';
 import { makeMovie } from '../../../lib/movie';
-import {
-  firstPart,
-  LONGEST,
-  moveTo,
-  setEnd,
-  setStart,
-  type Part,
-} from '../../../lib/trim';
+import { firstPart, LONGEST, type Part } from '../../../lib/trim';
 import Button from '../../../sacred/components/Button';
 import { useModals } from '../../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../../sacred/modules/hotkeys';
-import { useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
 import { DialogButtons, MacDialog } from '../MacDialog';
 import { captureGrey, LONGEST_VIDEO, movieSize, seek } from './movie-from-file';
+import { Timeline } from './Timeline';
 import styles from './TrimDialog.module.css';
 
 interface TrimDialogProps {
@@ -28,7 +21,6 @@ interface TrimDialogProps {
 
 const clock = (s: number) =>
   `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-const seconds = (s: number) => `${Math.round(s * 10) / 10} s`;
 
 /**
  * Chooses up to six seconds of a video, the way a phone trims one: a window
@@ -52,11 +44,6 @@ export function TrimDialog({ title, file, onDone }: TrimDialogProps) {
   const [playhead, setPlayhead] = useState<number | null>(null);
   const [strip, setStrip] = useState<Bits>(() => blank(1, 1));
   const abort = useRef<AbortController | null>(null);
-  const drag = useRef<{
-    mode: 'start' | 'end' | 'move';
-    offset: number;
-  } | null>(null);
-  const { ref: stripRef } = useBitmapCanvas(strip);
 
   useEffect(() => {
     // An object URL lets the browser stream the file from disk.
@@ -68,7 +55,6 @@ export function TrimDialog({ title, file, onDone }: TrimDialogProps) {
   useEffect(() => () => abort.current?.abort(), []);
 
   const ready = duration > 0;
-  const length = part.end - part.start;
 
   const onMetadata = () => {
     const v = video.current;
@@ -184,63 +170,6 @@ export function TrimDialog({ title, file, onDone }: TrimDialogProps) {
     show(at);
   };
 
-  const timeAt = (clientX: number) => {
-    const box = track.current?.getBoundingClientRect();
-    if (!box) return 0;
-    return (
-      Math.min(1, Math.max(0, (clientX - box.left) / box.width)) * duration
-    );
-  };
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!ready || making) return;
-    const t = timeAt(e.clientX);
-    const handle = (e.target as HTMLElement).dataset['handle'];
-    if (handle === 'start' || handle === 'end') {
-      drag.current = { mode: handle, offset: 0 };
-    } else if (handle === 'window') {
-      drag.current = { mode: 'move', offset: t - part.start };
-    } else {
-      // A tap beside the window centres it there.
-      const moved = moveTo(part, t - length / 2, duration);
-      choose(moved, moved.start);
-      drag.current = { mode: 'move', offset: t - moved.start };
-    }
-    e.currentTarget.setPointerCapture(e.pointerId);
-    e.preventDefault();
-  };
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const d = drag.current;
-    if (!d) return;
-    const t = timeAt(e.clientX);
-    if (d.mode === 'start') {
-      const next = setStart(part, t);
-      choose(next, next.start);
-    } else if (d.mode === 'end') {
-      const next = setEnd(part, t, duration);
-      choose(next, next.end);
-    } else {
-      const next = moveTo(part, t - d.offset, duration);
-      choose(next, next.start);
-    }
-  };
-  const endDrag = () => {
-    drag.current = null;
-  };
-  const keys =
-    (apply: (step: number) => [Part, number]) => (e: React.KeyboardEvent) => {
-      const step = e.shiftKey ? 5 : 0.5;
-      const by = {
-        ArrowLeft: -step,
-        ArrowDown: -step,
-        ArrowRight: step,
-        ArrowUp: step,
-      }[e.key];
-      if (by === undefined || making) return;
-      e.preventDefault();
-      e.stopPropagation();
-      choose(...apply(by));
-    };
-
   const make = async () => {
     const v = video.current;
     if (!v || making) return;
@@ -289,8 +218,6 @@ export function TrimDialog({ title, file, onDone }: TrimDialogProps) {
     enableOnFormTags: true,
   });
 
-  const percent = (t: number) => `${(t / (duration || 1)) * 100}%`;
-
   return (
     <MacDialog title={title} modal wide>
       <div className={styles.preview}>
@@ -320,88 +247,16 @@ export function TrimDialog({ title, file, onDone }: TrimDialogProps) {
         )}
       </div>
       {ready && (
-        <>
-          <div
-            ref={track}
-            className={styles.timeline}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={endDrag}
-            onPointerCancel={endDrag}
-          >
-            <canvas
-              ref={stripRef}
-              width={strip.width}
-              height={strip.height}
-              className={styles.strip}
-              aria-hidden
-            />
-            <div
-              className={styles.shade}
-              style={{ left: 0, width: percent(part.start) }}
-            />
-            <div
-              className={styles.shade}
-              style={{ left: percent(part.end), right: 0 }}
-            />
-            <div
-              data-handle="window"
-              className={styles.window}
-              style={{ left: percent(part.start), width: percent(length) }}
-              tabIndex={0}
-              role="group"
-              aria-label="The part to keep: drag it, or use the arrow keys"
-              onKeyDown={keys((by) => {
-                const next = moveTo(part, part.start + by, duration);
-                return [next, next.start];
-              })}
-            >
-              <div
-                data-handle="start"
-                className={`${styles.handle} ${styles.start}`}
-                role="slider"
-                tabIndex={0}
-                aria-label="Start"
-                aria-valuemin={0}
-                aria-valuemax={duration}
-                aria-valuenow={part.start}
-                aria-valuetext={clock(part.start)}
-                onKeyDown={keys((by) => {
-                  const next = setStart(part, part.start + by);
-                  return [next, next.start];
-                })}
-              />
-              <div
-                data-handle="end"
-                className={`${styles.handle} ${styles.end}`}
-                role="slider"
-                tabIndex={0}
-                aria-label="End"
-                aria-valuemin={0}
-                aria-valuemax={duration}
-                aria-valuenow={part.end}
-                aria-valuetext={clock(part.end)}
-                onKeyDown={keys((by) => {
-                  const next = setEnd(part, part.end + by, duration);
-                  return [next, next.end];
-                })}
-              />
-            </div>
-            {playhead !== null && (
-              <div
-                className={styles.playhead}
-                style={{ left: percent(playhead) }}
-              />
-            )}
-          </div>
-          <p className={styles.times}>
-            <span>{clock(part.start)}</span>
-            <b>
-              {seconds(length)} of at most {LONGEST} s
-            </b>
-            <span>{clock(part.end)}</span>
-          </p>
-        </>
+        <Timeline
+          ref={track}
+          duration={duration}
+          longest={LONGEST}
+          part={part}
+          onChoose={choose}
+          strip={strip}
+          playhead={playhead}
+          disabled={!!making}
+        />
       )}
       {problem && (
         <p role="alert" className={styles.problem}>

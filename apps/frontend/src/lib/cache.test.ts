@@ -113,3 +113,50 @@ describe("a message's movie", () => {
     });
   });
 });
+
+describe("a message's sound", () => {
+  const FULL = gql`
+    query Full {
+      message {
+        id
+        sound {
+          frames
+          bits
+        }
+      }
+    }
+  `;
+  const PREVIEW = gql`
+    query Preview {
+      message {
+        id
+        sound {
+          frames
+        }
+      }
+    }
+  `;
+  const sound = { __typename: 'Sound', frames: 3, bits: 'AAAA' };
+
+  it('keeps its bits when the chat list reads only whether there is one', () => {
+    const cache = createCache();
+    cache.writeQuery({
+      query: FULL,
+      data: { message: { __typename: 'Message', id: 'm', sound } },
+    });
+    cache.writeQuery({
+      query: PREVIEW,
+      data: {
+        message: {
+          __typename: 'Message',
+          id: 'm',
+          sound: { __typename: 'Sound', frames: 3 },
+        },
+      },
+    });
+
+    expect(cache.readQuery({ query: FULL })).toEqual({
+      message: { __typename: 'Message', id: 'm', sound },
+    });
+  });
+});
