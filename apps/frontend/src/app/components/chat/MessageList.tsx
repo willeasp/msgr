@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useQuery } from '@apollo/client/react';
 import { gql } from '../../../lib/__generated__';
+import { useReading } from '../../hooks/use-reading';
 import { LoadingState } from '../LoadingState';
 import { Muted } from '../Muted';
 import type { WireMovie } from '../../../lib/movie-wire';
@@ -45,6 +46,11 @@ interface MessageListProps {
   showNames: boolean;
   onDrawOnIt?: (picture: WirePicture) => void;
   onDrawOnMovie?: (movie: WireMovie) => void;
+  /** The message picked out with a click, if any. */
+  selectedMessageId?: string;
+  /** Picks out a message, or none when the click was on nothing. */
+  onSelectMessage?: (messageId: string | null) => void;
+  onGetInfo?: (messageId: string) => void;
 }
 
 export function MessageList({
@@ -53,6 +59,9 @@ export function MessageList({
   showNames,
   onDrawOnIt,
   onDrawOnMovie,
+  selectedMessageId,
+  onSelectMessage,
+  onGetInfo,
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -76,6 +85,9 @@ export function MessageList({
     hasScrolled.current = true;
   }, [messagesData?.messages]);
 
+  // Whatever's on a visible screen has been read.
+  useReading(messagesData?.messages.at(-1)?.id);
+
   if (messagesLoading && !messagesData) {
     return (
       <div className={styles.root}>
@@ -97,7 +109,17 @@ export function MessageList({
   }
 
   return (
-    <div className={styles.root} role="log" aria-label="Messages">
+    <div
+      className={styles.root}
+      role="log"
+      aria-label="Messages"
+      // A click on nothing in particular lets go of the selected message.
+      onClick={(e) => {
+        if (!(e.target as Element).closest('button, a')) {
+          onSelectMessage?.(null);
+        }
+      }}
+    >
       {messages.map((message, index) => (
         <MessageBubble
           key={message.id}
@@ -107,6 +129,9 @@ export function MessageList({
           showName={showNames}
           onDrawOnIt={onDrawOnIt}
           onDrawOnMovie={onDrawOnMovie}
+          selected={message.id === selectedMessageId}
+          onSelect={onSelectMessage && (() => onSelectMessage(message.id))}
+          onGetInfo={onGetInfo && (() => onGetInfo(message.id))}
         />
       ))}
       <div ref={messagesEndRef} />

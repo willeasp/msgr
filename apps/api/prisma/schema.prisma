@@ -20,6 +20,7 @@ model User {
   invitesSent       Invite[]           @relation("InvitesSent")
   invite            Invite?            @relation("InviteUsed")
   pushSubscriptions PushSubscription[]
+  readMarks         ReadMark[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 }
@@ -45,26 +46,41 @@ model Chat {
 /// Text, a picture, or both: at least one of `content` and `picture` is set,
 /// and a picture always has its size (enforced by a CHECK constraint).
 model Message {
-  id            String   @id @default(cuid())
+  id            String     @id @default(cuid())
   content       String?
   /// A 1-bit picture, raw DEFLATE of the `@msgr/bitmap` layout; see domain/picture.ts.
   picture       Bytes?
-  pictureWidth  Int?     @db.SmallInt
-  pictureHeight Int?     @db.SmallInt
+  pictureWidth  Int?       @db.SmallInt
+  pictureHeight Int?       @db.SmallInt
   /// A 1-bit movie, its frames coded by `encodeMovie`; see domain/movie.ts.
   movie         Bytes?
-  movieWidth    Int?     @db.SmallInt
-  movieHeight   Int?     @db.SmallInt
-  movieFrames   Int?     @db.SmallInt
+  movieWidth    Int?       @db.SmallInt
+  movieHeight   Int?       @db.SmallInt
+  movieFrames   Int?       @db.SmallInt
   senderId      String
-  sender        User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  sender        User       @relation(fields: [senderId], references: [id], onDelete: Cascade)
   chatId        String
-  chat          Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  chat          Chat       @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  readMarks     ReadMark[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
   @@index([chatId, createdAt, id])
   @@index([senderId])
+}
+
+/// How far someone had read a chat, and when: they read it up to and
+/// including this message. Each message they've read was first read at the
+/// earliest of their marks on it or a later message in its chat.
+model ReadMark {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  readAt    DateTime
+
+  @@id([userId, messageId])
+  @@index([messageId])
 }
 
 /// A single-use way in for someone new. Stores a hash of the code, never the

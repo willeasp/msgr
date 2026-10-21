@@ -9,6 +9,7 @@ import {
 import { gql } from '../../lib/__generated__';
 import type { OnChatAddedSubscription } from '../../lib/__generated__/graphql';
 import type { ReceivedMessage } from '../../lib/chat-list';
+import type { TypingEvent } from '../../lib/typing';
 import { GET_CHATS } from '../components/chat/ChatSidebar';
 import { GET_CHAT_MESSAGES } from '../components/chat/MessageList';
 import type { ArrivedMessage } from './use-alerts';
@@ -149,18 +150,32 @@ const PROFILE_CHANGED_SUBSCRIPTION = gql(`
   }
 `);
 
+// Someone writing to one of the viewer's chats; their name is cached like any.
+const TYPING_SUBSCRIPTION = gql(`
+  subscription OnTyping {
+    typing {
+      chatId
+      user {
+        id
+        name
+      }
+    }
+  }
+`);
+
 export type AddedChat = OnChatAddedSubscription['chatAdded'];
 
 /**
  * Everything live for the viewer, for as long as the chat page is open,
  * whichever windows are showing: every message to any of their chats,
- * every chat that comes to include them, and every change to the profile of
- * someone they share a chat with. Keeps the chat list and each chat's
+ * every chat that comes to include them, everyone writing to one, and every
+ * change to the profile of someone they share a chat with. Keeps the chat list and each chat's
  * history current, and hands each event on to be alerted.
  */
 export function useChatFeed(handlers: {
   onMessage: (message: ArrivedMessage) => void;
   onChatAdded: (event: AddedChat) => void;
+  onTyping: (event: TypingEvent) => void;
 }) {
   // Subscriptions keep their first handlers; read the latest ones through a ref.
   const latest = useRef(handlers);
@@ -178,6 +193,13 @@ export function useChatFeed(handlers: {
   });
 
   useSubscription(PROFILE_CHANGED_SUBSCRIPTION);
+
+  useSubscription(TYPING_SUBSCRIPTION, {
+    onData: ({ data }) => {
+      const event = data.data?.typing;
+      if (event) latest.current.onTyping(event);
+    },
+  });
 
   useSubscription(CHAT_ADDED_SUBSCRIPTION, {
     onData: ({ data, client }) => {

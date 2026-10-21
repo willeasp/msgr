@@ -75,6 +75,17 @@ _Avoid_: Video (that's the file it's made from), clip, GIF
 **Activity**:
 When a chat last received a message. A viewer's chats are listed most recently active first. Opening a chat, or joining or leaving a channel, is not activity.
 
+**Read**:
+That a participant other than its sender has read a message, and when they first did. Having a chat open on a visible page reads it up to its newest message, and reading a message reads every one before it too. Get Info on a message shows its reads, and who has yet to.
+_Avoid_: Seen, read receipt (in code)
+
+**Get Info**:
+A message's details, as Finder shows a file's: what it holds and how big, where and when it was sent, by whom, and its reads.
+
+**Typing**:
+The live notice that a participant is writing a message to a chat, told to its other participants. It lasts a few seconds unless it comes again, and their message ends it. Never stored.
+_Avoid_: Composing, presence
+
 **Page**:
 A window into a chat's history, counted back from the newest message and returned oldest first.
 

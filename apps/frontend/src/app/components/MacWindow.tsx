@@ -6,6 +6,8 @@ interface MacWindowProps {
   title: string;
   /** Puts a close box in the title bar. */
   onClose?: () => void;
+  /** At the right of the title bar, across the stripes from the close box. */
+  status?: React.ReactNode;
   /** A Finder-style line under the title bar, for counts and names. */
   info?: React.ReactNode;
   /** Stretch to the height of the space it sits in. */
@@ -17,6 +19,7 @@ interface MacWindowProps {
 export function MacWindow({
   title,
   onClose,
+  status,
   info,
   fill = false,
   children,
@@ -39,6 +42,7 @@ export function MacWindow({
         <h2 className={styles.title}>
           <PixelText text={title} />
         </h2>
+        {status && <div className={styles.status}>{status}</div>}
       </header>
       {info && <div className={styles.info}>{info}</div>}
       <div className={styles.body}>{children}</div>

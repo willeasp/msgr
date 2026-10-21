@@ -13,8 +13,10 @@ import type { Url } from '../domain/link.js';
 import type { Message, MessageId, NewMessage } from '../domain/message.js';
 import type { Page } from '../domain/page.js';
 import type { Notification, PushSubscription } from '../domain/push.js';
+import type { Read } from '../domain/read.js';
 import type { Result } from '../domain/result.js';
 import type { PictureCodec } from '../domain/picture.js';
+import type { Typing } from '../domain/typing.js';
 import type {
   Credentials,
   Email,
@@ -75,6 +77,20 @@ export interface MessageRepository {
   append(message: NewMessage): Promise<Message>;
 }
 
+/** Who has read what. Reading a chat up to a message reads every message before it too. */
+export interface ReadRepository {
+  /**
+   * Records that `readerId` read the message's chat up to and including it,
+   * at `at`. A no-op if they had already read that far.
+   */
+  markRead(message: Message, readerId: UserId, at: Date): Promise<void>;
+  /**
+   * For each message, everyone but its sender who has read it, and when they
+   * first did. Messages nobody has read are left out.
+   */
+  findByMessageIds(ids: readonly MessageId[]): Promise<Read[]>;
+}
+
 export interface InviteRepository {
   create(invite: Invite): Promise<void>;
   /** Unused, and not yet expired at `at`. */
@@ -114,6 +130,7 @@ export interface Repositories {
   readonly users: UserRepository;
   readonly chats: ChatRepository;
   readonly messages: MessageRepository;
+  readonly reads: ReadRepository;
   readonly invites: InviteRepository;
   readonly pushSubscriptions: PushSubscriptionRepository;
 }
@@ -142,6 +159,12 @@ export interface MessageEvents {
 export interface ChatEvents {
   publish(event: ChatAdded, recipient: UserId): Promise<void>;
   subscribe(recipient: UserId): AsyncIterableIterator<ChatAdded>;
+}
+
+/** Tells a chat's other participants that someone is writing to it, live. */
+export interface TypingEvents {
+  publish(event: Typing, recipients: readonly UserId[]): Promise<void>;
+  subscribe(recipient: UserId): AsyncIterableIterator<Typing>;
 }
 
 /** Tells everyone who shares a chat with someone that their profile changed, live. */
@@ -190,6 +213,7 @@ export interface Dependencies {
   readonly events: MessageEvents;
   readonly chatEvents: ChatEvents;
   readonly profileEvents: ProfileEvents;
+  readonly typingEvents: TypingEvents;
   readonly clock: Clock;
   readonly inviteCodes: InviteCodes;
   readonly throttle: Throttle;

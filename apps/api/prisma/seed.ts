@@ -21,6 +21,8 @@ interface Conversation {
   readonly channel?: string;
   readonly members: readonly Person[];
   readonly lines: readonly (readonly [Person, string, string])[];
+  /** Who had read how far, and when: up to the line sent at the second time. */
+  readonly reads?: readonly (readonly [Person, string, string])[];
 }
 
 const conversations: Conversation[] = [
@@ -94,6 +96,12 @@ const conversations: Conversation[] = [
         "Let's have our kickoff meeting tomorrow at 10 AM",
       ],
     ],
+    // Get Info on the kickoff: Bob has read it, Diana not yet.
+    reads: [
+      ['diana', '2024-01-16T08:20:00Z', '2024-01-16T08:21:00Z'],
+      ['test', '2024-01-16T09:00:00Z', '2024-01-16T09:00:00Z'],
+      ['bob', '2024-01-16T09:00:00Z', '2024-01-16T09:04:00Z'],
+    ],
   },
 ];
 
@@ -111,9 +119,9 @@ async function seed(db: PrismaClient) {
 
   await db.chat.deleteMany();
 
-  for (const { title, channel, members, lines } of conversations) {
+  for (const { title, channel, members, lines, reads = [] } of conversations) {
     const participantIds = members.map((member) => ids[member]);
-    await db.chat.create({
+    const chat = await db.chat.create({
       data: {
         ...(channel
           ? { channelName: channel }
@@ -130,6 +138,20 @@ async function seed(db: PrismaClient) {
         },
         updatedAt: new Date(lines.at(-1)?.[1] ?? Date.now()),
       },
+      include: { messages: true },
+    });
+    await db.readMark.createMany({
+      data: reads.map(([reader, upTo, readAt]) => {
+        const message = chat.messages.find(
+          ({ createdAt }) => createdAt.getTime() === new Date(upTo).getTime()
+        );
+        if (!message) throw new Error(`No line sent at ${upTo}`);
+        return {
+          userId: ids[reader],
+          messageId: message.id,
+          readAt: new Date(readAt),
+        };
+      }),
     });
   }
 

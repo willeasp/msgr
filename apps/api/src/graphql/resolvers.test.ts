@@ -837,3 +837,115 @@ describe('push', () => {
     expect(app.deps.watching.isWatching(ada.id, team.id)).toBe(false);
   });
 });
+
+describe('reads', () => {
+  const READ = 'mutation ($id: ID!) { markRead(messageId: $id) }';
+  const INFO = `query ($id: ID!) {
+    message(id: $id) { content sender { name } readBy { reader { name } at } }
+  }`;
+
+  it('says who has read a message, and when they first did', async () => {
+    const { app, ada, grace, linus, team } = await world();
+    const services = app.services();
+    const first = await services.messages.send(ada, {
+      chatId: team.id,
+      content: 'one',
+    });
+    const second = await services.messages.send(ada, {
+      chatId: team.id,
+      content: 'two',
+    });
+    if (!first.ok || !second.ok) throw new Error('setup');
+
+    await execute(app, READ, { as: grace, variables: { id: first.value.id } });
+    await execute(app, READ, { as: linus, variables: { id: second.value.id } });
+    await execute(app, READ, { as: ada, variables: { id: second.value.id } });
+    const info = await execute(app, INFO, {
+      as: ada,
+      variables: { id: first.value.id },
+    });
+
+    expect(info.data).toEqual({
+      message: {
+        content: 'one',
+        sender: { name: 'Ada' },
+        readBy: [
+          { reader: { name: 'Grace' }, at: expect.any(String) },
+          { reader: { name: 'Linus' }, at: expect.any(String) },
+        ],
+      },
+    });
+  });
+
+  it("knows no message outside the viewer's chats", async () => {
+    const { app, ada, grace, direct } = await world();
+    const sent = await app
+      .services()
+      .messages.send(ada, { chatId: direct.id, content: 'psst' });
+    if (!sent.ok) throw new Error('setup');
+    const linus = await app.fixtures.user({ name: 'Linus Two' });
+
+    const info = await execute(app, INFO, {
+      as: linus,
+      variables: { id: sent.value.id },
+    });
+    const read = await execute(app, READ, {
+      as: linus,
+      variables: { id: sent.value.id },
+    });
+
+    expect(info.data).toEqual({ message: null });
+    expect(codeOf(read)).toBe('NOT_FOUND');
+    expect(
+      (
+        await execute(app, INFO, {
+          as: grace,
+          variables: { id: sent.value.id },
+        })
+      ).data
+    ).toEqual({
+      message: { content: 'psst', sender: { name: 'Ada' }, readBy: [] },
+    });
+  });
+
+  it('reads a whole history in one batch', async () => {
+    const { app, ada, grace, team } = await world();
+    const services = app.services();
+    for (const content of ['one', 'two', 'three']) {
+      await services.messages.send(ada, { chatId: team.id, content });
+    }
+    const findReads = vi.spyOn(app.deps.repositories.reads, 'findByMessageIds');
+
+    const result = await execute(
+      app,
+      `query ($chatId: ID!) {
+        messages(chatId: $chatId) { readBy { reader { name } } }
+      }`,
+      { as: grace, variables: { chatId: team.id } }
+    );
+
+    expect(result.errors).toBeUndefined();
+    expect(findReads).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('typing', () => {
+  it("tells the chat's other participants who is writing", async () => {
+    const { app, ada, grace, linus, direct } = await world();
+    const query = 'subscription { typing { chatId user { name } } }';
+    const toGrace = nextEvent(await feed(app, grace, query));
+    const toLinus = nextEvent(await feed(app, linus, query));
+
+    const said = await execute(
+      app,
+      'mutation ($chatId: ID!) { typing(chatId: $chatId) }',
+      { as: ada, variables: { chatId: direct.id } }
+    );
+
+    expect(said.data).toEqual({ typing: true });
+    expect(await toGrace).toEqual({
+      data: { typing: { chatId: direct.id, user: { name: 'Ada' } } },
+    });
+    expect(await toLinus).toBe('nothing');
+  });
+});

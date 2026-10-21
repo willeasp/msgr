@@ -86,7 +86,9 @@ a 64×64 dithered bitmap.
 
 **Privacy between users.** Only a chat's participants can read it; to anyone
 else it answers exactly as if it didn't exist. The channel directory shows
-names and participant counts, never messages or members.
+names and participant counts, never messages or members. Who has read a
+message, and that someone is typing, are told only to the chat's participants;
+a message in someone else's chat answers Get Info exactly like a missing one.
 
 **Notifications.** Pushes go only to the browser vendors' push services
 (Google, Mozilla, Apple, Microsoft); an endpoint anywhere else is refused
@@ -115,6 +117,9 @@ time: logging out removes it, and signing in moves it to whoever signed in.
 - **Linked sites see our server.** A page in a link is fetched by the server
   when someone first sees it, which tells that site the link was shared
   (from Render's address, with no cookies or personal data).
+- **Read receipts can't be turned off.** Having a chat open on a visible page
+  marks it read, and everyone in the chat can see when, a channel's members
+  included. Typing is told to them as it happens, though never stored.
 - **No account recovery or deletion** yet.
 
 ## Running it safely

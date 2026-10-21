@@ -32,6 +32,12 @@ interface MessageBubbleProps {
   onDrawOnIt?: (picture: WirePicture) => void;
   /** Opens the paint window over a movie; offered under each one. */
   onDrawOnMovie?: (movie: WireMovie) => void;
+  /** Picked out, as Finder picks out an icon: inverted, with Get Info under it. */
+  selected?: boolean;
+  /** A click picks it out. */
+  onSelect?: () => void;
+  /** Opens Get Info: a double-click, or the button under it once selected. */
+  onGetInfo?: () => void;
 }
 
 /** The viewer's own messages sit right in the accent colour, others' left. */
@@ -42,6 +48,9 @@ export function MessageBubble({
   showName,
   onDrawOnIt,
   onDrawOnMovie,
+  selected = false,
+  onSelect,
+  onGetInfo,
 }: MessageBubbleProps) {
   const Bubble = isCurrentUser ? MessageViewer : Message;
   const now = useClock();
@@ -66,36 +75,47 @@ export function MessageBubble({
         )}
         {firstLink(content) && <LinkPreviewCard messageId={message.id} />}
         <div className={styles.line}>
-          <Bubble>
-            {picture && <MessagePicture picture={picture} />}
-            {movie && <MessageMovie movie={movie} />}
-            {content && (
-              <span
-                className={styles.content}
-                title={new Date(message.createdAt).toLocaleString()}
-              >
-                {isOnlyEmoji(content) ? (
-                  <PixelText text={content} size={32} />
-                ) : (
-                  splitLinks(content).map((piece, i) =>
-                    'link' in piece ? (
-                      <a
-                        key={i}
-                        className={styles.link}
-                        href={piece.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {piece.link}
-                      </a>
-                    ) : (
-                      <PixelText key={i} text={piece.text} />
+          <div
+            className={styles.pick}
+            data-selected={selected || undefined}
+            onClick={(e) => {
+              // Picked out, not let go of by the click landing on the list.
+              e.stopPropagation();
+              onSelect?.();
+            }}
+            onDoubleClick={onGetInfo}
+          >
+            <Bubble>
+              {picture && <MessagePicture picture={picture} />}
+              {movie && <MessageMovie movie={movie} />}
+              {content && (
+                <span
+                  className={styles.content}
+                  title={new Date(message.createdAt).toLocaleString()}
+                >
+                  {isOnlyEmoji(content) ? (
+                    <PixelText text={content} size={32} />
+                  ) : (
+                    splitLinks(content).map((piece, i) =>
+                      'link' in piece ? (
+                        <a
+                          key={i}
+                          className={styles.link}
+                          href={piece.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {piece.link}
+                        </a>
+                      ) : (
+                        <PixelText key={i} text={piece.text} />
+                      )
                     )
-                  )
-                )}
-              </span>
-            )}
-          </Bubble>
+                  )}
+                </span>
+              )}
+            </Bubble>
+          </div>
           {showMeta && (
             <time className={styles.time} dateTime={message.createdAt}>
               {formatTime(message.createdAt, now)}
@@ -103,18 +123,23 @@ export function MessageBubble({
           )}
         </div>
         {/* Under the bubble, not in it: the viewer's bubbles are inverted. */}
-        {picture && onDrawOnIt && (
+        {((picture && onDrawOnIt) ||
+          (movie && onDrawOnMovie) ||
+          (selected && onGetInfo)) && (
           <div className={styles.under}>
-            <ActionButton onClick={() => onDrawOnIt(picture)}>
-              Draw on It
-            </ActionButton>
-          </div>
-        )}
-        {movie && onDrawOnMovie && (
-          <div className={styles.under}>
-            <ActionButton onClick={() => onDrawOnMovie(movie)}>
-              Draw on It
-            </ActionButton>
+            {picture && onDrawOnIt && (
+              <ActionButton onClick={() => onDrawOnIt(picture)}>
+                Draw on It
+              </ActionButton>
+            )}
+            {movie && onDrawOnMovie && (
+              <ActionButton onClick={() => onDrawOnMovie(movie)}>
+                Draw on It
+              </ActionButton>
+            )}
+            {selected && onGetInfo && (
+              <ActionButton onClick={onGetInfo}>Get Info</ActionButton>
+            )}
           </div>
         )}
       </div>

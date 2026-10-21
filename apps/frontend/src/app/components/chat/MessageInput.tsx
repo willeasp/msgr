@@ -12,6 +12,7 @@ import { pixelSize, useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
 import { recordMessage } from '../../hooks/use-chat-feed';
 import { useMediaQuery } from '../../hooks/use-media-query';
 import { useMovieTick } from '../../hooks/use-movie';
+import { useSayTyping } from '../../hooks/use-typing';
 import type { Attachment } from './attachment';
 import { firstMedia } from './movie-from-file';
 import { useJoinChannel } from './use-join-channel';
@@ -164,6 +165,7 @@ export function MessageInput({
   const inputId = useId();
   const [commandError, setCommandError] = useState<string | null>(null);
   const { join } = useJoinChannel();
+  const typing = useSayTyping(chatId);
   // On a phone, opening a chat is for reading; the keyboard waits for a tap.
   const hasMouse = useMediaQuery('(pointer: fine)');
 
@@ -201,6 +203,7 @@ export function MessageInput({
     const sent = attachment;
     setPreparing(true);
     try {
+      await typing.said();
       const { data } = await sendMessage({
         variables: {
           chatId,
@@ -216,6 +219,7 @@ export function MessageInput({
               : null,
         },
       });
+      if (data) typing.sent();
       if (sent && data) onDetach(sent);
     } catch {
       // Shown from `sendError`; the message and its attachment stay to retry.
@@ -280,6 +284,7 @@ export function MessageInput({
           onChange={(e) => {
             setMessageInput(e.target.value);
             setCommandError(null);
+            typing.say(e.target.value);
           }}
           onKeyDown={handleKeyDown}
           placeholder="Write a message"
