@@ -94,13 +94,16 @@ canvas + .content {
   margin-top: 4px;
 }
 
-/* What a click picks out; skin.css inverts it once it's selected. */
+/* A click opens Get Info; skin.css inverts the bubble while it's pressed. */
 .pick {
   min-width: 0;
-  cursor: default;
 }
 
-/* Draw on It and Get Info, side by side under the bubble. */
+.pick[data-pressable] {
+  cursor: pointer;
+}
+
+/* Under the bubble: Draw on It. */
 .under {
   display: flex;
   flex-wrap: wrap;

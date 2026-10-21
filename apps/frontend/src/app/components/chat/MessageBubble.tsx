@@ -35,11 +35,7 @@ interface MessageBubbleProps {
   onDrawOnIt?: (picture: WirePicture) => void;
   /** Opens the paint window over a movie; offered under each one. */
   onDrawOnMovie?: (movie: WireMovie) => void;
-  /** Picked out, as Finder picks out an icon: inverted, with Get Info under it. */
-  selected?: boolean;
-  /** A click picks it out. */
-  onSelect?: () => void;
-  /** Opens Get Info: a double-click, or the button under it once selected. */
+  /** Opens Get Info: a click or tap on the bubble. */
   onGetInfo?: () => void;
 }
 
@@ -51,8 +47,6 @@ export function MessageBubble({
   showName,
   onDrawOnIt,
   onDrawOnMovie,
-  selected = false,
-  onSelect,
   onGetInfo,
 }: MessageBubbleProps) {
   const Bubble = isCurrentUser ? MessageViewer : Message;
@@ -80,13 +74,18 @@ export function MessageBubble({
         <div className={styles.line}>
           <div
             className={styles.pick}
-            data-selected={selected || undefined}
+            data-pressable={onGetInfo ? true : undefined}
             onClick={(e) => {
-              // Picked out, not let go of by the click landing on the list.
-              e.stopPropagation();
-              onSelect?.();
+              // A link opens itself, a sound's controls play it, and
+              // dragging over the words selects them.
+              if (
+                (e.target as Element).closest('a, button, [data-own-clicks]')
+              ) {
+                return;
+              }
+              if (window.getSelection()?.toString()) return;
+              onGetInfo?.();
             }}
-            onDoubleClick={onGetInfo}
           >
             <Bubble>
               {picture && <MessagePicture picture={picture} />}
@@ -127,9 +126,7 @@ export function MessageBubble({
           )}
         </div>
         {/* Under the bubble, not in it: the viewer's bubbles are inverted. */}
-        {((picture && onDrawOnIt) ||
-          (movie && onDrawOnMovie) ||
-          (selected && onGetInfo)) && (
+        {((picture && onDrawOnIt) || (movie && onDrawOnMovie)) && (
           <div className={styles.under}>
             {picture && onDrawOnIt && (
               <ActionButton onClick={() => onDrawOnIt(picture)}>
@@ -140,9 +137,6 @@ export function MessageBubble({
               <ActionButton onClick={() => onDrawOnMovie(movie)}>
                 Draw on It
               </ActionButton>
-            )}
-            {selected && onGetInfo && (
-              <ActionButton onClick={onGetInfo}>Get Info</ActionButton>
             )}
           </div>
         )}
