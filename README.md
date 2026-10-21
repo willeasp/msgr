@@ -25,6 +25,8 @@
 - **Invite-only.** Nobody can sign up without a link from someone already in. **File → Invite a Friend…** makes one; it works once and lasts a week. Whoever signs up with it lands in a chat with you, and you get told they joined.
 - **Direct chats, groups and `#channels`.** Start a chat with anyone from **File → New Chat…** or <kbd>Ctrl</kbd>&nbsp;<kbd>K</kbd>. Make a channel with **File → New Channel…** and bring people in with **Add People…**, or join one from **File → Join Channel…** or by typing `/join #name` in the message box.
 - **Live.** Messages arrive the moment they're sent, and the chat list reorders itself.
+- **The wristwatch while someone types.** While someone writes to you, the chat window's title bar shows the classic Macintosh watch, its hand going round, and "Ana is typing…". It goes the moment their message arrives.
+- **Get Info on any message.** Click a message to select it, then **File → Get Info**, <kbd>Ctrl</kbd>&nbsp;<kbd>I</kbd> or a double-click: what it is and how big, where and when it was sent, and who has read it and when. A chat counts as read while it's open on your screen.
 - **Pixel emoji.** Every emoji is redrawn as black-and-white pixel art in the theme's ink, and a message of just emoji shows them big.
 - **MacPaint drawings.** **Draw…** opens a paint window with a pencil, brush, paint bucket, eraser and eight patterns, and attaches the picture to your message. **Draw on It** opens any picture in the chat to add to it.
 - **Photos, the 1984 way.** **Picture…**, pasting or dropping a photo dithers it to black and white on your device, up to 320 pixels a side, to send with or without text. Only the dithered picture leaves your device, in a few kilobytes.
@@ -37,6 +39,19 @@
 <p align="center">
   <img src="docs/screenshots/live.png" width="824" alt="Test User and Alice Johnson side by side: each message appears on the other's screen as soon as it is sent">
 </p>
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="docs/screenshots/typing.png" alt="The Project Team window's title bar: a wristwatch and Diana Prince is typing…">
+      <br><sub>Someone typing</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="docs/screenshots/get-info.png" alt="Message Info for the kickoff message: Text, 48 characters, read by Bob Smith yesterday at 9:04 AM, not yet by Diana Prince">
+      <br><sub>Get Info: who has read it, and when</sub>
+    </td>
+  </tr>
+</table>
 
 <table>
   <tr>
