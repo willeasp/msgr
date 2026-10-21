@@ -62,6 +62,15 @@ const MESSAGE_INFO = gql(`
           }
         }
       }
+    }
+  }
+`);
+
+// Polled on its own, so the poll doesn't fetch the chat's people again.
+const MESSAGE_READS = gql(`
+  query MessageReads($id: ID!) {
+    message(id: $id) {
+      id
       readBy {
         at
         reader {
@@ -91,6 +100,10 @@ export function GetInfoDialog({ messageId }: { messageId: string }) {
   const now = useClock();
   const { data: me } = useQuery(ME);
   const { data, loading } = useQuery(MESSAGE_INFO, {
+    variables: { id: messageId },
+    fetchPolicy: 'cache-and-network',
+  });
+  const { data: reads } = useQuery(MESSAGE_READS, {
     variables: { id: messageId },
     fetchPolicy: 'cache-and-network',
     pollInterval: POLL_MS,
@@ -146,15 +159,19 @@ export function GetInfoDialog({ messageId }: { messageId: string }) {
           </dl>
           <section className={styles.reads} aria-label="Read by">
             <h4 className={styles.heading}>Read by:</h4>
-            <ReadList
-              readers={readers({
-                senderId: message.sender.id,
-                participants: message.chat.participants,
-                readBy: message.readBy,
-              })}
-              viewerId={me?.me?.id}
-              now={now}
-            />
+            {reads?.message ? (
+              <ReadList
+                readers={readers({
+                  senderId: message.sender.id,
+                  participants: message.chat.participants,
+                  readBy: reads.message.readBy,
+                })}
+                viewerId={me?.me?.id}
+                now={now}
+              />
+            ) : (
+              <LoadingState label="Getting reads" />
+            )}
           </section>
         </>
       )}

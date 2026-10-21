@@ -203,6 +203,7 @@ export function MessageInput({
     const sent = attachment;
     setPreparing(true);
     try {
+      await typing.said();
       const { data } = await sendMessage({
         variables: {
           chatId,

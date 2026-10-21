@@ -334,7 +334,8 @@ describe('reading a chat', () => {
 
     expect(theirs).toEqual(missing);
     expect(theirs).toMatchObject({ ok: false, error: { type: 'NotFound' } });
-    expect(await services().messages.find(linus, hello.id)).toEqual(missing);
+    expect(await services().messages.find(linus, hello.id)).toBeNull();
+    expect(await services().messages.find(linus, 'nope')).toBeNull();
     expect(await deps.repositories.reads.findByMessageIds([hello.id])).toEqual(
       []
     );

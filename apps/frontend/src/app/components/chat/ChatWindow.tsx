@@ -17,6 +17,7 @@ import { firstMedia, isVideo } from './movie-from-file';
 import { pictureFromFile } from './picture-from-file';
 import { TrimDialog } from './TrimDialog';
 import { TypingStatus } from './TypingStatus';
+import type { Typists } from '../../hooks/use-typing';
 import styles from './ChatWindow.module.css';
 import { PixelText } from '../PixelText';
 
@@ -50,8 +51,8 @@ interface ChatWindowProps {
   onClose: () => void;
   /** Given for channels, which can take more people. */
   onAddPeople?: () => void;
-  /** Everyone else writing to this chat right now, first to start first. */
-  typing: readonly string[];
+  /** Who is writing where, for the title bar. */
+  typists: Typists;
   /** The message picked out with a click, if any. */
   selectedMessageId?: string;
   onSelectMessage: (messageId: string | null) => void;
@@ -64,7 +65,7 @@ export function ChatWindow({
   currentUserId,
   onClose,
   onAddPeople,
-  typing,
+  typists,
   selectedMessageId,
   onSelectMessage,
   onGetInfo,
@@ -151,7 +152,7 @@ export function ChatWindow({
     <MacWindow
       title={title}
       onClose={onClose}
-      status={<TypingStatus names={typing} />}
+      status={<TypingStatus typists={typists} chatId={chatId} />}
       info={
         chat && (
           <>

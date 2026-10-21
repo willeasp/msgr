@@ -62,7 +62,11 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
   }
 
   return {
-    find: visible,
+    /** A message in one of the viewer's chats, or null, as for a missing one. */
+    async find(viewer: User, messageId: string): Promise<Message | null> {
+      const message = await visible(viewer, messageId);
+      return message.ok ? message.value : null;
+    },
 
     async list(
       viewer: User,

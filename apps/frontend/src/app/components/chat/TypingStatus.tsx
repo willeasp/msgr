@@ -1,5 +1,6 @@
 import { typingLine } from '../../../lib/typing';
 import { useMovieTick } from '../../hooks/use-movie';
+import { useTypingIn, type Typists } from '../../hooks/use-typing';
 import { WATCH } from '../icons';
 import { PixelIcon } from '../PixelIcon';
 import { PixelText } from '../PixelText';
@@ -15,8 +16,14 @@ const watchAt = (tick: number) =>
  * motion, as the movies do. Always there, empty, so screen readers hear it
  * when someone starts.
  */
-export function TypingStatus({ names }: { names: readonly string[] }) {
-  const line = typingLine(names);
+export function TypingStatus({
+  typists,
+  chatId,
+}: {
+  typists: Typists;
+  chatId: string;
+}) {
+  const line = typingLine(useTypingIn(typists, chatId));
   const tick = useMovieTick(line !== null);
   return (
     <span role="status" className={line ? styles.typing : undefined}>

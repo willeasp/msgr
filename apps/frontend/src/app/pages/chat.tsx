@@ -172,7 +172,7 @@ export function Chat() {
       currentUserId={meData?.me?.id}
       onClose={closeChat}
       onAddPeople={addPeople}
-      typing={typists.writingTo(chatId)}
+      typists={typists}
       selectedMessageId={selectedMessageId}
       onSelectMessage={selectMessage}
       onGetInfo={getInfo}
