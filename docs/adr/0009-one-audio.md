@@ -1,6 +1,6 @@
 # 9. One audio
 
-Date: 2026-10-21 · Status: accepted
+Date: 2026-10-21 · Status: accepted; the adapter now lives in `app/browser/audio.ts` ([ADR 0010](0010-frontend-layers.md))
 
 ## Context
 

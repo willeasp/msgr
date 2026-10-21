@@ -13,7 +13,7 @@ import { SOUND_RATE, synthesizeSound, type SoundCodes } from '@msgr/media';
  * and what iOS is told follows from the state alone (`sessionFor`), never
  * from whoever touched it last. Whatever a state holds (the sound playing,
  * the open microphone) is let go by the transition out of it, on every
- * path. The browser's side is behind `AudioDevices`; `app/devices/audio.ts` is the
+ * path. The browser's side is behind `AudioDevices`; `app/browser/audio.ts` is the
  * real one, and the tests use their own.
  */
 
