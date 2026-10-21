@@ -1,10 +1,11 @@
 # One container for all of Msgr: the API also serves the built app, so a
 # single address and a single session cookie cover both.
 #
-# Base images come from the Docker Official Images mirror on Amazon ECR Public:
-# the same images as Docker Hub, without its anonymous pull rate limit.
+# Base images come from Google's mirror of Docker Hub (mirror.gcr.io): the
+# same official images, without Docker Hub's anonymous pull limit or Amazon
+# ECR Public's anonymous data cap, which builders on shared addresses run out of.
 
-FROM public.ecr.aws/docker/library/node:22-slim AS build
+FROM mirror.gcr.io/library/node:22-slim AS build
 WORKDIR /app
 RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \
   && rm -rf /var/lib/apt/lists/*
@@ -18,7 +19,7 @@ ENV NX_DAEMON=false NX_NO_CLOUD=true
 RUN npx prisma generate --schema apps/api/prisma/schema.prisma \
   && npx nx run-many -t build --projects=@msgr/api,@msgr/frontend
 
-FROM public.ecr.aws/docker/library/node:22-slim
+FROM mirror.gcr.io/library/node:22-slim
 WORKDIR /app
 RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \
   && rm -rf /var/lib/apt/lists/*
