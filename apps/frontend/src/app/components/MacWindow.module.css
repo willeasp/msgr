@@ -1,10 +1,16 @@
 .titleBar {
   position: relative;
-  display: flex;
+  display: grid;
+  /* The title centred, with room either side for the close box and the
+     status, which give way to a long title before it gives way to them. */
+  grid-template-columns:
+    minmax(var(--title-bar-side), 1fr) minmax(0, auto)
+    minmax(var(--title-bar-side), 1fr);
+  --title-bar-side: calc(2ch + 20px);
   flex-shrink: 0;
   align-items: center;
-  justify-content: center;
   height: var(--line);
+  container-type: inline-size;
   border-bottom: 1px solid var(--ink);
 
   /* Six pinstripes across the bar, broken by the title and close box. */
@@ -18,7 +24,7 @@
 
 .title {
   position: relative;
-  max-width: calc(100% - 8ch);
+  grid-column: 2;
   overflow: hidden;
   padding: 0 1ch;
   background: var(--paper);
@@ -28,6 +34,29 @@
   line-height: var(--line);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.status {
+  position: relative;
+  grid-column: 3;
+  justify-self: end;
+  min-width: 0;
+  max-width: 100%;
+  margin-right: 1ch;
+}
+
+/* Too narrow for both, as on a phone: while there's a status, it takes the
+   title's place. The info line under the bar still says whose window it is. */
+@container (max-width: 480px) {
+  .titleBar:has(.status > :not(:empty)) .title {
+    display: none;
+  }
+
+  .status {
+    grid-column: 2;
+    justify-self: center;
+    margin-right: 0;
+  }
 }
 
 .closeBox {

@@ -4,6 +4,7 @@ import { counterpart } from '../domain/chat.js';
 import type { Message } from '../domain/message.js';
 import { Page } from '../domain/page.js';
 import type { ChatAdded } from '../domain/chat.js';
+import type { Typing } from '../domain/typing.js';
 import type { User } from '../domain/user.js';
 import type {
   ChatAddedReason,
@@ -33,6 +34,8 @@ export const resolvers: Resolvers = {
     },
     messages: async (_, args, ctx) =>
       unwrap(await ctx.services.messages.list(requireViewer(ctx), args)),
+    message: (_, { id }, ctx) =>
+      ctx.services.messages.find(requireViewer(ctx), id),
     linkPreview: (_, { messageId }, ctx) =>
       ctx.services.linkPreviews.forMessage(requireViewer(ctx), messageId),
     channels: (_, __, ctx) => {
@@ -67,6 +70,12 @@ export const resolvers: Resolvers = {
       ),
     sendMessage: async (_, { input }, ctx) =>
       unwrap(await ctx.services.messages.send(requireViewer(ctx), input)),
+    markRead: async (_, { messageId }, ctx) =>
+      unwrap(
+        await ctx.services.messages.markRead(requireViewer(ctx), messageId)
+      ),
+    typing: async (_, { chatId }, ctx) =>
+      unwrap(await ctx.services.messages.typing(requireViewer(ctx), chatId)),
     updateProfile: async (_, { input }, ctx) =>
       unwrap(
         await ctx.services.users.updateProfile(requireViewer(ctx), {
@@ -96,6 +105,11 @@ export const resolvers: Resolvers = {
     messageReceived: {
       subscribe: (_, __, ctx) => ctx.services.messages.feed(requireViewer(ctx)),
       resolve: (message: Message) => message,
+    },
+    typing: {
+      subscribe: (_, __, ctx) =>
+        ctx.services.messages.typists(requireViewer(ctx)),
+      resolve: (event: Typing) => event,
     },
     chatAdded: {
       subscribe: (_, __, ctx) =>
@@ -179,5 +193,10 @@ export const resolvers: Resolvers = {
       loadExisting(loaders.user, message.senderId),
     chat: (message, _, { loaders }) =>
       loadExisting(loaders.chat, message.chatId),
+    readBy: (message, _, { loaders }) => loaders.reads.load(message.id),
+  },
+
+  MessageRead: {
+    reader: (read, _, { loaders }) => loadExisting(loaders.user, read.readerId),
   },
 };

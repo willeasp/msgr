@@ -14,6 +14,7 @@ import {
   type MessageContent,
 } from '../domain/message.js';
 import type { PushSubscription } from '../domain/push.js';
+import type { Read } from '../domain/read.js';
 import { exampleMovie } from './movies.js';
 import { exampleSound } from './sounds.js';
 import { exampleAvatar, examplePicture } from './pictures.js';
@@ -610,6 +611,92 @@ export function repositoryContract(
       expect(
         await repositories.messages.findPages([], { limit: 1, offset: 0 })
       ).toEqual([]);
+    });
+  });
+
+  describe('reads', () => {
+    const at = (minute: number) =>
+      new Date(`2030-01-02T00:${String(minute).padStart(2, '0')}:00Z`);
+    const byReader = (found: readonly Read[]) =>
+      [...found].sort(
+        (a, b) =>
+          (a.messageId < b.messageId
+            ? -1
+            : a.messageId > b.messageId
+            ? 1
+            : 0) || (a.readerId < b.readerId ? -1 : 1)
+      );
+
+    it('reads every message up to the one read, each when it was first read', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const linus = await fixtures.user({ name: 'Linus' });
+      const team = await fixtures.groupChat('Team', [ada, grace, linus]);
+      const first = await send(team, ada, 'one', '2030-01-01T00:01:00Z');
+      const second = await send(team, ada, 'two', '2030-01-01T00:02:00Z');
+      const third = await send(team, grace, 'three', '2030-01-01T00:03:00Z');
+
+      await repositories.reads.markRead(first, grace.id, at(1));
+      await repositories.reads.markRead(second, grace.id, at(2));
+      // Reading back over what's been read already changes nothing.
+      await repositories.reads.markRead(first, grace.id, at(3));
+      await repositories.reads.markRead(third, linus.id, at(4));
+
+      expect(
+        byReader(
+          await repositories.reads.findByMessageIds([
+            first.id,
+            second.id,
+            third.id,
+          ])
+        )
+      ).toEqual(
+        byReader([
+          { messageId: first.id, readerId: grace.id, at: at(1) },
+          { messageId: first.id, readerId: linus.id, at: at(4) },
+          { messageId: second.id, readerId: grace.id, at: at(2) },
+          { messageId: second.id, readerId: linus.id, at: at(4) },
+          { messageId: third.id, readerId: linus.id, at: at(4) },
+        ])
+      );
+    });
+
+    it('never counts the sender, nor reading another chat', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const direct = await repositories.chats.saveDirect(pairOf(ada, grace));
+      const team = await fixtures.groupChat('Team', [ada, grace]);
+      const hello = await send(direct, ada, 'hello', '2030-01-01T00:01:00Z');
+      const later = await send(team, grace, 'later', '2030-01-01T00:02:00Z');
+
+      await repositories.reads.markRead(hello, ada.id, at(1));
+      await repositories.reads.markRead(later, ada.id, at(2));
+      await repositories.reads.markRead(later, grace.id, at(3));
+
+      expect(await repositories.reads.findByMessageIds([hello.id])).toEqual([]);
+      expect(
+        await repositories.reads.findByMessageIds([
+          later.id,
+          MessageId('missing'),
+        ])
+      ).toEqual([{ messageId: later.id, readerId: ada.id, at: at(2) }]);
+      expect(await repositories.reads.findByMessageIds([])).toEqual([]);
+    });
+
+    it('orders messages sent at the same moment by id, as pages do', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const direct = await repositories.chats.saveDirect(pairOf(ada, grace));
+      const [earlier, later] = sortById([
+        await send(direct, ada, 'a', '2030-01-01T00:01:00Z'),
+        await send(direct, ada, 'b', '2030-01-01T00:01:00Z'),
+      ]) as [Message, Message];
+
+      await repositories.reads.markRead(earlier, grace.id, at(1));
+
+      expect(
+        await repositories.reads.findByMessageIds([earlier.id, later.id])
+      ).toEqual([{ messageId: earlier.id, readerId: grace.id, at: at(1) }]);
     });
   });
 

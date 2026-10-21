@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { gql } from '../../lib/__generated__';
 import { ChatKind } from '../../lib/__generated__/graphql';
@@ -16,6 +16,7 @@ import { InviteDialog } from '../components/InviteDialog';
 import { ProfileDialog } from '../components/ProfileDialog';
 import { JoinChannelDialog } from '../components/chat/JoinChannelDialog';
 import { EmptyChatState } from '../components/chat/EmptyChatState';
+import { GetInfoDialog } from '../components/chat/GetInfoDialog';
 import { NewChatModal } from '../components/chat/NewChatModal';
 import { NotificationsBlockedDialog } from '../components/NotificationsBlockedDialog';
 import { NotificationsDialog } from '../components/NotificationsDialog';
@@ -30,6 +31,7 @@ import {
   useNotifications,
 } from '../hooks/use-notifications';
 import { useOpenChatFromNotifications } from '../hooks/use-service-worker';
+import { useTypists } from '../hooks/use-typing';
 import { useWatching } from '../hooks/use-watching';
 import styles from './chat.module.css';
 
@@ -100,9 +102,35 @@ export function Chat() {
     offered.current = true;
     open(NotificationsDialog, { setup, onTurnOn: turnOnNotifications });
   });
+  const typists = useTypists();
   useChatFeed({
-    onMessage: alerts.alert,
+    onMessage: (message) => {
+      // Their message is what they were typing.
+      typists.stopped(message.chat.id, message.sender.id);
+      alerts.alert(message);
+    },
     onChatAdded: alerts.alertChatAdded,
+    onTyping: typists.started,
+  });
+
+  // The message picked out in the open chat, for Get Info. Another chat's
+  // selection is no selection.
+  const [selection, setSelection] = useState<{
+    chatId: string;
+    messageId: string;
+  } | null>(null);
+  const selectedMessageId =
+    selection && selection.chatId === chatId ? selection.messageId : undefined;
+  const selectMessage = (messageId: string | null) =>
+    setSelection(chatId && messageId ? { chatId, messageId } : null);
+  const getInfo = (messageId: string) => open(GetInfoDialog, { messageId });
+  const getSelectedInfo = selectedMessageId
+    ? () => getInfo(selectedMessageId)
+    : undefined;
+  useHotkeys('ctrl+i', () => getSelectedInfo?.(), {
+    enabled: !!getSelectedInfo,
+    enableOnFormTags: true,
+    preventDefault: true,
   });
 
   const { data: chatData } = useQuery(GET_CHAT_DATA, {
@@ -144,6 +172,10 @@ export function Chat() {
       currentUserId={meData?.me?.id}
       onClose={closeChat}
       onAddPeople={addPeople}
+      typists={typists}
+      selectedMessageId={selectedMessageId}
+      onSelectMessage={selectMessage}
+      onGetInfo={getInfo}
     />
   ) : (
     <EmptyChatState
@@ -168,6 +200,7 @@ export function Chat() {
         onProfile={() => open(ProfileDialog, {})}
         onAddPeople={addPeople}
         onCloseChat={chatId ? closeChat : undefined}
+        onGetInfo={getSelectedInfo}
         onLeaveChannel={leaveOpenChannel}
         onInstall={install}
       />

@@ -124,6 +124,40 @@ test('on a phone', async ({ browser }) => {
   await capture(page, 'phone.png');
 });
 
+test('someone typing, and Get Info on a message', async ({ browser }) => {
+  const page = await screen(browser, { email: 'test@example.com' });
+  await openChat(page, 'Project Team', 'kickoff meeting tomorrow');
+  const team = chatWindow(page, 'Project Team');
+  // Diana types without opening the chat, which would read it now, in 2026.
+  const diana = await screen(browser, { email: 'diana@example.com' });
+  const chatId = new URL(page.url()).pathname.slice(1);
+  await expect(async () => {
+    await diana.request.post('/graphql', {
+      data: {
+        query: 'mutation ($chatId: ID!) { typing(chatId: $chatId) }',
+        variables: { chatId },
+      },
+    });
+    await expect(team.getByRole('status')).toHaveText(
+      'Diana Prince is typing…',
+      { timeout: 1000 }
+    );
+  }).toPass();
+  await capture(page, 'typing.png');
+
+  await team
+    .getByRole('log', { name: 'Messages' })
+    .getByText('kickoff meeting tomorrow')
+    .click();
+  await menuBar(page)
+    .getByRole('button', { name: 'File', exact: true })
+    .click();
+  await page.getByRole('menuitem', { name: 'Get Info' }).click();
+  const info = page.getByRole('dialog', { name: 'Message Info' });
+  await expect(info.getByText('Not yet')).toBeVisible();
+  await capture(page, 'get-info.png');
+});
+
 test('a drawing, in the paint window', async ({ browser }) => {
   const page = await screen(browser, { email: 'test@example.com' });
   await openChat(page, 'Bob Smith', 'Great work!');
