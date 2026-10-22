@@ -40,7 +40,7 @@ upstream shipped them:
   outrank the component's own rule.
 - The skin reads only `--theme-text` and `--theme-background`, as ink and
   paper, so Sacred's themes still apply: Dark is the inverted screen, the tints
-  are duotones. `src/lib/theme.ts` puts the `theme-*` and `tint-*` classes on
+  are duotones. `src/app/browser/theme.ts` puts the `theme-*` and `tint-*` classes on
   `<body>`.
 - Inversion is the only highlight: `--theme-focused-foreground` is ink.
 

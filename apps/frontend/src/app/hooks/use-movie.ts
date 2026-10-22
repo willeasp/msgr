@@ -4,7 +4,7 @@ import {
   useSyncExternalStore,
   type RefObject,
 } from 'react';
-import { MOVIE_FPS, type Frames } from '@msgr/bitmap';
+import { MOVIE_FPS, type Frames } from '@msgr/media';
 import { movieFrames, type WireMovie } from '../../lib/movie-wire';
 
 // One timer for every movie on the page, so they step together, and only

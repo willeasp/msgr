@@ -1,5 +1,5 @@
-import type { Bits, Frames, SoundCodes } from '@msgr/bitmap';
-import type { Drawing } from '../../../lib/movie';
+import type { Bits, Frames, SoundCodes } from '@msgr/media';
+import type { Drawing } from './movie';
 
 /**
  * What goes with the next message: a picture, a movie with what's been

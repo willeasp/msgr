@@ -5,7 +5,7 @@ import {
   MAX_SOUND_FRAMES,
   maxSoundCodedLength,
   toBase64,
-} from '@msgr/bitmap';
+} from '@msgr/media';
 import { describe, expect, it } from 'vitest';
 import { soundInput } from '../testing/sounds.js';
 import { Sound, type RawSound } from './sound.js';

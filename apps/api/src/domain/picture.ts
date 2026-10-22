@@ -5,7 +5,7 @@ import {
   isBlank,
   isValidSize,
   MAX_SIDE,
-} from '@msgr/bitmap';
+} from '@msgr/media';
 import type { Brand } from './brand.js';
 import { invalidInput, type InvalidInput } from './errors.js';
 import { err, ok, type Result } from './result.js';
@@ -21,7 +21,7 @@ export interface PictureCodec {
 }
 
 /**
- * A black-and-white picture, 1 to 320 pixels a side, in the `@msgr/bitmap`
+ * A black-and-white picture, 1 to 320 pixels a side, in the `@msgr/media`
  * layout, compressed with raw DEFLATE by this server. Never blank. Its width,
  * height and bytes were checked against each other once, here.
  */

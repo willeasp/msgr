@@ -1,4 +1,4 @@
-import { blank, setPixel } from '@msgr/bitmap';
+import { blank, setPixel } from '@msgr/media';
 import { describe, expect, it } from 'vitest';
 import {
   bitmapOf,

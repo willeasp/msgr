@@ -1,4 +1,4 @@
-import { toBase64 } from '@msgr/bitmap';
+import { toBase64 } from '@msgr/media';
 import { loadExisting } from '../application/loaders.js';
 import { counterpart } from '../domain/chat.js';
 import type { Message } from '../domain/message.js';

@@ -7,7 +7,7 @@ import {
   steadyAtkinson,
   type Bits,
   type Frames,
-} from '@msgr/bitmap';
+} from '@msgr/media';
 
 /**
  * A video's frames, `width`×`height` grey bytes each (0 black, 255 white),

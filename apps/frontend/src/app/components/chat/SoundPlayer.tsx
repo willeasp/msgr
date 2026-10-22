@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { SoundCodes } from '@msgr/bitmap';
+import type { SoundCodes } from '@msgr/media';
 import { clock, secondsOf, soundPeaks, waveform } from '../../../lib/sound';
 import { pixelSize, useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
 import { useSoundPlayer } from '../../hooks/use-sound';

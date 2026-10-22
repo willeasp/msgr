@@ -1,5 +1,6 @@
-import { fitWithin, type Bits } from '@msgr/bitmap';
-import { ditherPhoto } from '../../../lib/photo';
+import { fitWithin, type Bits } from '@msgr/media';
+import { isPicture } from '../../lib/files';
+import { ditherPhoto } from '../../lib/photo';
 
 /**
  * A photo, shrunk to fit 320 on its long side and dithered, all on this
@@ -8,10 +9,10 @@ import { ditherPhoto } from '../../../lib/photo';
  * picture.
  */
 export async function pictureFromFile(
-  file: Blob,
+  file: File,
   { square }: { square?: number } = {}
 ): Promise<Bits | null> {
-  if (!file.type.startsWith('image/')) return null;
+  if (!isPicture(file)) return null;
   let image: ImageBitmap;
   try {
     image = await createImageBitmap(file);
@@ -39,8 +40,3 @@ export async function pictureFromFile(
     height
   );
 }
-
-/** The first picture among dropped or pasted files, if any. */
-export const firstImage = (files: FileList | null | undefined) =>
-  Array.from(files ?? []).find((file) => file.type.startsWith('image/')) ??
-  null;

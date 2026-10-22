@@ -13,7 +13,7 @@
       "path": "./apps/e2e"
     },
     {
-      "path": "./libs/bitmap"
+      "path": "./libs/media"
     }
   ]
 }

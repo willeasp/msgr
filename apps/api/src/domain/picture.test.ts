@@ -1,4 +1,4 @@
-import { blank, setPixel, toBase64 } from '@msgr/bitmap';
+import { blank, setPixel, toBase64 } from '@msgr/media';
 import { deflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { zlibPictureCodec } from '../infrastructure/zlib-picture-codec.js';

@@ -1,4 +1,4 @@
-import { atkinson, toBase64 } from '@msgr/bitmap';
+import { atkinson, toBase64 } from '@msgr/media';
 import type { Brand } from './brand.js';
 import { Url } from './link.js';
 

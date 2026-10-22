@@ -1,7 +1,6 @@
-import { SOUND_RATE } from '@msgr/bitmap';
-import { isSoundFile, LONGEST_FILE, mono } from '../../../lib/sound';
-
-export const isAudio = (file: File) => isSoundFile(file);
+import { SOUND_RATE } from '@msgr/media';
+import { LONGEST_SOUND_FILE } from '../../lib/files';
+import { mono } from '../../lib/sound';
 
 /** Bigger than any file of 15 minutes worth reading: a long lossless one. */
 const LARGEST_FILE = 200 * 1024 * 1024;
@@ -25,7 +24,7 @@ export async function readSound(file: Blob): Promise<Float32Array> {
     });
   }
   const sound = mono(channels);
-  if (sound.length / SOUND_RATE > LONGEST_FILE) {
+  if (sound.length / SOUND_RATE > LONGEST_SOUND_FILE) {
     throw new Error('That file is too long. Choose one of 15 minutes or less.');
   }
   return sound;

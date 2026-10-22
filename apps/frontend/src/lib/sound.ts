@@ -7,43 +7,8 @@ import {
   soundLength,
   type Bits,
   type SoundCodes,
-} from '@msgr/bitmap';
+} from '@msgr/media';
 import type { Part } from './trim';
-
-/**
- * What sound files are called. Pickers ask for these by name: an iPhone
- * offers its photo library for `audio/*` and may grey out an MP3 in Files,
- * but opens Files for a list of extensions.
- */
-export const SOUND_EXTENSIONS = [
-  '.mp3',
-  '.m4a',
-  '.aac',
-  '.wav',
-  '.aif',
-  '.aiff',
-  '.caf',
-  '.flac',
-  '.ogg',
-  '.oga',
-  '.opus',
-  '.weba',
-  '.amr',
-] as const;
-
-/** For a file picker's `accept`. */
-export const SOUND_FILES = SOUND_EXTENSIONS.join(',');
-
-/** A sound file, by its type or else its name: phones don't always say. */
-export const isSoundFile = ({ type, name }: { type: string; name: string }) =>
-  type.startsWith('audio/') ||
-  (!type &&
-    SOUND_EXTENSIONS.some((extension) =>
-      name.toLowerCase().endsWith(extension)
-    ));
-
-/** The longest file a sound can be cut from, in seconds. */
-export const LONGEST_FILE = 15 * 60;
 
 /** "0:42", or "12:05". */
 export const clock = (seconds: number) =>

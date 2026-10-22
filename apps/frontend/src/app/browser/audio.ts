@@ -164,6 +164,10 @@ function browserDevices(): AudioDevices {
   };
 }
 
+/** Whether this browser can record at all: some have no MediaRecorder. */
+export const canRecord = () =>
+  typeof MediaRecorder !== 'undefined' && !!navigator.mediaDevices;
+
 /** The page's one audio: every sound, beep and recording goes through it. */
 export const audio = createAudio(browserDevices());
 

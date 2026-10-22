@@ -4,9 +4,9 @@ import {
   serializeAlertPreferences,
   shouldAlert,
 } from '../../lib/alerts';
-import { audio } from '../devices/audio';
+import { audio } from '../browser/audio';
+import { keep, kept } from '../browser/storage';
 
-const STORAGE_KEY = 'alerts';
 const TITLE = document.title;
 
 export interface ArrivedMessage {
@@ -21,7 +21,7 @@ export interface ArrivedMessage {
  */
 export function useAlerts(viewerId: string | undefined, openChatId?: string) {
   const [prefs, setPrefs] = useState(() =>
-    parseAlertPreferences(localStorage.getItem(STORAGE_KEY))
+    parseAlertPreferences(kept('alerts'))
   );
   const unread = useRef(0);
 
@@ -61,7 +61,7 @@ export function useAlerts(viewerId: string | undefined, openChatId?: string) {
 
   const setSound = (sound: boolean) => {
     const next = { ...prefs, sound };
-    localStorage.setItem(STORAGE_KEY, serializeAlertPreferences(next));
+    keep('alerts', serializeAlertPreferences(next));
     setPrefs(next);
     if (sound) audio.beep();
   };

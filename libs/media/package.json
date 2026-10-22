@@ -1,8 +1,8 @@
 {
-  "name": "@msgr/bitmap",
+  "name": "@msgr/media",
   "version": "0.0.1",
   "private": true,
-  "description": "1-bit pictures and movies and squashed sounds, shared by the API and the app: packing, Atkinson's dithering, movie and sound coding, base64.",
+  "description": "What the API and the app share about media: 1-bit pictures and movies (packing, Atkinson's dithering, the movie coder), squashed sounds (the sound coder), and strict base64.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

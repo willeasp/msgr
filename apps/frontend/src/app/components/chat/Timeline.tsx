@@ -1,5 +1,5 @@
 import { useRef, type RefObject } from 'react';
-import type { Bits } from '@msgr/bitmap';
+import type { Bits } from '@msgr/media';
 import { moveTo, setEnd, setStart, type Part } from '../../../lib/trim';
 import { useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
 import styles from './Timeline.module.css';

@@ -6,7 +6,7 @@ import {
   MAX_FRAMES,
   toBase64,
   type Frames,
-} from '@msgr/bitmap';
+} from '@msgr/media';
 
 /** A movie as GraphQL carries it: its frames coded by `encodeMovie`, in base64. */
 export interface WireMovie {

@@ -8,8 +8,8 @@ export default defineConfig({
     alias: {
       graphql: 'graphql/index.js',
       // The shared lib's source, so tests never wait for its build.
-      '@msgr/bitmap': fileURLToPath(
-        new URL('../../libs/bitmap/src/index.ts', import.meta.url)
+      '@msgr/media': fileURLToPath(
+        new URL('../../libs/media/src/index.ts', import.meta.url)
       ),
     },
   },

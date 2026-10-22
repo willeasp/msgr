@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { blank } from '@msgr/bitmap';
+import { blank } from '@msgr/media';
 import type { WirePicture } from '../../../lib/picture-wire';
 import { usePicture } from '../../hooks/use-picture';
 import { pixelSize, useBitmapCanvas } from '../../hooks/use-bitmap-canvas';

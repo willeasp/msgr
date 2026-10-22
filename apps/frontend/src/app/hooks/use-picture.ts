@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Bits } from '@msgr/bitmap';
+import type { Bits } from '@msgr/media';
 import { pictureBits, type WirePicture } from '../../lib/picture-wire';
 
 /** A picture's bits once inflated; null until then, or for no picture. */

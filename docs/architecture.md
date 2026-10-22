@@ -71,8 +71,12 @@ Vite and React, with Sacred Computer's components vendored into
 `apps/frontend/src/sacred` and restyled as a 1984 Macintosh by `src/skin.css`
 ([ADR 0001](adr/0001-vendor-sacred-computer-and-skin-it.md)). The chat page is
 the desktop: a menu bar, the Chats window and the open chat's window.
-`lib/` holds the pure logic, each with tests; `app/hooks/` holds the live feed,
-alerts and the clock.
+It's layered like the API, with imports flowing one way, enforced by lint
+([ADR 0010](adr/0010-frontend-layers.md)): pages → components → hooks →
+data, browser → lib. `lib/` holds the pure logic, each with tests;
+`app/browser/` is the only code touching the browser's devices, decoders
+and storage; `app/data/` holds the GraphQL several parts share and the
+cache writes; `app/hooks/` holds the live feed, alerts and the clock.
 
 ## Accounts and security
 

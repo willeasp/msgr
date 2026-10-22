@@ -118,7 +118,7 @@
   "dependencies": {
     "@as-integrations/express5": "^1.1.2",
     "@graphql-tools/schema": "^10.0.29",
-    "@msgr/bitmap": "*",
+    "@msgr/media": "*",
     "@prisma/client": "^6.19.0",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",

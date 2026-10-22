@@ -1,4 +1,4 @@
-import { formatTime } from '../../../lib/utils/time';
+import { formatTime } from '../../../lib/time';
 import { useClock } from '../../hooks/use-clock';
 import ActionButton from '../../../sacred/components/ActionButton';
 import Message from '../../../sacred/components/Message';

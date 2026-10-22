@@ -1,8 +1,8 @@
 import { useMutation } from '@apollo/client/react';
 import { CombinedGraphQLErrors } from '@apollo/client';
 import { useNavigate } from 'react-router-dom';
-import { gql } from '../../../lib/__generated__';
-import { GET_CHATS } from './ChatSidebar';
+import { gql } from '../../lib/__generated__';
+import { GET_CHATS } from '../data/chats';
 
 const JOIN_CHANNEL = gql(`
   mutation JoinChannel($name: String!) {

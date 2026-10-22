@@ -6,7 +6,7 @@ import {
   isValidFrameCount,
   LONGEST_SOUND,
   maxSoundCodedLength,
-} from '@msgr/bitmap';
+} from '@msgr/media';
 import type { Brand } from './brand.js';
 import { invalidInput, type InvalidInput } from './errors.js';
 import { err, ok, type Result } from './result.js';
