@@ -1,6 +1,6 @@
 # The excellence run
 
-_Roadmap, proposed 2026-10-22, for review._
+_Roadmap, proposed 2026-10-22; decisions below._
 
 ## Goal
 
@@ -286,20 +286,15 @@ Below 760 px (as now), the screen is the window:
   - A `connection_limit` on the pool.
 - **Docs that match the code.** CLAUDE.md, `docs/architecture.md`, CONTEXT.md and the README are rewritten where the run changed them, and new screenshots are taken.
 
-## For you to decide
+## Decided
 
-1. **Keep the server awake?** A free uptime monitor pinging `/healthz` every 10 minutes would end the minute-long wake for $0.
-   - It uses the whole of Render's 750 free hours a month on this one service (a month is at most 744).
-   - It's a workaround Render tolerates rather than endorses.
-   - Neon still sleeps, which costs about a second.
-   - PR 1 makes the wake graceful either way. **My recommendation:** yes, as a monitor you own (UptimeRobot or similar) rather than a GitHub Actions schedule, which runs late and, in a public repository, stops after 60 days without commits.
-2. **May the browser's own cache keep media?** PR 2's `private, immutable` lets pictures and movies load from disk the second time, like images on any site, and logging out clears it. That's the browser's HTTP cache, not app storage, but it is chat data on the device. **My recommendation:** yes.
-3. **Get Info on a phone by long press, instead of tap?** **My recommendation:** yes.
-4. **Replace Sacred entirely (PR 4), or keep it and trim?** **My recommendation:** replace it.
-5. **Branches.** I'm set up to push to one branch.
-   - Either I ship one PR at a time from it, restarting it from `main` after each merge,
-   - or you let me open the next PR from its own `claude/…` branch while the previous one is in review.
-   - The second is faster; the first keeps things strictly in order.
+Answered 2026-10-22:
+
+1. **The server is kept awake** by an uptime monitor the owner runs. Once PR 1 lands, it points at `/healthz`. PR 1 still matters: the shell opens with no network at all, and deploys, tunnels and poor mobile signal still fail requests.
+2. **The browser's HTTP cache may keep media** (`private, immutable`), cleared on logout. Media URLs are opaque, written by the server and only followed by the app, so moving media to a CDN or object storage later changes the server alone. A shared CDN needs signed, expiring URLs in place of the cookie; ADR 0012 records that path.
+3. **Get Info on touch is a long press.**
+4. **Sacred: open.** Replacing it is recommended (the fields, dialogs and menus go anyway; what's left doesn't justify a second style system). Trimming it is the alternative. Decided before PR 4.
+5. **Each PR has its own `claude/…` branch**, so the next can be in review while the previous one is.
 
 ## Out of scope
 
