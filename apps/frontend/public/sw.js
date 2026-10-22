@@ -14,8 +14,8 @@ const SHELL = [];
 
 const PREFIX = 'msgr-shell-';
 const CURRENT = PREFIX + VERSION;
-/** Answered by the server alone, never from the shell. */
-const SERVER = ['/graphql', '/healthz'];
+/** Answered by the server alone, never from the shell: media included. */
+const SERVER = ['/graphql', '/healthz', '/media/', '/avatars/'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
