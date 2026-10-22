@@ -11,6 +11,9 @@ const people = {
   bob: { email: 'bob@example.com', name: 'Bob Smith' },
   charlie: { email: 'charlie@example.com', name: 'Charlie Brown' },
   diana: { email: 'diana@example.com', name: 'Diana Prince' },
+  // In no chat. The e2e's admin (ADMIN_EMAILS), so the admin page's specs
+  // have logins to spare under the throttle.
+  erin: { email: 'erin@example.com', name: 'Erin Ellis' },
 };
 type Person = keyof typeof people;
 

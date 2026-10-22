@@ -101,7 +101,7 @@ npm run dev               # API on :4000, app on http://localhost:4200
 
 The app proxies `/graphql` to the API, the same single-address setup production uses. Run `npm run db:migrate` whenever you pull a new migration.
 
-The seed creates five people, all with the password `password123`, and five chats: three direct, the "Project Team" group and `#general`.
+The seed creates six people, all with the password `password123`, and five chats: three direct, the "Project Team" group and `#general`. Erin is in none of them; the e2e makes her its admin.
 
 | Email               | Name          |
 | ------------------- | ------------- |
