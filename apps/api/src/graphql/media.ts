@@ -96,7 +96,14 @@ function send(res: Response, bytes: Result<Uint8Array, NotFound>): void {
       'Content-Type': 'application/octet-stream',
       'Cache-Control': 'private, max-age=31536000, immutable',
     })
-    .send(Buffer.from(bytes.value));
+    // The kept bytes themselves, not a copy.
+    .send(
+      Buffer.from(
+        bytes.value.buffer,
+        bytes.value.byteOffset,
+        bytes.value.byteLength
+      )
+    );
 }
 
 function missing(res: Response): void {
