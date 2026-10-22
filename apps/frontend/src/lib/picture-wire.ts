@@ -1,16 +1,17 @@
-import {
-  byteLength,
-  fromBase64,
-  isValidSize,
-  toBase64,
-  type Bits,
-} from '@msgr/media';
+import { byteLength, isValidSize, toBase64, type Bits } from '@msgr/media';
 
-/** A picture as GraphQL carries it: its bits raw-DEFLATEd, in base64. */
+/** A picture as the composer sends it: its bits raw-DEFLATEd, in base64. */
 export interface WirePicture {
   readonly width: number;
   readonly height: number;
   readonly bits: string;
+}
+
+/** A picture as the server lists it: its size, and where its bytes are. */
+export interface KeptPicture {
+  readonly width: number;
+  readonly height: number;
+  readonly url: string;
 }
 
 export async function toWire(bits: Bits): Promise<WirePicture> {
@@ -49,32 +50,13 @@ async function inflate(
   return new Uint8Array(await new Blob(chunks).arrayBuffer());
 }
 
-/** The picture, or null if its bits don't inflate to exactly its size. */
-export async function fromWire({
-  width,
-  height,
-  bits,
-}: WirePicture): Promise<Bits | null> {
+/** The picture, or null if its bytes don't inflate to exactly its size. */
+export async function fromBytes(
+  { width, height }: { readonly width: number; readonly height: number },
+  deflated: Uint8Array<ArrayBuffer>
+): Promise<Bits | null> {
   if (!isValidSize(width, height)) return null;
-  const deflated = fromBase64(bits);
-  if (!deflated) return null;
   const size = byteLength(width, height);
   const bytes = await inflate(deflated, size);
   return bytes?.length === size ? { width, height, bytes } : null;
-}
-
-// Each picture inflated once a session, keyed by its shape too: the same
-// bytes can be 16×10 or 8×20.
-// shortcut: never evicted; a few KB each, fine until chats hold thousands.
-const inflated = new Map<string, Promise<Bits | null>>();
-
-/** `fromWire`, remembered. Shared between callers: copy before changing it. */
-export function pictureBits(picture: WirePicture): Promise<Bits | null> {
-  const key = `${picture.width}x${picture.height}:${picture.bits}`;
-  let bits = inflated.get(key);
-  if (!bits) {
-    bits = fromWire(picture);
-    inflated.set(key, bits);
-  }
-  return bits;
 }

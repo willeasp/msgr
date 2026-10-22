@@ -1,7 +1,7 @@
-import { blank, getPixel, setPixel, toBase64 } from '@msgr/media';
+import { blank, getPixel, setPixel } from '@msgr/media';
 import { deflateRawSync, inflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { fromWire, pictureBits, toWire } from './picture-wire';
+import { fromBytes, toWire } from './picture-wire';
 
 const picture = () => {
   const bits = blank(13, 7);
@@ -18,31 +18,28 @@ describe('pictures on the wire', () => {
     ).toEqual(picture().bytes);
   });
 
-  it('round-trips', async () => {
-    const back = await fromWire(await toWire(picture()));
+  it('reads back the bytes the server keeps', async () => {
+    const kept = new Uint8Array(deflateRawSync(picture().bytes));
+    const back = await fromBytes({ width: 13, height: 7 }, kept);
     expect(back).toEqual(picture());
     expect(back && getPixel(back, 12, 6)).toBe(true);
   });
 
-  it('refuses bits that are not exactly the size they claim', async () => {
-    const wire = { width: 13, height: 7 };
+  it('refuses bytes that are not exactly the size they claim', async () => {
+    const size = { width: 13, height: 7 };
     for (const length of [13, 15, 100_000]) {
-      const bits = toBase64(deflateRawSync(new Uint8Array(length)));
-      expect(await fromWire({ ...wire, bits })).toBeNull();
+      const kept = new Uint8Array(deflateRawSync(new Uint8Array(length)));
+      expect(await fromBytes(size, kept)).toBeNull();
     }
-    expect(await fromWire({ ...wire, bits: 'not base64!' })).toBeNull();
-    expect(
-      await fromWire({ ...wire, bits: toBase64(Uint8Array.of(9)) })
-    ).toBeNull();
-  });
-
-  it('inflates each picture once, telling apart equal bytes of different shapes', async () => {
-    const bits = toBase64(deflateRawSync(new Uint8Array(20).fill(0xff)));
-    const wide = { width: 16, height: 10, bits };
-    const tall = { width: 8, height: 20, bits };
-
-    expect(await pictureBits(wide)).toMatchObject({ width: 16, height: 10 });
-    expect(await pictureBits(tall)).toMatchObject({ width: 8, height: 20 });
-    expect(await pictureBits(wide)).toBe(await pictureBits({ ...wide }));
+    expect(await fromBytes(size, Uint8Array.of(9))).toBeNull();
+    // The same bytes are a picture of the size they fill, and no other.
+    const filled = new Uint8Array(
+      deflateRawSync(new Uint8Array(20).fill(0xff))
+    );
+    expect(await fromBytes({ width: 16, height: 10 }, filled)).toMatchObject({
+      width: 16,
+      height: 10,
+    });
+    expect(await fromBytes({ width: 16, height: 11 }, filled)).toBeNull();
   });
 });

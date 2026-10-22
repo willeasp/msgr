@@ -1,13 +1,13 @@
 import { useMemo } from 'react';
 import { identicon, pictureImage } from '../../lib/pixels';
-import type { WirePicture } from '../../lib/picture-wire';
+import type { KeptPicture } from '../../lib/picture-wire';
 import { useInks } from '../hooks/use-inks';
 import { usePicture } from '../hooks/use-picture';
 import styles from './Face.module.css';
 
 export interface Person {
   readonly id: string;
-  readonly avatar?: WirePicture | null;
+  readonly avatar?: KeptPicture | null;
 }
 
 /**

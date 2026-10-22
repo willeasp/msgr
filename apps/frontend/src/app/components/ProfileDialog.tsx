@@ -3,12 +3,13 @@ import { useMutation, useQuery } from '@apollo/client/react';
 import { blank, isBlank, type Bits } from '@msgr/media';
 import { gql } from '../../lib/__generated__';
 import { identicon, pictureImage } from '../../lib/pixels';
-import { toWire } from '../../lib/picture-wire';
+import { toWire, type KeptPicture } from '../../lib/picture-wire';
 import AlertBanner from '../../sacred/components/AlertBanner';
 import Button from '../../sacred/components/Button';
 import Input from '../../sacred/components/Input';
 import { useModals } from '../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../sacred/modules/hotkeys';
+import { pictureAt } from '../data/media';
 import { ME } from '../data/me';
 import { useInks } from '../hooks/use-inks';
 import { usePicture } from '../hooks/use-picture';
@@ -20,6 +21,13 @@ import styles from './ProfileDialog.module.css';
 
 const SIDE = 64;
 
+/** The avatar as kept; a failure to read it is reported, never saved as none. */
+async function kept(avatar: KeptPicture): Promise<Bits> {
+  const bits = await pictureAt(avatar);
+  if (!bits) throw new Error('Could not read your picture. Try again.');
+  return bits;
+}
+
 const UPDATE_PROFILE = gql(`
   mutation UpdateProfile($name: String!, $avatar: PictureInput) {
     updateProfile(input: { name: $name, avatar: $avatar }) {
@@ -28,7 +36,7 @@ const UPDATE_PROFILE = gql(`
       avatar {
         width
         height
-        bits
+        url
       }
     }
   }
@@ -81,13 +89,10 @@ export function ProfileDialog() {
       await update({
         variables: {
           name,
+          // Saved together: an unchanged avatar is sent again as it is.
           avatar:
             drawn === undefined
-              ? me.avatar && {
-                  width: me.avatar.width,
-                  height: me.avatar.height,
-                  bits: me.avatar.bits,
-                }
+              ? me.avatar && (await toWire(await kept(me.avatar)))
               : drawn && (await toWire(drawn)),
         },
       });

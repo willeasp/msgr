@@ -37,7 +37,7 @@ const FIND_OR_CREATE_CHAT = gql(`
         avatar {
           width
           height
-          bits
+          url
         }
       }
       participants {

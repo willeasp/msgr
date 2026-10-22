@@ -1,23 +1,30 @@
 import { useEffect, useState } from 'react';
 import type { Bits } from '@msgr/media';
-import { pictureBits, type WirePicture } from '../../lib/picture-wire';
+import type { KeptPicture } from '../../lib/picture-wire';
+import { pictureAt, pictureNow } from '../data/media';
 
-/** A picture's bits once inflated; null until then, or for no picture. */
-export function usePicture(picture: WirePicture | null | undefined) {
-  const [inflated, setInflated] = useState<{
-    picture: WirePicture;
+/**
+ * A picture's bits once fetched and inflated; null until then, or for no
+ * picture. One already here shows at once, with no blank frame first.
+ */
+export function usePicture(picture: KeptPicture | null | undefined) {
+  const [loaded, setLoaded] = useState<{
+    url: string;
     bits: Bits | null;
   } | null>(null);
   useEffect(() => {
-    if (!picture) return;
+    if (!picture || pictureNow(picture) !== undefined) return;
     let current = true;
-    void pictureBits(picture).then(
-      (bits) => current && setInflated({ picture, bits })
+    void pictureAt(picture).then(
+      (bits) => current && setLoaded({ url: picture.url, bits })
     );
     return () => {
       current = false;
     };
   }, [picture]);
-  // Never the last picture's bits while the next one inflates.
-  return picture && inflated?.picture === picture ? inflated.bits : null;
+  if (!picture) return null;
+  // Never the last picture's bits while the next one loads.
+  const now = pictureNow(picture);
+  if (now !== undefined) return now;
+  return loaded?.url === picture.url ? loaded.bits : null;
 }

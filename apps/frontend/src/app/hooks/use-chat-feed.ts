@@ -15,17 +15,17 @@ const MESSAGE_RECEIVED_SUBSCRIPTION = gql(`
       picture {
         width
         height
-        bits
+        url
       }
       movie {
         width
         height
         frames
-        bits
+        url
       }
       sound {
         frames
-        bits
+        url
       }
       createdAt
       sender {
@@ -34,7 +34,7 @@ const MESSAGE_RECEIVED_SUBSCRIPTION = gql(`
         avatar {
           width
           height
-          bits
+          url
         }
       }
       chat {
@@ -47,7 +47,7 @@ const MESSAGE_RECEIVED_SUBSCRIPTION = gql(`
           avatar {
             width
             height
-            bits
+            url
           }
         }
         participants {
@@ -77,7 +77,7 @@ const CHAT_ADDED_SUBSCRIPTION = gql(`
           avatar {
             width
             height
-            bits
+            url
           }
         }
         participants {
@@ -110,7 +110,7 @@ const PROFILE_CHANGED_SUBSCRIPTION = gql(`
       avatar {
         width
         height
-        bits
+        url
       }
     }
   }

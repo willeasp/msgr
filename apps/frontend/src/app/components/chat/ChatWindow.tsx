@@ -4,8 +4,9 @@ import { isBlank, type Bits, type Frames } from '@msgr/media';
 import { GET_CHAT_DATA } from '../../data/chats';
 import { ChatKind } from '../../../lib/__generated__/graphql';
 import { isBlankMovie, type Drawing } from '../../../lib/movie';
-import { movieFrames, type WireMovie } from '../../../lib/movie-wire';
-import { pictureBits, type WirePicture } from '../../../lib/picture-wire';
+import type { KeptMovie } from '../../../lib/movie-wire';
+import type { KeptPicture } from '../../../lib/picture-wire';
+import { movieAt, pictureAt } from '../../data/media';
 import ActionButton from '../../../sacred/components/ActionButton';
 import { useModals } from '../../../sacred/components/page/ModalContext';
 import { MacWindow } from '../MacWindow';
@@ -122,12 +123,12 @@ export function ChatWindow({
     else if (attached.kind === 'movie')
       drawOver(attached.movie, attached.drawing);
   };
-  const drawOn = async (picture: WirePicture) => {
-    const bits = await pictureBits(picture);
+  const drawOn = async (picture: KeptPicture) => {
+    const bits = await pictureAt(picture);
     if (bits) draw(bits);
   };
-  const drawOnMovie = (movie: WireMovie) => {
-    const frames = movieFrames(movie);
+  const drawOnMovie = async (movie: KeptMovie) => {
+    const frames = await movieAt(movie);
     if (frames) drawOver(frames);
   };
   const count = chat?.participants.length ?? 0;

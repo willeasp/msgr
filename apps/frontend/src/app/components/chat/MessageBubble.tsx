@@ -5,9 +5,9 @@ import Message from '../../../sacred/components/Message';
 import MessageViewer from '../../../sacred/components/MessageViewer';
 import { isOnlyEmoji } from '../../../lib/emoji';
 import { firstLink, splitLinks } from '../../../lib/links';
-import type { WireMovie } from '../../../lib/movie-wire';
-import type { WirePicture } from '../../../lib/picture-wire';
-import type { WireSound } from '../../../lib/sound-wire';
+import type { KeptMovie } from '../../../lib/movie-wire';
+import type { KeptPicture } from '../../../lib/picture-wire';
+import type { KeptSound } from '../../../lib/sound-wire';
 import { Face, type Person } from '../Face';
 import { PixelText } from '../PixelText';
 import { MessageMovie } from './MessageMovie';
@@ -20,9 +20,9 @@ interface MessageBubbleProps {
   message: {
     id: string;
     content?: string | null;
-    picture?: WirePicture | null;
-    movie?: WireMovie | null;
-    sound?: WireSound | null;
+    picture?: KeptPicture | null;
+    movie?: KeptMovie | null;
+    sound?: KeptSound | null;
     sender: Person & { name: string };
     createdAt: string;
   };
@@ -32,9 +32,9 @@ interface MessageBubbleProps {
   /** Name the sender above the run: in groups and channels, not direct chats. */
   showName: boolean;
   /** Opens the paint window on a picture; offered under each one. */
-  onDrawOnIt?: (picture: WirePicture) => void;
+  onDrawOnIt?: (picture: KeptPicture) => void;
   /** Opens the paint window over a movie; offered under each one. */
-  onDrawOnMovie?: (movie: WireMovie) => void;
+  onDrawOnMovie?: (movie: KeptMovie) => void;
   /** Opens Get Info: a click or tap on the bubble. */
   onGetInfo?: () => void;
 }
