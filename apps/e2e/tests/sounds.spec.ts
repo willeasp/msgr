@@ -57,6 +57,10 @@ test('a file becomes a sound: part of it chosen, heard squashed, sent and played
   await expect(sound.getByRole('button', { name: 'Play sound' })).toBeVisible({
     timeout: 5_000,
   });
+  // Playing is not a click on the message: Get Info stays shut.
+  await expect(test.getByRole('dialog', { name: 'Message Info' })).toHaveCount(
+    0
+  );
 
   // Without text, the chat list says what it is.
   await expect(
@@ -114,4 +118,45 @@ test('a file that is not a sound is turned away', async ({ page }) => {
   await expect(dialog.getByRole('button', { name: 'Make Sound' })).toHaveCount(
     0
   );
+});
+
+test('a sound still plays after the page has been away', async ({ page }) => {
+  await page.goto('/login');
+  await signIn(page, 'test@example.com');
+  await chatsWindow(page).getByText('Charlie Brown', { exact: true }).click();
+  const chat = chatWindow(page, 'Charlie Brown');
+
+  await attach(chat, 'Sound…');
+  const dialog = page.getByRole('dialog', { name: 'Sound for Charlie Brown' });
+  const chooser = page.waitForEvent('filechooser');
+  await dialog.getByRole('button', { name: 'Choose File…' }).click();
+  await (await chooser).setFiles(BEEP);
+  await dialog.getByRole('button', { name: 'Make Sound' }).click();
+  await expect(dialog).toBeHidden();
+  await chat.getByRole('button', { name: 'Send', exact: true }).click();
+  // Sent, so the last sound is this one.
+  await expect(
+    chat.getByRole('group', { name: 'Attached sound' })
+  ).toBeHidden();
+  const sound = chat.getByRole('group', { name: 'Sound', exact: true }).last();
+  await sound.getByRole('button', { name: 'Play sound' }).click();
+  await expect(sound.getByRole('button', { name: 'Stop sound' })).toBeVisible();
+
+  // Away, as when a phone locks or a notification is opened: it stops.
+  const away = (hidden: boolean) =>
+    page.evaluate((hidden) => {
+      Object.defineProperty(document, 'hidden', {
+        configurable: true,
+        get: () => hidden,
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+    }, hidden);
+  await away(true);
+  await expect(sound.getByRole('button', { name: 'Play sound' })).toBeVisible();
+  await away(false);
+
+  // Back, it plays again, its time counting.
+  await sound.getByRole('button', { name: 'Play sound' }).click();
+  await expect(sound.getByRole('button', { name: 'Stop sound' })).toBeVisible();
+  await expect(sound).toContainText('0:01');
 });

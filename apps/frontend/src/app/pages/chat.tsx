@@ -1,22 +1,21 @@
-import { useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { gql } from '../../lib/__generated__';
 import { ChatKind } from '../../lib/__generated__/graphql';
 import { useParams, useNavigate } from 'react-router-dom';
 import SidebarLayout from '../../sacred/components/SidebarLayout';
 import { useModals } from '../../sacred/components/page/ModalContext';
-import { useHotkeys } from '../../sacred/modules/hotkeys';
 import { AppNavigation } from '../components/AppNavigation';
-import { ChatSidebar, GET_CHATS } from '../components/chat/ChatSidebar';
+import { ChatSidebar } from '../components/chat/ChatSidebar';
 import { AddPeopleDialog } from '../components/chat/AddPeopleDialog';
-import { ChatWindow, GET_CHAT_DATA } from '../components/chat/ChatWindow';
+import { ChatWindow } from '../components/chat/ChatWindow';
+import { GET_CHAT_DATA, GET_CHATS } from '../data/chats';
 import { InviteDialog } from '../components/InviteDialog';
 import { JoinChannelDialog } from '../components/chat/JoinChannelDialog';
 import { EmptyChatState } from '../components/chat/EmptyChatState';
 import { GetInfoDialog } from '../components/chat/GetInfoDialog';
 import { NewChatModal } from '../components/chat/NewChatModal';
 import { useMediaQuery } from '../hooks/use-media-query';
-import { useSignedIn } from '../signed-in/signed-in';
+import { useSignedIn } from '../hooks/use-signed-in';
 import styles from './chat.module.css';
 
 // Below this the Chats window and the open chat take turns on the desktop.
@@ -37,25 +36,7 @@ export function Chat() {
   const { open } = useModals();
   const isNarrow = useMediaQuery(NARROW);
 
-  // The message picked out in the open chat, for Get Info. Another chat's
-  // selection is no selection.
-  const [selection, setSelection] = useState<{
-    chatId: string;
-    messageId: string;
-  } | null>(null);
-  const selectedMessageId =
-    selection && selection.chatId === chatId ? selection.messageId : undefined;
-  const selectMessage = (messageId: string | null) =>
-    setSelection(chatId && messageId ? { chatId, messageId } : null);
   const getInfo = (messageId: string) => open(GetInfoDialog, { messageId });
-  const getSelectedInfo = selectedMessageId
-    ? () => getInfo(selectedMessageId)
-    : undefined;
-  useHotkeys('ctrl+i', () => getSelectedInfo?.(), {
-    enabled: !!getSelectedInfo,
-    enableOnFormTags: true,
-    preventDefault: true,
-  });
 
   const { data: chatData } = useQuery(GET_CHAT_DATA, {
     variables: { chatId: chatId ?? '' },
@@ -91,8 +72,6 @@ export function Chat() {
       onClose={closeChat}
       onAddPeople={addPeople}
       typists={typists}
-      selectedMessageId={selectedMessageId}
-      onSelectMessage={selectMessage}
       onGetInfo={getInfo}
     />
   ) : (
@@ -108,7 +87,6 @@ export function Chat() {
       <AppNavigation
         onAddPeople={addPeople}
         onCloseChat={chatId ? closeChat : undefined}
-        onGetInfo={getSelectedInfo}
         onLeaveChannel={leaveOpenChannel}
       />
       <main className={styles.desktop}>

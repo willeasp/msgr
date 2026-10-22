@@ -1,6 +1,6 @@
 import { useId, useMemo, useRef, useState } from 'react';
 import { useMutation } from '@apollo/client/react';
-import { blank, type Bits } from '@msgr/bitmap';
+import { blank, type Bits } from '@msgr/media';
 import { parseCommand } from '../../../lib/commands';
 import { gql } from '../../../lib/__generated__';
 import { drawnOver, frameShown } from '../../../lib/movie';
@@ -10,15 +10,15 @@ import { toWire as soundToWire } from '../../../lib/sound-wire';
 import Button from '../../../sacred/components/Button';
 import TextArea from '../../../sacred/components/TextArea';
 import { pixelSize, useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
-import { recordMessage } from '../../hooks/use-chat-feed';
+import { recordMessage } from '../../data/chats';
 import { Menu } from '../MenuBar';
 import { useMediaQuery } from '../../hooks/use-media-query';
 import { useMovieTick } from '../../hooks/use-movie';
 import { useSayTyping } from '../../hooks/use-typing';
-import type { Attachment } from './attachment';
-import { firstMedia } from './movie-from-file';
+import type { Attachment } from '../../../lib/attachment';
+import { firstMedia } from '../../../lib/files';
 import { SoundPlayer } from './SoundPlayer';
-import { useJoinChannel } from './use-join-channel';
+import { useJoinChannel } from '../../hooks/use-join-channel';
 import styles from './MessageInput.module.css';
 
 const SEND_MESSAGE = gql(`

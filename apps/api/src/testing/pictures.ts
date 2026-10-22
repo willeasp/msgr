@@ -1,4 +1,4 @@
-import { blank, setPixel, toBase64 } from '@msgr/bitmap';
+import { blank, setPixel, toBase64 } from '@msgr/media';
 import { deflateRawSync } from 'node:zlib';
 import { Picture } from '../domain/picture.js';
 import { Avatar } from '../domain/user.js';

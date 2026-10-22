@@ -11,5 +11,5 @@
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts", "src/testing/**"],
-  "references": [{ "path": "../../libs/bitmap/tsconfig.lib.json" }]
+  "references": [{ "path": "../../libs/media/tsconfig.lib.json" }]
 }

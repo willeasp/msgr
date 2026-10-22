@@ -4,7 +4,7 @@ import {
   isValidSize,
   toBase64,
   type Bits,
-} from '@msgr/bitmap';
+} from '@msgr/media';
 
 /** A picture as GraphQL carries it: its bits raw-DEFLATEd, in base64. */
 export interface WirePicture {

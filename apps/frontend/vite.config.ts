@@ -13,7 +13,7 @@ const config = {
   cacheDir: '../../node_modules/.vite/apps/frontend',
   // The shared lib's source, so the app never waits for its build.
   resolve: {
-    alias: { '@msgr/bitmap': `${__dirname}/../../libs/bitmap/src/index.ts` },
+    alias: { '@msgr/media': `${__dirname}/../../libs/media/src/index.ts` },
   },
   server: {
     port: 4200,

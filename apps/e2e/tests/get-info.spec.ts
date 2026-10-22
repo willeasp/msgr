@@ -1,11 +1,5 @@
 import { expect, test } from '@playwright/test';
-import {
-  anotherPerson,
-  chatWindow,
-  chatsWindow,
-  chooseMenu,
-  signIn,
-} from './support';
+import { anotherPerson, chatWindow, chatsWindow, signIn } from './support';
 
 test('Get Info on a message says who has read it, and when', async ({
   page,
@@ -23,9 +17,8 @@ test('Get Info on a message says who has read it, and when', async ({
     .getByText('Did the slides come through?');
   await expect(bubble).toBeVisible();
 
-  // Picked out with a click, then File → Get Info.
+  // A click on the message opens it.
   await bubble.click();
-  await chooseMenu(page, 'File', 'Get Info');
   const info = page.getByRole('dialog', { name: 'Message Info' });
   await expect(info.getByText('“Did the slides come through?”')).toBeVisible();
   await expect(info.getByText('Text', { exact: true })).toBeVisible();
@@ -50,8 +43,7 @@ test('Get Info on a message says who has read it, and when', async ({
   ).toBeVisible();
   await marked;
 
-  // Still selected: the button under it opens Get Info too.
-  await chat.getByRole('button', { name: 'Get Info' }).click();
+  await bubble.click();
   await expect(readers.getByRole('listitem')).toHaveText(
     /Test User\s*Today, \d/
   );

@@ -1,4 +1,4 @@
-import { analyseSound, getPixel, SOUND_RATE, type Bits } from '@msgr/bitmap';
+import { analyseSound, getPixel, SOUND_RATE, type Bits } from '@msgr/media';
 import { describe, expect, it } from 'vitest';
 import {
   clock,

@@ -4,9 +4,9 @@ import {
   serializeAlertPreferences,
   shouldAlert,
 } from '../../lib/alerts';
-import { beep } from '../../lib/beep';
+import { audio } from '../browser/audio';
+import { keep, kept } from '../browser/storage';
 
-const STORAGE_KEY = 'alerts';
 const TITLE = document.title;
 
 export interface ArrivedMessage {
@@ -21,7 +21,7 @@ export interface ArrivedMessage {
  */
 export function useAlerts(viewerId: string | undefined, openChatId?: string) {
   const [prefs, setPrefs] = useState(() =>
-    parseAlertPreferences(localStorage.getItem(STORAGE_KEY))
+    parseAlertPreferences(kept('alerts'))
   );
   const unread = useRef(0);
 
@@ -41,7 +41,7 @@ export function useAlerts(viewerId: string | undefined, openChatId?: string) {
     if (document.visibilityState !== 'visible') {
       document.title = `(${++unread.current}) ${TITLE}`;
     }
-    if (prefs.sound) beep();
+    if (prefs.sound) audio.beep();
   }, [prefs]);
 
   const alert = useCallback(
@@ -61,9 +61,9 @@ export function useAlerts(viewerId: string | undefined, openChatId?: string) {
 
   const setSound = (sound: boolean) => {
     const next = { ...prefs, sound };
-    localStorage.setItem(STORAGE_KEY, serializeAlertPreferences(next));
+    keep('alerts', serializeAlertPreferences(next));
     setPrefs(next);
-    if (sound) beep();
+    if (sound) audio.beep();
   };
 
   /** Always worth a beep: someone joined with your invite, or added you somewhere. */

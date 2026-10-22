@@ -1,4 +1,4 @@
-import { MOVIE_FPS } from '@msgr/bitmap';
+import { MOVIE_FPS } from '@msgr/media';
 import { secondsOf } from './sound';
 
 /** What Get Info needs to know of a message's body. */

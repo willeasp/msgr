@@ -13,7 +13,7 @@ import {
   TEST_PUSH_KEY,
 } from '../testing/harness.js';
 import { createContext } from './context.js';
-import { toBase64 } from '@msgr/bitmap';
+import { toBase64 } from '@msgr/media';
 import { exampleMovie, movieInput } from '../testing/movies.js';
 import { soundInput } from '../testing/sounds.js';
 import { examplePicture, pictureInput } from '../testing/pictures.js';

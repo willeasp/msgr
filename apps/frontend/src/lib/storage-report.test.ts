@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatBytes, share } from './storage';
+import { formatBytes, share } from './storage-report';
 
 describe('formatBytes', () => {
   it('counts small sizes in bytes', () => {

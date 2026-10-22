@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { useQuery } from '@apollo/client/react';
-import { fromBase64 } from '@msgr/bitmap';
+import { fromBase64 } from '@msgr/media';
 import { gql } from '../../../lib/__generated__';
 import { bitmapOf, svgMask } from '../../../lib/pixels';
 import { DOCUMENT } from '../icons';

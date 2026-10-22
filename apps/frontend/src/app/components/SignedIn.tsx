@@ -1,13 +1,9 @@
 import { useQuery } from '@apollo/client/react';
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import type { GetMeQuery } from '../../lib/__generated__/graphql';
 import { shouldOffer } from '../../lib/push';
 import { useModals } from '../../sacred/components/page/ModalContext';
-import { LoadingState } from '../components/LoadingState';
-import type { MenuItem } from '../components/MenuBar';
-import { NotificationsBlockedDialog } from '../components/NotificationsBlockedDialog';
-import { NotificationsDialog } from '../components/NotificationsDialog';
+import { ME } from '../data/me';
 import { useAlerts } from '../hooks/use-alerts';
 import { useChatFeed } from '../hooks/use-chat-feed';
 import { useInstallPrompt } from '../hooks/use-install-prompt';
@@ -18,47 +14,12 @@ import {
   useNotifications,
 } from '../hooks/use-notifications';
 import { useOpenChatFromNotifications } from '../hooks/use-service-worker';
-import { useTypists, type Typists } from '../hooks/use-typing';
+import { SignedInContext, type Viewer } from '../hooks/use-signed-in';
+import { useTypists } from '../hooks/use-typing';
 import { useWatching } from '../hooks/use-watching';
-import { ME } from './me';
-
-type Viewer = NonNullable<GetMeQuery['me']>;
-
-/** What every signed-in view shares, kept by `SignedIn` whatever's on screen. */
-export interface SignedInValue {
-  readonly viewer: Viewer;
-  readonly isAdmin: boolean;
-  readonly typists: Typists;
-  readonly alertSound: { readonly on: boolean; toggle(): void };
-  /** Special → Notifications, where this browser can have them. */
-  readonly notifications?: MenuItem;
-  /** Present while the browser offers to install Msgr. */
-  readonly install?: () => Promise<void>;
-  /** Which chat a window shows; only `useChatOnScreen` sets it. */
-  readonly showChat: React.Dispatch<React.SetStateAction<string | null>>;
-}
-
-const SignedInContext = createContext<SignedInValue | null>(null);
-
-/** What every signed-in view shares. Only views under `SignedIn` may ask. */
-export function useSignedIn(): SignedInValue {
-  const value = useContext(SignedInContext);
-  if (!value) throw new Error('useSignedIn is only for routes under SignedIn');
-  return value;
-}
-
-/**
- * Says this chat is on screen while the calling component is mounted, so its
- * messages neither beep nor notify. The chat window calls it, so a view that
- * shows no chat watches none.
- */
-export function useChatOnScreen(chatId: string) {
-  const { showChat } = useSignedIn();
-  useEffect(() => {
-    showChat(chatId);
-    return () => showChat((shown) => (shown === chatId ? null : shown));
-  }, [chatId, showChat]);
-}
+import { LoadingState } from './LoadingState';
+import { NotificationsBlockedDialog } from './NotificationsBlockedDialog';
+import { NotificationsDialog } from './NotificationsDialog';
 
 /**
  * The layout of every signed-in route: it sends anyone signed out to /login,

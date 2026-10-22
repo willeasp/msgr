@@ -2,7 +2,7 @@ import { useQuery } from '@apollo/client/react';
 import { useNavigate } from 'react-router-dom';
 import { gql } from '../../lib/__generated__';
 import type { StorageQuery } from '../../lib/__generated__/graphql';
-import { CONTENT_NAMES, formatBytes, share } from '../../lib/storage';
+import { CONTENT_NAMES, formatBytes, share } from '../../lib/storage-report';
 import Button from '../../sacred/components/Button';
 import { AppNavigation } from '../components/AppNavigation';
 import { BOMB, COMPUTER } from '../components/icons';

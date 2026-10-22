@@ -149,10 +149,6 @@ test('someone typing, and Get Info on a message', async ({ browser }) => {
     .getByRole('log', { name: 'Messages' })
     .getByText('kickoff meeting tomorrow')
     .click();
-  await menuBar(page)
-    .getByRole('button', { name: 'File', exact: true })
-    .click();
-  await page.getByRole('menuitem', { name: 'Get Info' }).click();
   const info = page.getByRole('dialog', { name: 'Message Info' });
   await expect(info.getByText('Not yet')).toBeVisible();
   await capture(page, 'get-info.png');

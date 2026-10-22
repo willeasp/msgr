@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { blank, getPixel, isBlank, type Bits, type Frames } from '@msgr/bitmap';
+import { blank, getPixel, isBlank, type Bits, type Frames } from '@msgr/media';
 import { frameShown, type Drawing } from '../../../lib/movie';
 import {
   PATTERNS,

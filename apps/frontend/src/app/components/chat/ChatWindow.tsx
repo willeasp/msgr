@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@apollo/client/react';
-import { isBlank, type Bits, type Frames } from '@msgr/bitmap';
-import { gql } from '../../../lib/__generated__';
+import { isBlank, type Bits, type Frames } from '@msgr/media';
+import { GET_CHAT_DATA } from '../../data/chats';
 import { ChatKind } from '../../../lib/__generated__/graphql';
 import { isBlankMovie, type Drawing } from '../../../lib/movie';
 import { movieFrames, type WireMovie } from '../../../lib/movie-wire';
@@ -12,41 +12,16 @@ import { MacWindow } from '../MacWindow';
 import { MessageInput } from './MessageInput';
 import { MessageList } from './MessageList';
 import { PaintDialog } from './PaintDialog';
-import type { Attachment } from './attachment';
-import { firstMedia, isVideo } from './movie-from-file';
-import { pictureFromFile } from './picture-from-file';
-import { isAudio } from './sound-from-file';
+import type { Attachment } from '../../../lib/attachment';
+import { firstMedia, isSoundFile, isVideo } from '../../../lib/files';
+import { pictureFromFile } from '../../browser/picture-file';
 import { SoundDialog } from './SoundDialog';
 import { TrimDialog } from './TrimDialog';
 import { TypingStatus } from './TypingStatus';
 import type { Typists } from '../../hooks/use-typing';
 import styles from './ChatWindow.module.css';
 import { PixelText } from '../PixelText';
-import { useChatOnScreen } from '../../signed-in/signed-in';
-
-export const GET_CHAT_DATA = gql(`
-  query GetChatData($chatId: ID!) {
-    chat(id: $chatId) {
-      id
-      kind
-      title
-      counterpart {
-        id
-        name
-        avatar {
-          width
-          height
-          bits
-        }
-      }
-      participants {
-        id
-        name
-        email
-      }
-    }
-  }
-`);
+import { useChatOnScreen } from '../../hooks/use-signed-in';
 
 interface ChatWindowProps {
   chatId: string;
@@ -56,9 +31,7 @@ interface ChatWindowProps {
   onAddPeople?: () => void;
   /** Who is writing where, for the title bar. */
   typists: Typists;
-  /** The message picked out with a click, if any. */
-  selectedMessageId?: string;
-  onSelectMessage: (messageId: string | null) => void;
+  /** Opens Get Info on a message, when it's clicked. */
   onGetInfo: (messageId: string) => void;
 }
 
@@ -69,8 +42,6 @@ export function ChatWindow({
   onClose,
   onAddPeople,
   typists,
-  selectedMessageId,
-  onSelectMessage,
   onGetInfo,
 }: ChatWindowProps) {
   const { data, loading } = useQuery(GET_CHAT_DATA, {
@@ -102,7 +73,7 @@ export function ChatWindow({
       onDone: (codes) => attach({ kind: 'sound', codes }),
     });
   const attachFile = async (file: File) => {
-    if (isAudio(file)) {
+    if (isSoundFile(file)) {
       makeSound(file);
       return;
     }
@@ -208,8 +179,6 @@ export function ChatWindow({
           showNames={!!chat && chat.kind !== ChatKind.Direct}
           onDrawOnIt={drawOn}
           onDrawOnMovie={drawOnMovie}
-          selectedMessageId={selectedMessageId}
-          onSelectMessage={onSelectMessage}
           onGetInfo={onGetInfo}
         />
         <MessageInput

@@ -1,6 +1,9 @@
 import { gql } from '../../lib/__generated__';
 
-/** The viewer, or null when nobody is signed in; and whether they may see the admin page. */
+/**
+ * Who is signed in, or null: the app's first question, asked by many. And
+ * whether they may see the admin page, which the menu bar needs as early.
+ */
 export const ME = gql(`
   query GetMe {
     me {

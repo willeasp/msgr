@@ -1,4 +1,4 @@
-import { analyseSound, encodeSound, SOUND_RATE, toBase64 } from '@msgr/bitmap';
+import { analyseSound, encodeSound, SOUND_RATE, toBase64 } from '@msgr/media';
 import { Sound } from '../domain/sound.js';
 
 /**

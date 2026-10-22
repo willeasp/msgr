@@ -143,7 +143,7 @@ export const typeDefs = /* GraphQL */ `
     width: Int!
     height: Int!
     frames: Int!
-    "Its frames, each laid out as a Picture's bits, coded by encodeMovie from @msgr/bitmap, in base64."
+    "Its frames, each laid out as a Picture's bits, coded by encodeMovie from @msgr/media, in base64."
     bits: String!
   }
 
@@ -159,7 +159,7 @@ export const typeDefs = /* GraphQL */ `
   type Sound {
     "2 to 3001."
     frames: Int!
-    "Its codes, made by encodeSound from @msgr/bitmap, in base64."
+    "Its codes, made by encodeSound from @msgr/media, in base64."
     bits: String!
   }
 

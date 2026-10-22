@@ -6,7 +6,7 @@ import {
   setPixel,
   toBase64,
   type Frames,
-} from '@msgr/bitmap';
+} from '@msgr/media';
 import { describe, expect, it } from 'vitest';
 import { fromWire, movieFrames, toWire } from './movie-wire';
 

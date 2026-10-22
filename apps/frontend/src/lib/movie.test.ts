@@ -1,4 +1,4 @@
-import { blank, frameOf, getPixel, setPixel } from '@msgr/bitmap';
+import { blank, frameOf, getPixel, setPixel } from '@msgr/media';
 import { describe, expect, it } from 'vitest';
 import {
   drawnOver,

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ChatId } from '../../domain/chat.js';
 import {
   fixtureEmail,
@@ -7,12 +7,18 @@ import {
 } from '../../testing/repository-contract.js';
 import { PrismaClient } from './client.js';
 import { prismaRepositories } from './repositories.js';
+import { prismaStorageGauge } from './storage-gauge.js';
 import { toUser, userFields } from './user.repository.js';
 
-// Point at a disposable, migrated database: every test truncates it.
+// Point at a disposable, migrated database: every test truncates it. So every
+// test against it lives in this one file, where tests run one at a time;
+// Vitest runs files side by side, and two would wipe each other's rows.
 const url = process.env['TEST_DATABASE_URL'];
 
-describe.runIf(url)('prisma repositories', () => {
+const truncate = (db: PrismaClient) =>
+  db.$executeRaw`TRUNCATE "Invite", "ReadMark", "Message", "Chat", "User" CASCADE`;
+
+describe.runIf(url)('prisma', () => {
   let db: PrismaClient;
 
   beforeAll(() => {
@@ -20,12 +26,64 @@ describe.runIf(url)('prisma repositories', () => {
   });
   afterAll(() => db.$disconnect());
 
-  repositoryContract(async () => {
-    await db.$executeRaw`TRUNCATE "Invite", "ReadMark", "Message", "Chat", "User" CASCADE`;
-    return {
-      repositories: prismaRepositories(db),
-      fixtures: prismaFixtures(db),
-    };
+  describe('repositories', () => {
+    repositoryContract(async () => {
+      await truncate(db);
+      return {
+        repositories: prismaRepositories(db),
+        fixtures: prismaFixtures(db),
+      };
+    });
+  });
+
+  describe('storage gauge', () => {
+    beforeEach(() => truncate(db));
+
+    it('measures the database, its tables and each kind of content', async () => {
+      const ada = await db.user.create({
+        data: {
+          name: 'Ada',
+          email: 'ada@example.com',
+          password: 'unusable',
+          avatar: new Uint8Array(100),
+        },
+      });
+      const chat = await db.chat.create({
+        data: { title: 'Team', participants: { connect: { id: ada.id } } },
+      });
+      await db.message.createMany({
+        data: [
+          { chatId: chat.id, senderId: ada.id, content: 'Hello' },
+          {
+            chatId: chat.id,
+            senderId: ada.id,
+            content: 'Look',
+            picture: new Uint8Array(40),
+            pictureWidth: 8,
+            pictureHeight: 8,
+          },
+        ],
+      });
+
+      const usage = await prismaStorageGauge(db).measure();
+
+      expect(usage.databaseBytes).toBeGreaterThan(0);
+      const message = usage.tables.find(({ name }) => name === 'Message');
+      expect(message?.bytes).toBeGreaterThan(0);
+      const contents = Object.fromEntries(
+        usage.contents.map(({ kind, count, bytes }) => [kind, { count, bytes }])
+      );
+      expect(contents).toMatchObject({
+        text: { count: 2 },
+        picture: { count: 1 },
+        movie: { count: 0, bytes: 0 },
+        sound: { count: 0, bytes: 0 },
+        avatar: { count: 1 },
+      });
+      // As stored: a little more than the bytes themselves, for their length.
+      expect(contents['picture']?.bytes).toBeGreaterThanOrEqual(40);
+      expect(contents['avatar']?.bytes).toBeGreaterThanOrEqual(100);
+    });
   });
 });
 

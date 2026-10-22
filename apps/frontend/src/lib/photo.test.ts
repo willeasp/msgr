@@ -1,4 +1,4 @@
-import { getPixel } from '@msgr/bitmap';
+import { getPixel } from '@msgr/media';
 import { describe, expect, it } from 'vitest';
 import { ditherPhoto } from './photo';
 

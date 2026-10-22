@@ -7,11 +7,8 @@ import {
   soundLength,
   type Bits,
   type SoundCodes,
-} from '@msgr/bitmap';
+} from '@msgr/media';
 import type { Part } from './trim';
-
-/** The longest file a sound can be cut from, in seconds. */
-export const LONGEST_FILE = 15 * 60;
 
 /** "0:42", or "12:05". */
 export const clock = (seconds: number) =>

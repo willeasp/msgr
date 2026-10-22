@@ -16,7 +16,10 @@ test('the title bar shows who is typing, with the watch, until they send', async
   await page.goto('/login');
   await signIn(page, 'test@example.com');
   await chatsWindow(page).getByText('Project Team', { exact: true }).click();
-  const status = chatWindow(page, 'Project Team').getByRole('status');
+  // The title bar's, not the history's while it loads.
+  const status = chatWindow(page, 'Project Team').getByRole('status', {
+    name: 'Typing',
+  });
   await expect(status).toHaveText('');
 
   // Typing says so every few seconds, so a reader who wasn't listening yet

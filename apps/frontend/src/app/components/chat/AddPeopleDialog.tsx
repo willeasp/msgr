@@ -11,7 +11,7 @@ import { useHotkeys } from '../../../sacred/modules/hotkeys';
 import { LoadingState } from '../LoadingState';
 import { DialogButtons, MacDialog } from '../MacDialog';
 import { Muted } from '../Muted';
-import { GET_CHAT_DATA } from './ChatWindow';
+import { GET_CHAT_DATA } from '../../data/chats';
 import { SEARCH_USERS } from './NewChatModal';
 import styles from './NewChatModal.module.css';
 import { PixelText } from '../PixelText';

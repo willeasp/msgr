@@ -49,7 +49,7 @@ model Chat {
 model Message {
   id            String     @id @default(cuid())
   content       String?
-  /// A 1-bit picture, raw DEFLATE of the `@msgr/bitmap` layout; see domain/picture.ts.
+  /// A 1-bit picture, raw DEFLATE of the `@msgr/media` layout; see domain/picture.ts.
   picture       Bytes?
   pictureWidth  Int?       @db.SmallInt
   pictureHeight Int?       @db.SmallInt

@@ -1,4 +1,4 @@
-import { analyseSound, SOUND_RATE } from '@msgr/bitmap';
+import { analyseSound, SOUND_RATE } from '@msgr/media';
 import { describe, expect, it } from 'vitest';
 import { fromWire, soundCodes, toWire } from './sound-wire';
 

@@ -1,4 +1,4 @@
-import { atkinson, getPixel } from '@msgr/bitmap';
+import { atkinson, getPixel } from '@msgr/media';
 import { EMOJI_ART } from './emoji-art';
 import type { Bitmap } from './pixels';
 

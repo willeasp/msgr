@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { applyTheme, loadTheme, TINTS, type Theme } from '../../lib/theme';
+import { TINTS, type Theme } from '../../lib/theme';
+import { applyTheme, loadTheme } from '../browser/theme';
 import { Menu } from './MenuBar';
 
 const capitalize = (word: string) =>

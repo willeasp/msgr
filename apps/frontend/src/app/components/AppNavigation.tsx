@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { gql } from '../../lib/__generated__';
 import { useModals } from '../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../sacred/modules/hotkeys';
-import { useSessionChange } from '../auth/use-session-change';
+import { useSessionChange } from '../hooks/use-session-change';
 import { useForgetBrowser } from '../hooks/use-notifications';
-import { useSignedIn } from '../signed-in/signed-in';
+import { useSignedIn } from '../hooks/use-signed-in';
 import { JoinChannelDialog } from './chat/JoinChannelDialog';
 import { NewChatModal } from './chat/NewChatModal';
 import { InviteDialog } from './InviteDialog';
@@ -26,8 +26,6 @@ interface AppNavigationProps {
   onAddPeople?: () => void;
   /** Present while a chat is open. */
   onCloseChat?: () => void;
-  /** Present while a message is selected. */
-  onGetInfo?: () => void;
   /** Present while a channel is open. */
   onLeaveChannel?: () => void;
 }
@@ -36,7 +34,6 @@ interface AppNavigationProps {
 export function AppNavigation({
   onAddPeople,
   onCloseChat,
-  onGetInfo,
   onLeaveChannel,
 }: AppNavigationProps) {
   const { viewer, isAdmin, alertSound, notifications, install } = useSignedIn();
@@ -80,9 +77,6 @@ export function AppNavigation({
                 : []),
               ...(onCloseChat
                 ? [{ label: 'Close Chat', onClick: onCloseChat }]
-                : []),
-              ...(onGetInfo
-                ? [{ label: 'Get Info', shortcut: '⌃I', onClick: onGetInfo }]
                 : []),
               ...(onLeaveChannel
                 ? [{ label: 'Leave Channel', onClick: onLeaveChannel }]

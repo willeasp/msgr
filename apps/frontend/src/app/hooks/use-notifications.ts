@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { gql } from '../../lib/__generated__';
 import { keyBytes, notificationSetup } from '../../lib/push';
+import { keep, kept } from '../browser/storage';
 
 const PUSH_KEY = gql(`
   query PushKey {
@@ -21,8 +22,6 @@ const DISABLE_PUSH = gql(`
   }
 `);
 
-const DISMISSED = 'notifications-dismissed';
-
 /** This browser, as `notificationSetup` sees it. */
 export const setup = notificationSetup({
   serviceWorker: 'serviceWorker' in navigator,
@@ -31,8 +30,8 @@ export const setup = notificationSetup({
 });
 
 /** Someone said Not Now (or OK) to the offer on this device. */
-export const offerDismissed = () => localStorage.getItem(DISMISSED) !== null;
-export const dismissOffer = () => localStorage.setItem(DISMISSED, 'true');
+export const offerDismissed = () => kept('notificationsDismissed') !== null;
+export const dismissOffer = () => keep('notificationsDismissed', 'true');
 
 /** This browser's push subscription, if it has one. */
 async function browserSubscription(): Promise<PushSubscription | null> {

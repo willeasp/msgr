@@ -1,17 +1,9 @@
-import type { ApolloCache } from '@apollo/client';
 import { useSubscription } from '@apollo/client/react';
 import { useLayoutEffect, useRef } from 'react';
-import {
-  withChat,
-  withMessage,
-  withReceivedMessage,
-} from '../../lib/chat-list';
 import { gql } from '../../lib/__generated__';
 import type { OnChatAddedSubscription } from '../../lib/__generated__/graphql';
-import type { ReceivedMessage } from '../../lib/chat-list';
 import type { TypingEvent } from '../../lib/typing';
-import { GET_CHATS } from '../components/chat/ChatSidebar';
-import { GET_CHAT_MESSAGES } from '../components/chat/MessageList';
+import { recordChat, recordMessage } from '../data/chats';
 import type { ArrivedMessage } from './use-alerts';
 
 // Selects a whole chat-list row, so a chat the list hasn't seen can join it.
@@ -108,41 +100,6 @@ const CHAT_ADDED_SUBSCRIPTION = gql(`
   }
 `);
 
-/**
- * The one way a message gets into the cache, whether the feed brought it or
- * the viewer just sent it: onto the chat list and into the chat's history,
- * together, so the two can't disagree. Hence sending selects all the feed does.
- */
-export function recordMessage(cache: ApolloCache, message: ReceivedMessage) {
-  cache.updateQuery({ query: GET_CHATS }, (existing) =>
-    existing
-      ? { chats: [...withReceivedMessage(existing.chats, message)] }
-      : existing
-  );
-  // The chat's history too, open or not, so it is current when opened.
-  const { chat, id, content, picture, movie, sound, createdAt, sender } =
-    message;
-  cache.updateQuery(
-    { query: GET_CHAT_MESSAGES, variables: { chatId: chat.id } },
-    (existing) =>
-      existing && {
-        // Sent and delivered both arrive here; whichever is second changes nothing.
-        messages: [
-          ...withMessage(existing.messages, {
-            __typename: 'Message' as const,
-            id,
-            content,
-            picture,
-            movie,
-            sound,
-            createdAt,
-            sender,
-          }),
-        ],
-      }
-  );
-}
-
 // Each person is cached once, by id, so their new name and picture reach
 // every message, row and title that shows them without another line here.
 const PROFILE_CHANGED_SUBSCRIPTION = gql(`
@@ -214,11 +171,7 @@ export function useChatFeed(handlers: {
     onData: ({ data, client }) => {
       const event = data.data?.chatAdded;
       if (!event) return;
-      client.cache.updateQuery({ query: GET_CHATS }, (existing) =>
-        existing
-          ? { chats: [...withChat(existing.chats, event.chat)] }
-          : existing
-      );
+      recordChat(client.cache, event.chat);
       latest.current.onChatAdded(event);
     },
   });

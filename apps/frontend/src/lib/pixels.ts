@@ -1,4 +1,4 @@
-import { getPixel, type Bits } from '@msgr/bitmap';
+import { getPixel, type Bits } from '@msgr/media';
 
 /**
  * 1-bit pixel art, drawn as SVG so it stays crisp at any size.

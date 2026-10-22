@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useQuery } from '@apollo/client/react';
-import { gql } from '../../../lib/__generated__';
+import { GET_CHAT_MESSAGES } from '../../data/chats';
 import { useReading } from '../../hooks/use-reading';
 import { LoadingState } from '../LoadingState';
 import { Muted } from '../Muted';
@@ -9,40 +9,6 @@ import type { WirePicture } from '../../../lib/picture-wire';
 import { MessageBubble } from './MessageBubble';
 import styles from './MessageList.module.css';
 
-export const GET_CHAT_MESSAGES = gql(`
-  query GetChatMessages($chatId: ID!) {
-    messages(chatId: $chatId, limit: 50) {
-      id
-      content
-      picture {
-        width
-        height
-        bits
-      }
-      movie {
-        width
-        height
-        frames
-        bits
-      }
-      sound {
-        frames
-        bits
-      }
-      sender {
-        id
-        name
-        avatar {
-          width
-          height
-          bits
-        }
-      }
-      createdAt
-    }
-  }
-`);
-
 interface MessageListProps {
   chatId: string;
   currentUserId: string | undefined;
@@ -50,10 +16,7 @@ interface MessageListProps {
   showNames: boolean;
   onDrawOnIt?: (picture: WirePicture) => void;
   onDrawOnMovie?: (movie: WireMovie) => void;
-  /** The message picked out with a click, if any. */
-  selectedMessageId?: string;
-  /** Picks out a message, or none when the click was on nothing. */
-  onSelectMessage?: (messageId: string | null) => void;
+  /** Opens Get Info on a message: a click on it. */
   onGetInfo?: (messageId: string) => void;
 }
 
@@ -63,8 +26,6 @@ export function MessageList({
   showNames,
   onDrawOnIt,
   onDrawOnMovie,
-  selectedMessageId,
-  onSelectMessage,
   onGetInfo,
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -113,17 +74,7 @@ export function MessageList({
   }
 
   return (
-    <div
-      className={styles.root}
-      role="log"
-      aria-label="Messages"
-      // A click on nothing in particular lets go of the selected message.
-      onClick={(e) => {
-        if (!(e.target as Element).closest('button, a')) {
-          onSelectMessage?.(null);
-        }
-      }}
-    >
+    <div className={styles.root} role="log" aria-label="Messages">
       {messages.map((message, index) => (
         <MessageBubble
           key={message.id}
@@ -133,8 +84,6 @@ export function MessageList({
           showName={showNames}
           onDrawOnIt={onDrawOnIt}
           onDrawOnMovie={onDrawOnMovie}
-          selected={message.id === selectedMessageId}
-          onSelect={onSelectMessage && (() => onSelectMessage(message.id))}
           onGetInfo={onGetInfo && (() => onGetInfo(message.id))}
         />
       ))}

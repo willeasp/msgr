@@ -5,7 +5,7 @@ import {
   isValidFrameCount,
   toBase64,
   type SoundCodes,
-} from '@msgr/bitmap';
+} from '@msgr/media';
 
 /** A sound as GraphQL carries it: its codes from `encodeSound`, in base64. */
 export interface WireSound {
