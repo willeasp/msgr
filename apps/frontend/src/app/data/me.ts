@@ -1,6 +1,9 @@
 import { gql } from '../../lib/__generated__';
 
-/** Who is signed in, or null: the app's first question, asked by many. */
+/**
+ * Who is signed in, or null: the app's first question, asked by many. And
+ * whether they may see the admin page, which the menu bar needs as early.
+ */
 export const ME = gql(`
   query GetMe {
     me {
@@ -12,6 +15,9 @@ export const ME = gql(`
         height
         bits
       }
+    }
+    admin {
+      __typename
     }
   }
 `);

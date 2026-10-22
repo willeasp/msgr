@@ -21,6 +21,7 @@ import { TypingStatus } from './TypingStatus';
 import type { Typists } from '../../hooks/use-typing';
 import styles from './ChatWindow.module.css';
 import { PixelText } from '../PixelText';
+import { useChatOnScreen } from '../../hooks/use-signed-in';
 
 interface ChatWindowProps {
   chatId: string;
@@ -48,6 +49,8 @@ export function ChatWindow({
   });
   const chat = data?.chat;
   const title = chat?.title ?? (loading ? 'Loading…' : 'Chat');
+  // While this window is up, its chat's messages neither beep nor notify.
+  useChatOnScreen(chatId);
   const { open } = useModals();
   // The picture, movie or sound going with the next message: drawn,
   // recorded, or made from a file.

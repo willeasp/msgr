@@ -37,8 +37,9 @@ transport. `main.ts` is the only file that picks adapters.
 2. It publishes the message to every participant through the in-process
    `PubSub`.
 3. Each participant's open tab has one `messageReceived` subscription, owned by
-   the chat page (`useChatFeed`). It moves the chat to the top of the list,
-   appends the message to that chat's cached history, and hands it to
+   `SignedIn`, the layout of every signed-in page (`useChatFeed`). It moves the
+   chat to the top of the list, appends the message to that chat's cached
+   history, and hands it to
    `useAlerts`, which beeps (and counts it in the tab) if it's someone else's
    message in a chat you aren't looking at.
 4. Meanwhile, without making the sender wait, the `Notifier` pushes it to the
@@ -69,8 +70,12 @@ single instance (see [ADR 0005](adr/0005-free-single-instance-hosting.md)).
 
 Vite and React, with Sacred Computer's components vendored into
 `apps/frontend/src/sacred` and restyled as a 1984 Macintosh by `src/skin.css`
-([ADR 0001](adr/0001-vendor-sacred-computer-and-skin-it.md)). The chat page is
-the desktop: a menu bar, the Chats window and the open chat's window.
+([ADR 0001](adr/0001-vendor-sacred-computer-and-skin-it.md)). Every signed-in
+page sits under `SignedIn` (`app/components/SignedIn.tsx`), which holds what
+lasts while someone is signed in, whatever's on screen: the live feed, alerts,
+typing and notifications. A page only draws itself: the chat page is the
+desktop, a menu bar, the Chats window and the open chat's window; the admin
+page shows storage.
 It's layered like the API, with imports flowing one way, enforced by lint
 ([ADR 0010](adr/0010-frontend-layers.md)): pages → components → hooks →
 data, browser → lib. `lib/` holds the pure logic, each with tests;

@@ -82,6 +82,8 @@ describe('server', () => {
       secureCookies: false,
       staticDir: builtApp(),
       push: null,
+      admins: [],
+      storageLimit: null,
     });
   });
 

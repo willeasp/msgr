@@ -159,4 +159,36 @@ describe("a message's sound", () => {
       message: { __typename: 'Message', id: 'm', sound },
     });
   });
+
+  it("keeps the admin page's storage when asked only whether there is one", () => {
+    const cache = createCache();
+    const STORAGE = gql`
+      query Storage {
+        admin {
+          storage {
+            usedBytes
+          }
+        }
+      }
+    `;
+    const IS_ADMIN = gql`
+      query IsAdmin {
+        admin {
+          __typename
+        }
+      }
+    `;
+    const admin = { __typename: 'Admin' };
+    cache.writeQuery({
+      query: STORAGE,
+      data: {
+        admin: { ...admin, storage: { __typename: 'Storage', usedBytes: 9 } },
+      },
+    });
+    cache.writeQuery({ query: IS_ADMIN, data: { admin } });
+
+    expect(cache.readQuery({ query: STORAGE })).toMatchObject({
+      admin: { storage: { usedBytes: 9 } },
+    });
+  });
 });

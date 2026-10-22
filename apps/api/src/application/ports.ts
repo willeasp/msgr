@@ -15,6 +15,7 @@ import type { Page } from '../domain/page.js';
 import type { Notification, PushSubscription } from '../domain/push.js';
 import type { Read } from '../domain/read.js';
 import type { Result } from '../domain/result.js';
+import type { StorageUsage } from '../domain/storage.js';
 import type { PictureCodec } from '../domain/picture.js';
 import type { Typing } from '../domain/typing.js';
 import type {
@@ -205,6 +206,11 @@ export interface Throttle {
   attempt(key: string): boolean;
 }
 
+/** Measures the database: its size, its tables' and what each kind of content takes up. */
+export interface StorageGauge {
+  measure(): Promise<StorageUsage>;
+}
+
 /** Everything the application needs from the outside world. */
 export interface Dependencies {
   readonly repositories: Repositories;
@@ -223,4 +229,9 @@ export interface Dependencies {
   /** The VAPID public key browsers subscribe with; null while push is off. */
   readonly pushKey: string | null;
   readonly watching: Watching;
+  /** Whoever may see the admin page. */
+  readonly admins: readonly Email[];
+  readonly storageGauge: StorageGauge;
+  /** The database plan's allowance, in bytes; null when none is set. */
+  readonly storageLimit: number | null;
 }

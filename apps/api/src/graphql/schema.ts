@@ -192,6 +192,48 @@ export const typeDefs = /* GraphQL */ `
     auth: String!
   }
 
+  "What only the server's admins may see."
+  type Admin {
+    "How full the database is, and with what."
+    storage: Storage!
+  }
+
+  "The database as Postgres measures it, against the plan's allowance. Sizes are in bytes."
+  type Storage {
+    "The whole database on disk."
+    usedBytes: Float!
+    "The plan's allowance (STORAGE_LIMIT_MB); null when none is set."
+    limitBytes: Float
+    "What's left of the allowance, never below 0; null without one."
+    freeBytes: Float
+    "Biggest first."
+    contents: [StoredContent!]!
+    "Biggest first."
+    tables: [TableSize!]!
+  }
+
+  enum ContentKind {
+    "Every message's words."
+    TEXT
+    PICTURE
+    MOVIE
+    SOUND
+    AVATAR
+  }
+
+  "How many there are of one kind of content, and the bytes they're stored in, after compression."
+  type StoredContent {
+    kind: ContentKind!
+    count: Int!
+    bytes: Float!
+  }
+
+  "A table and everything it takes up: rows, indexes and TOAST."
+  type TableSize {
+    name: String!
+    bytes: Float!
+  }
+
   type Query {
     "The signed-in user, or null."
     me: User
@@ -213,6 +255,8 @@ export const typeDefs = /* GraphQL */ `
     inviteRedeemable(code: String!): Boolean!
     "The key browsers subscribe to Web Push with (VAPID, base64url); null while push is off. Needs no sign-in."
     pushKey: String
+    "The admin page, if the viewer is one of the server's admins (ADMIN_EMAILS); null for everyone else, signed in or not."
+    admin: Admin
   }
 
   type Mutation {

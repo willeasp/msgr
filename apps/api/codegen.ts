@@ -10,6 +10,7 @@ const config: CodegenConfig = {
         contextType: '../context.js#Context',
         // Resolvers take and return domain entities; field resolvers walk relations.
         mappers: {
+          Admin: '../../domain/admin.js#Admin',
           AuthPayload: '../../domain/user.js#Session',
           ChannelListing: '../../domain/chat.js#ChannelChat',
           Chat: '../../domain/chat.js#Chat',
@@ -23,6 +24,8 @@ const config: CodegenConfig = {
           Typing: '../../domain/typing.js#Typing',
           SignUpPayload: '../../application/auth.service.js#Welcome',
           Sound: '../../domain/sound.js#Sound',
+          Storage: '../../domain/storage.js#StorageReport',
+          StoredContent: '../../domain/storage.js#StoredContent',
           User: '../../domain/user.js#User',
         },
         mapperTypeSuffix: 'Model',

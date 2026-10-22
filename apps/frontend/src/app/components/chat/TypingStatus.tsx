@@ -14,7 +14,7 @@ const watchAt = (tick: number) =>
  * "Ana is typing…" beside the classic wristwatch, its hand going round, for
  * the chat window's title bar. It keeps still for anyone who asked for less
  * motion, as the movies do. Always there, empty, so screen readers hear it
- * when someone starts.
+ * when someone starts; named, to tell it from the window's loading status.
  */
 export function TypingStatus({
   typists,
@@ -26,7 +26,11 @@ export function TypingStatus({
   const line = typingLine(useTypingIn(typists, chatId));
   const tick = useMovieTick(line !== null);
   return (
-    <span role="status" className={line ? styles.typing : undefined}>
+    <span
+      role="status"
+      aria-label="Typing"
+      className={line ? styles.typing : undefined}
+    >
       {line && (
         <>
           <PixelIcon bitmap={watchAt(tick)} scale={1} />

@@ -1,4 +1,5 @@
 import { err, ok, type Result } from './domain/result.js';
+import { Email } from './domain/user.js';
 
 export interface Config {
   readonly port: number;
@@ -18,6 +19,10 @@ export interface Config {
     readonly privateKey: string;
     readonly subject: string;
   } | null;
+  /** Whoever may see the admin page: `ADMIN_EMAILS`, comma-separated. */
+  readonly admins: readonly Email[];
+  /** The database plan's allowance in bytes, from `STORAGE_LIMIT_MB`; null when unset. */
+  readonly storageLimit: number | null;
 }
 
 const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
@@ -81,6 +86,22 @@ export function parseConfig(
     );
   }
 
+  const admins: Email[] = [];
+  for (const raw of (env['ADMIN_EMAILS'] ?? '').split(',')) {
+    if (!raw.trim()) continue;
+    const email = Email.parse(raw);
+    if (email.ok) admins.push(email.value);
+    else
+      problems.push(`ADMIN_EMAILS has "${raw.trim()}", which is not an email`);
+  }
+
+  const limitMb = env['STORAGE_LIMIT_MB']
+    ? Number(env['STORAGE_LIMIT_MB'])
+    : null;
+  if (limitMb !== null && !(limitMb > 0 && Number.isFinite(limitMb))) {
+    problems.push('STORAGE_LIMIT_MB must be a positive number of megabytes');
+  }
+
   if (problems.length > 0) return err(problems);
   return ok({
     port,
@@ -101,5 +122,7 @@ export function parseConfig(
               : 'mailto:msgr@localhost',
           }
         : null,
+    admins,
+    storageLimit: limitMb === null ? null : Math.round(limitMb * 1024 * 1024),
   });
 }
