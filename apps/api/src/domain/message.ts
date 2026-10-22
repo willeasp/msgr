@@ -1,10 +1,10 @@
 import type { Brand } from './brand.js';
 import type { ChatId } from './chat.js';
 import { invalidInput, type InvalidInput } from './errors.js';
-import type { Movie } from './movie.js';
-import type { Picture } from './picture.js';
+import type { Movie, MovieSize } from './movie.js';
+import type { Picture, PictureSize } from './picture.js';
 import { err, ok, type Result } from './result.js';
-import type { Sound } from './sound.js';
+import type { Sound, SoundLength } from './sound.js';
 import type { UserId } from './user.js';
 
 export type MessageId = Brand<string, 'MessageId'>;
@@ -17,11 +17,11 @@ interface Sent {
   readonly createdAt: Date;
 }
 
-/** A picture, a movie or a sound: one of them, never two. */
-type Attached =
-  | { readonly picture: Picture; readonly movie: null; readonly sound: null }
-  | { readonly picture: null; readonly movie: Movie; readonly sound: null }
-  | { readonly picture: null; readonly movie: null; readonly sound: Sound };
+/** A picture, a movie or a sound, as P, M or S: one of them, never two. */
+type Attached<P, M, S> =
+  | { readonly picture: P; readonly movie: null; readonly sound: null }
+  | { readonly picture: null; readonly movie: M; readonly sound: null }
+  | { readonly picture: null; readonly movie: null; readonly sound: S };
 type Unattached = {
   readonly picture: null;
   readonly movie: null;
@@ -30,20 +30,31 @@ type Unattached = {
 const unattached: Unattached = { picture: null, movie: null, sound: null };
 
 /**
- * What a message says: text, a picture, a movie or a sound, or text with one
- * of them; never neither. When there is no text, something is attached, and
- * the type says so.
+ * Text, a picture, a movie or a sound, or text with one of them; never
+ * neither. When there is no text, something is attached, and the type says
+ * so. P, M and S are how much of the picture, movie or sound is held.
  */
-export type MessageBody =
-  | ({ readonly content: MessageContent } & (Attached | Unattached))
-  | ({ readonly content: null } & Attached);
+type Body<P, M, S> =
+  | ({ readonly content: MessageContent } & (Attached<P, M, S> | Unattached))
+  | ({ readonly content: null } & Attached<P, M, S>);
+
+/** What a message says as it's sent: its picture, movie or sound whole. */
+export type MessageBody = Body<Picture, Movie, Sound>;
+
+/**
+ * What a kept message says: its picture's, movie's or sound's size, never
+ * their bytes, which are fetched on their own (`MessageRepository.findMedia`)
+ * and only by whoever shows them.
+ */
+export type KeptBody = Body<PictureSize, MovieSize, SoundLength>;
+
 export const MessageBody = {
-  of(
+  of<P, M, S>(
     content: MessageContent | null,
-    picture: Picture | null,
-    movie: Movie | null,
-    sound: Sound | null
-  ): Result<MessageBody, InvalidInput> {
+    picture: P | null,
+    movie: M | null,
+    sound: S | null
+  ): Result<Body<P, M, S>, InvalidInput> {
     const count = [picture, movie, sound].filter((it) => it !== null).length;
     if (count > 1) {
       return err(
@@ -53,7 +64,7 @@ export const MessageBody = {
         )
       );
     }
-    const attached: Attached | null =
+    const attached: Attached<P, M, S> | null =
       picture !== null
         ? { ...unattached, picture }
         : movie !== null
@@ -72,11 +83,24 @@ export const MessageBody = {
   },
 };
 
-/** Posted by a participant to a chat. */
-export type Message = Sent & MessageBody;
+/** Posted by a participant to a chat, as kept: its media's bytes apart. */
+export type Message = Sent & KeptBody;
 
-/** A message that has been accepted but not yet stored. */
+/** A message that has been accepted but not yet stored, its media whole. */
 export type NewMessage = Omit<Sent, 'id'> & MessageBody;
+
+/** The part of a message that has bytes of its own. */
+export type MediaPart = 'picture' | 'movie' | 'sound';
+
+/** Which part of the message has bytes of its own; null for text alone. */
+export const mediaPartOf = (message: KeptBody): MediaPart | null =>
+  message.picture
+    ? 'picture'
+    : message.movie
+    ? 'movie'
+    : message.sound
+    ? 'sound'
+    : null;
 
 /** Trimmed, non-blank, bounded message text. */
 export type MessageContent = Brand<string, 'MessageContent'>;

@@ -14,6 +14,7 @@ import type {
 } from './__generated__/resolvers.js';
 import { requireViewer, startSession } from './context.js';
 import { unwrap } from './errors.js';
+import { mediaBytes, mediaUrl } from './media.js';
 import { DateTime } from './scalars.js';
 
 /*
@@ -190,19 +191,39 @@ export const resolvers: Resolvers = {
     chatId: (channel) => channel.id,
   },
 
+  User: {
+    avatar: ({ id, avatar }) =>
+      avatar && {
+        width: avatar.width,
+        height: avatar.height,
+        source: { avatarOf: id, avatar },
+      },
+  },
+
   Picture: {
-    bits: (picture) => toBase64(picture.deflated),
+    url: ({ source }) => mediaUrl(source, 'picture'),
+    bits: async ({ source }, _, { loaders }) =>
+      toBase64(await mediaBytes(source, loaders)),
   },
 
   Movie: {
-    bits: (movie) => toBase64(movie.coded),
+    url: ({ source }) => mediaUrl(source, 'movie'),
+    bits: async ({ source }, _, { loaders }) =>
+      toBase64(await mediaBytes(source, loaders)),
   },
 
   Sound: {
-    bits: (sound) => toBase64(sound.coded),
+    url: ({ source }) => mediaUrl(source, 'sound'),
+    bits: async ({ source }, _, { loaders }) =>
+      toBase64(await mediaBytes(source, loaders)),
   },
 
   Message: {
+    // Each part's size, and where its bytes are: never the bytes themselves.
+    picture: ({ id, picture }) =>
+      picture && { ...picture, source: { message: id } },
+    movie: ({ id, movie }) => movie && { ...movie, source: { message: id } },
+    sound: ({ id, sound }) => sound && { ...sound, source: { message: id } },
     sender: (message, _, { loaders }) =>
       loadExisting(loaders.user, message.senderId),
     chat: (message, _, { loaders }) =>

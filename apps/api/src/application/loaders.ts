@@ -16,6 +16,8 @@ export interface Loaders {
   readonly message: DataLoader<MessageId, Message | null>;
   /** Each message's reads, whoever read it first first. */
   readonly reads: DataLoader<MessageId, Read[]>;
+  /** A message's picture, movie or sound bytes; null for text alone. */
+  readonly media: DataLoader<MessageId, Uint8Array<ArrayBuffer> | null>;
   messages(page: Page): DataLoader<ChatId, Message[]>;
 }
 
@@ -47,8 +49,20 @@ export function createLoaders(
       },
       { cache }
     ),
+    media: new DataLoader(
+      async (messageIds) => {
+        const found = new Map(
+          (await messages.findMedia(messageIds)).map((media) => [
+            media.messageId,
+            media.bytes,
+          ])
+        );
+        return messageIds.map((id) => found.get(id) ?? null);
+      },
+      { cache }
+    ),
     messages(page) {
-      const key = `${page.limit}:${page.offset}`;
+      const key = [page.limit, page.offset, page.before, page.after].join(':');
       let loader = pages.get(key);
       if (!loader) {
         loader = new DataLoader(

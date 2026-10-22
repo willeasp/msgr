@@ -33,7 +33,9 @@ transport. `main.ts` is the only file that picks adapters.
    [ADR 0007](adr/0007-movies-coded-pixel-by-pixel.md) and
    [ADR 0008](adr/0008-sounds-squashed-on-purpose.md)), checks the viewer is a
    participant, stores the message and marks the chat active, in one
-   repository call.
+   repository call. From then on the message carries its media's size; the
+   bytes have an address of their own, fetched once by each browser that
+   shows them and kept ([ADR 0012](adr/0012-media-has-its-own-address.md)).
 2. It publishes the message to every participant through the in-process
    `PubSub`.
 3. Each participant's open tab has one `messageReceived` subscription, owned by

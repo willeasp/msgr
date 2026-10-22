@@ -9,6 +9,7 @@ import {
   getOperationAST,
   GraphQLError,
   parse,
+  validate,
   type DocumentNode,
 } from 'graphql';
 import { useServer } from 'graphql-ws/use/ws';
@@ -24,6 +25,9 @@ import {
   type Context,
   type SessionCookie,
 } from './context.js';
+import { boundedQueries } from './bounded-queries.js';
+import { maskDefect, maskDefects } from './errors.js';
+import { serveMedia } from './media.js';
 import { oneThingPerMutation } from './one-thing-per-mutation.js';
 import { resolvers } from './resolvers.js';
 import { typeDefs } from './schema.js';
@@ -93,8 +97,13 @@ export async function startServer(
         if (operation?.operation !== 'subscription') {
           return [new GraphQLError('Only subscriptions go over the socket.')];
         }
-        return undefined;
+        const unbounded = validate(schema, document, [boundedQueries]);
+        return unbounded.length > 0 ? unbounded : undefined;
       },
+      onNext: (_ctx, _id, _payload, _args, result) =>
+        result.errors
+          ? { ...result, errors: result.errors.map(maskDefect) }
+          : undefined,
       // One context per subscription, alive across many events: batch, don't cache.
       context: ({ connectionParams, extra }) =>
         createContext(deps, {
@@ -115,7 +124,8 @@ export async function startServer(
 
   const apollo = new ApolloServer<Context>({
     schema,
-    validationRules: [oneThingPerMutation],
+    validationRules: [oneThingPerMutation, boundedQueries],
+    formatError: maskDefects,
     plugins: [
       ApolloServerPluginDrainHttpServer({ httpServer }),
       {
@@ -148,6 +158,10 @@ export async function startServer(
         }),
     })
   );
+
+  // Pictures', movies' and sounds' bytes, at addresses of their own.
+  app.use(['/media', '/avatars'], cookieParser());
+  serveMedia(app, deps, (req) => stringOrUndefined(req.cookies?.[COOKIE]));
 
   if (config.staticDir) serveApp(app, resolve(config.staticDir));
 

@@ -83,7 +83,9 @@ sendMessage: async (_, { input }, ctx) =>
   unwrap(await ctx.services.messages.send(requireViewer(ctx), input)),
 ```
 
-**Repositories are batch-shaped.** Keyed reads take many ids and return what exists, in any order (`findByIds`, `findPages`). Single lookups go through `loaders`, which batch them.
+**Repositories are batch-shaped.** Keyed reads take many ids and return what exists, in any order (`findByIds`, `findPages`, `findMedia`). Single lookups go through `loaders`, which batch them.
+
+**Bytes travel once** ([ADR 0012](docs/adr/0012-media-has-its-own-address.md)). A kept `Message` holds its picture's, movie's or sound's size; their bytes come only from `findMedia` (the `media` loader). The schema gives each its `url` (`graphql/media.ts`: `/media/:messageId/:part`, `/avatars/:userId/:version`), served raw to whoever may see it and kept by the browser a year; `bits` is deprecated. Pages take a `before` or `after` cursor rather than an offset.
 
 **Privacy by indistinguishability.** A chat you're not in answers exactly like a missing one (`visibleTo`). Login failures are all `InvalidCredentials`, and unknown emails still pay for a hash check.
 
@@ -163,6 +165,7 @@ Test through interfaces, not internals: assert on what a service, operation or r
 
 ## Gotchas
 
+- `graphql/bounded-queries.ts` refuses a query more than 10 fields deep, or one reading `messages` inside `messages` (`Message.chat` leads back to them), over HTTP and the socket alike. A defect's own message never reaches a client: `maskDefects`/`maskDefect` (`graphql/errors.ts`) log it and send "Something went wrong"; anything a client must read carries a code.
 - Generated code is git-ignored: `apps/*/src/**/__generated__` (GraphQL codegen) and `apps/api/generated/prisma` (`npm run db:generate`). Never edit it.
 - The frontend's codegen reads the API schema straight from `apps/api/src/graphql/schema.ts`.
 - The frontend UI is built from Sacred Computer components vendored in `apps/frontend/src/sacred` (read its README before adding one), dressed as a black-and-white Macintosh by `apps/frontend/src/skin.css`. Style with CSS Modules and the skin's `--ink` / `--paper` / `--line` tokens; inversion is the only highlight. There is no Tailwind.

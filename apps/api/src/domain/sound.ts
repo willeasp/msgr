@@ -11,6 +11,11 @@ import type { Brand } from './brand.js';
 import { invalidInput, type InvalidInput } from './errors.js';
 import { err, ok, type Result } from './result.js';
 
+/** What's known of a kept sound without its bytes, which are fetched on their own. */
+export interface SoundLength {
+  readonly frames: number;
+}
+
 /**
  * A squashed sound, up to a minute long, coded exactly as `encodeSound`
  * codes it: `frames` frames of 20 ms, which play `(frames - 1) × 160`
@@ -18,10 +23,7 @@ import { err, ok, type Result } from './result.js';
  * checked against each other once, here.
  */
 export type Sound = Brand<
-  {
-    readonly frames: number;
-    readonly coded: Uint8Array<ArrayBuffer>;
-  },
+  SoundLength & { readonly coded: Uint8Array<ArrayBuffer> },
   'Sound'
 >;
 

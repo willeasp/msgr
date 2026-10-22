@@ -53,6 +53,10 @@ export function repositoryContract(
     ({ repositories, fixtures } = await setup());
   });
 
+  /** The newest `limit` of a history, `offset` back. */
+  const newest = (limit: number, offset = 0) =>
+    ({ limit, offset, before: null, after: null } as const);
+
   const send = (chat: Chat, sender: User, content: string, createdAt: string) =>
     repositories.messages.append({
       chatId: chat.id,
@@ -417,7 +421,7 @@ export function repositoryContract(
         );
       }
       const page = (limit: number, offset: number) =>
-        repositories.messages.findPages([chat.id], { limit, offset });
+        repositories.messages.findPages([chat.id], newest(limit, offset));
 
       expect(await page(2, 0)).toEqual(sent.slice(3, 5));
       expect(await page(2, 2)).toEqual(sent.slice(1, 3));
@@ -449,17 +453,23 @@ export function repositoryContract(
         createdAt: new Date('2030-01-01T00:02:00Z'),
       });
 
+      // Kept with their sizes; their bytes come on their own.
       expect(alone).toMatchObject({
         content: null,
         picture: { width: 256, height: 160 },
       });
-      expect(captioned.picture).toEqual(examplePicture(9, 320, 319));
+      expect(captioned.picture).toEqual({ width: 9, height: 320 });
       expect(
-        await repositories.messages.findPages([chat.id], {
-          limit: 5,
-          offset: 0,
-        })
+        await repositories.messages.findPages([chat.id], newest(5))
       ).toEqual([text, alone, captioned]);
+      expect(
+        await repositories.messages.findMedia([captioned.id, text.id])
+      ).toEqual([
+        {
+          messageId: captioned.id,
+          bytes: examplePicture(9, 320, 319).deflated,
+        },
+      ]);
     });
 
     it('stores movies, alone or with text, and reads them back unchanged', async () => {
@@ -490,13 +500,20 @@ export function repositoryContract(
         picture: null,
         movie: { width: 320, height: 180, frames: 48 },
       });
-      expect(captioned.movie).toEqual(exampleMovie(9, 320, 1));
+      expect(captioned.movie).toEqual({ width: 9, height: 320, frames: 1 });
       expect(
-        await repositories.messages.findPages([chat.id], {
-          limit: 5,
-          offset: 0,
-        })
+        await repositories.messages.findPages([chat.id], newest(5))
       ).toEqual([alone, captioned]);
+      expect(
+        sortByMessage(
+          await repositories.messages.findMedia([alone.id, captioned.id])
+        )
+      ).toEqual(
+        sortByMessage([
+          { messageId: alone.id, bytes: exampleMovie(320, 180, 48).coded },
+          { messageId: captioned.id, bytes: exampleMovie(9, 320, 1).coded },
+        ])
+      );
     });
 
     it('stores sounds, alone or with text, and reads them back unchanged', async () => {
@@ -528,14 +545,22 @@ export function repositoryContract(
         movie: null,
         sound: { frames: 3001 },
       });
-      expect(alone.sound).toEqual(exampleSound(60));
-      expect(captioned.sound).toEqual(exampleSound(0.02, 220));
+      expect(captioned.sound).toEqual({
+        frames: exampleSound(0.02, 220).frames,
+      });
       expect(
-        await repositories.messages.findPages([chat.id], {
-          limit: 5,
-          offset: 0,
-        })
+        await repositories.messages.findPages([chat.id], newest(5))
       ).toEqual([alone, captioned]);
+      expect(
+        sortByMessage(
+          await repositories.messages.findMedia([alone.id, captioned.id])
+        )
+      ).toEqual(
+        sortByMessage([
+          { messageId: alone.id, bytes: exampleSound(60).coded },
+          { messageId: captioned.id, bytes: exampleSound(0.02, 220).coded },
+        ])
+      );
     });
 
     it('finds messages by id, with and without pictures, movies and sounds, and skips unknown ids', async () => {
@@ -603,14 +628,81 @@ export function repositoryContract(
       );
 
       const latest = await repositories.messages.findPages(
-        [first.id, second.id, ChatId('missing')],
-        { limit: 1, offset: 0 }
+        [first.id, second.id, ChatId('missing'), first.id],
+        newest(1)
       );
 
       expect(sortById(latest)).toEqual(sortById([firstLatest, secondLatest]));
+      expect(await repositories.messages.findPages([], newest(1))).toEqual([]);
+    });
+
+    it('pages back from a message, and forward from one to the newest', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const chat = await repositories.chats.saveDirect(pairOf(ada, grace));
+      const sent: Message[] = [];
+      for (let minute = 1; minute <= 6; minute++) {
+        sent.push(
+          await send(chat, ada, `#${minute}`, `2030-01-01T00:0${minute}:00Z`)
+        );
+      }
+      const [first, , third, fourth, , sixth] = sent as [
+        Message,
+        Message,
+        Message,
+        Message,
+        Message,
+        Message
+      ];
+      const page = (cursor: { before: MessageId } | { after: MessageId }) =>
+        repositories.messages.findPages([chat.id], {
+          ...newest(2),
+          ...cursor,
+        });
+
+      expect(await page({ before: fourth.id })).toEqual(sent.slice(1, 3));
+      expect(await page({ before: first.id })).toEqual([]);
+      // Forward, the newest two after it: a gap means start again.
+      expect(await page({ after: third.id })).toEqual(sent.slice(4, 6));
+      expect(await page({ after: sixth.id })).toEqual([]);
+    });
+
+    it("finds nothing from a cursor that isn't one of the chat's messages", async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const ours = await repositories.chats.saveDirect(pairOf(ada, grace));
+      const theirs = await fixtures.groupChat('Theirs', [grace]);
+      await send(ours, ada, 'early', '2030-01-01T00:00:00Z');
+      const elsewhere = await send(
+        theirs,
+        grace,
+        'between',
+        '2030-01-01T00:01:00Z'
+      );
+      await send(ours, ada, 'late', '2030-01-01T00:02:00Z');
+
+      for (const cursor of [elsewhere.id, MessageId('missing')]) {
+        for (const side of ['before', 'after'] as const) {
+          expect(
+            await repositories.messages.findPages([ours.id], {
+              ...newest(5),
+              [side]: cursor,
+            })
+          ).toEqual([]);
+        }
+      }
+    });
+
+    it('finds media only for messages that have it, and skips unknown ids', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const chat = await repositories.chats.saveDirect(pairOf(ada, grace));
+      const text = await send(chat, ada, 'hi', '2030-01-01T00:00:00Z');
+
       expect(
-        await repositories.messages.findPages([], { limit: 1, offset: 0 })
+        await repositories.messages.findMedia([text.id, MessageId('missing')])
       ).toEqual([]);
+      expect(await repositories.messages.findMedia([])).toEqual([]);
     });
   });
 
@@ -771,6 +863,13 @@ export function repositoryContract(
 /** Email the same way every fixture adapter derives one from a name. */
 export const fixtureEmail = (name: string) =>
   `${name.toLowerCase().replace(/\W+/g, '.')}@example.com`;
+
+const sortByMessage = <T extends { readonly messageId: string }>(
+  values: readonly T[]
+) =>
+  [...values].sort((a, b) =>
+    a.messageId < b.messageId ? -1 : a.messageId > b.messageId ? 1 : 0
+  );
 
 const sortById = <T extends { readonly id: string }>(values: readonly T[]) =>
   [...values].sort((a, b) => (a.id < b.id ? -1 : 1));

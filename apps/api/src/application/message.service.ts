@@ -5,9 +5,11 @@ import {
   type NotFound,
 } from '../domain/errors.js';
 import {
+  mediaPartOf,
   MessageBody,
   MessageContent,
   MessageId,
+  type MediaPart,
   type Message,
 } from '../domain/message.js';
 import { Movie, type RawMovie } from '../domain/movie.js';
@@ -69,12 +71,19 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
       return message.ok ? message.value : null;
     },
 
+    /**
+     * A page of a chat's history. A cursor must be one of the chat's own
+     * messages: any other answers as missing, so a client starts again from
+     * the newest rather than taking an empty page for no news.
+     */
     async list(
       viewer: User,
       input: {
         readonly chatId: string;
         readonly limit?: number | null;
         readonly offset?: number | null;
+        readonly before?: string | null;
+        readonly after?: string | null;
       }
     ): Promise<Result<Message[], InvalidInput | NotFound>> {
       const page = Page.parse(input);
@@ -86,7 +95,31 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
       );
       if (!chat.ok) return chat;
 
+      const cursor = page.value.before ?? page.value.after;
+      if (cursor !== null) {
+        const from = await loaders.message.load(cursor);
+        if (from?.chatId !== chat.value.id) return err(notFound('Message'));
+      }
+
       return ok(await loaders.messages(page.value).load(chat.value.id));
+    },
+
+    /**
+     * The bytes of a message's picture, movie or sound, for whoever may see
+     * the message. Any other message, or a part it hasn't, answers as missing.
+     */
+    async media(
+      viewer: User,
+      messageId: string,
+      part: MediaPart
+    ): Promise<Result<Uint8Array<ArrayBuffer>, NotFound>> {
+      const message = await visible(viewer, messageId);
+      if (!message.ok) return message;
+      const bytes =
+        mediaPartOf(message.value) === part
+          ? await loaders.media.load(message.value.id)
+          : null;
+      return bytes ? ok(bytes) : err(notFound('Message'));
     },
 
     /**

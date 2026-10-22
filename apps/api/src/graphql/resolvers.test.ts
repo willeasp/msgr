@@ -550,6 +550,87 @@ describe('messages', () => {
     });
   });
 
+  it('gives media an address of its own, and fetches bytes only when asked', async () => {
+    const { app, ada, team } = await world();
+    const findMedia = vi.spyOn(app.deps.repositories.messages, 'findMedia');
+    for (const content of ['one', 'two']) {
+      await execute(app, sendPicture, {
+        as: ada,
+        variables: { chatId: team.id, content, picture: pictureInput(13, 7) },
+      });
+    }
+    findMedia.mockClear();
+
+    const addresses = await execute(
+      app,
+      'query ($id: ID!) { messages(chatId: $id) { id picture { width url } } }',
+      { as: ada, variables: { id: team.id } }
+    );
+    const sent = addresses.data?.['messages'] as { id: string }[];
+    expect(addresses.data).toEqual({
+      messages: sent.map(({ id }) => ({
+        id,
+        picture: { width: 13, url: `/media/${id}/picture` },
+      })),
+    });
+    expect(findMedia).not.toHaveBeenCalled();
+
+    // The deprecated bits still come, every message's in one batch.
+    await execute(
+      app,
+      'query ($id: ID!) { messages(chatId: $id) { picture { bits } } }',
+      { as: ada, variables: { id: team.id } }
+    );
+    expect(findMedia).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives an avatar an address that changes with it', async () => {
+    const { app, ada } = await world();
+    const save = (avatar: unknown) =>
+      execute(
+        app,
+        `mutation ($avatar: PictureInput) {
+          updateProfile(input: { name: "Ada", avatar: $avatar }) { avatar { url } }
+        }`,
+        { as: ada, variables: { avatar } }
+      );
+    const urlOf = (result: Awaited<ReturnType<typeof save>>) =>
+      (result.data?.['updateProfile'] as { avatar: { url: string } }).avatar
+        .url;
+
+    const first = urlOf(await save(pictureInput(64, 64)));
+    const again = urlOf(await save(pictureInput(64, 64)));
+    const changed = urlOf(await save(pictureInput(64, 64, 9)));
+
+    expect(first).toMatch(new RegExp(`^/avatars/${ada.id}/[0-9a-z]+$`));
+    expect(again).toBe(first);
+    expect(changed).not.toBe(first);
+  });
+
+  it('pages a chat back from a message', async () => {
+    const { app, ada, team } = await world();
+    for (const content of ['one', 'two', 'three']) {
+      await execute(app, send, {
+        as: ada,
+        variables: { chatId: team.id, content },
+      });
+    }
+    const all = await execute(
+      app,
+      'query ($id: ID!) { chat(id: $id) { messages { id content } } }',
+      { as: ada, variables: { id: team.id } }
+    );
+    const [, , third] = (all.data?.['chat'] as { messages: { id: string }[] })
+      .messages;
+
+    const earlier = await execute(
+      app,
+      'query ($id: ID!, $before: ID) { chat(id: $id) { messages(limit: 1, before: $before) { content } } }',
+      { as: ada, variables: { id: team.id, before: third?.id } }
+    );
+    expect(earlier.data).toEqual({ chat: { messages: [{ content: 'two' }] } });
+  });
+
   it('rejects a bad picture, or a message with nothing in it, as bad input', async () => {
     const { app, ada, team } = await world();
 

@@ -1,7 +1,11 @@
-import type { InvalidInput } from '../domain/errors.js';
-import { ok, type Result } from '../domain/result.js';
-import type { RawPicture } from '../domain/picture.js';
-import { Profile, SearchTerm, type User } from '../domain/user.js';
+import {
+  notFound,
+  type InvalidInput,
+  type NotFound,
+} from '../domain/errors.js';
+import { err, ok, type Result } from '../domain/result.js';
+import { pictureVersion, type RawPicture } from '../domain/picture.js';
+import { Profile, SearchTerm, UserId, type User } from '../domain/user.js';
 import type { Dependencies } from './ports.js';
 
 export type UserService = ReturnType<typeof createUserService>;
@@ -48,6 +52,22 @@ export function createUserService({
       ]);
       await profileEvents.publish(user, [...everyone]);
       return ok(user);
+    },
+
+    /**
+     * Someone's avatar as it is now, at the version asked for; any other
+     * answers as missing. Anyone signed in may see anyone's, as `search` does.
+     */
+    async avatar(
+      viewer: User,
+      userId: string,
+      version: string
+    ): Promise<Result<Uint8Array<ArrayBuffer>, NotFound>> {
+      const [user] = await repositories.users.findByIds([UserId(userId)]);
+      const avatar = user?.avatar;
+      return avatar && pictureVersion(avatar) === version
+        ? ok(avatar.deflated)
+        : err(notFound('User'));
     },
 
     /** Every change to the profile of someone who shares a chat with the viewer, theirs included. */
