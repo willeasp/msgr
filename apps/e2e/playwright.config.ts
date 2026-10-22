@@ -65,7 +65,8 @@ export default defineConfig({
       VAPID_PUBLIC_KEY:
         'BHdgRT9dGCZv-REtiHJtRv-vcQMexFE3rhRYq5_8EIqBR2zDLtUJ2SVOz2LBEq8Lone3iCmqO_W-uHT5C6eDLJ8',
       VAPID_PRIVATE_KEY: 'Sy7TpkdTQnDIi_pqCnRTZegtIR265nJb2gFLqGF16kw',
-      ADMIN_EMAILS: 'diana@example.com',
+      // The seed's Erin, whom no other spec signs in as.
+      ADMIN_EMAILS: 'erin@example.com',
       STORAGE_LIMIT_MB: '512',
     },
   },

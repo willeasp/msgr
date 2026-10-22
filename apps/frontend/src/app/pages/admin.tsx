@@ -118,7 +118,7 @@ function StorageDialog({ storage }: { storage: Storage }) {
       </div>
 
       <h2 className={styles.heading}>Contents</h2>
-      <table className={styles.sizes}>
+      <table className={`${styles.sizes} ${styles.twoFigures}`}>
         <tbody>
           {storage.contents.map(({ kind, count, bytes }) => (
             <tr key={kind}>
@@ -134,11 +134,13 @@ function StorageDialog({ storage }: { storage: Storage }) {
       </table>
 
       <h2 className={styles.heading}>Tables</h2>
-      <table className={styles.sizes}>
+      <table className={`${styles.sizes} ${styles.oneFigure}`}>
         <tbody>
           {storage.tables.map(({ name, bytes }) => (
             <tr key={name}>
-              <th scope="row">{name}</th>
+              <th scope="row" title={name}>
+                {name}
+              </th>
               <td>{formatBytes(bytes)}</td>
               <td>
                 <Bar part={bytes} whole={whole} />

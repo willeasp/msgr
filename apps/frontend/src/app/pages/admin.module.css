@@ -33,33 +33,54 @@
 }
 
 .sizes {
-  width: 100%;
-  border-collapse: collapse;
+  /* A grid, not a table's layout, so it can say what gives when it's
+     narrow: the sizes never do, the bar shrinks first, and only then a
+     name is cut short. A table grows past its box instead. */
+  display: grid;
+  column-gap: 2ch;
+  align-items: center;
   padding-bottom: calc(var(--line) * 0.5);
   border-bottom: 1px solid var(--ink);
 
+  & tbody,
+  & tr {
+    display: contents;
+  }
+
   & th {
-    padding-right: 2ch;
+    overflow: hidden;
     font-weight: 400;
     text-align: left;
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   & td {
-    padding-right: 2ch;
     text-align: right;
     white-space: nowrap;
   }
 
+  /* The bar's cell, measured, so a bar squeezed to a sliver goes instead. */
   & td:last-child {
-    width: 100%;
-    min-width: 4ch;
-    padding-right: 0;
+    container-type: inline-size;
   }
+}
+
+/* A name, then one or two figures, then the bar. */
+.oneFigure {
+  grid-template-columns: minmax(0, max-content) max-content minmax(0, 1fr);
+}
+
+.twoFigures {
+  grid-template-columns:
+    minmax(0, max-content) max-content max-content
+    minmax(0, 1fr);
 }
 
 .bar {
   display: block;
+  box-sizing: border-box;
+  min-width: 0;
   height: calc(var(--line) * 0.5);
   border: 1px solid var(--ink);
   background: var(--paper);
@@ -68,6 +89,13 @@
     display: block;
     height: 100%;
     background: var(--ink);
+  }
+}
+
+/* After .bar, which it overrides. */
+@container (max-width: 4ch) {
+  .bar {
+    display: none;
   }
 }
 
