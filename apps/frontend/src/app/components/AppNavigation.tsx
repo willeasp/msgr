@@ -5,6 +5,7 @@ import { useModals } from '../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../sacred/modules/hotkeys';
 import { useSessionChange } from '../hooks/use-session-change';
 import { useForgetBrowser } from '../hooks/use-notifications';
+import { useRestartToUpdate } from '../hooks/use-service-worker';
 import { useSignedIn } from '../hooks/use-signed-in';
 import { JoinChannelDialog } from './chat/JoinChannelDialog';
 import { NewChatModal } from './chat/NewChatModal';
@@ -44,6 +45,7 @@ export function AppNavigation({
     onCompleted: () => changeSession('/login'),
   });
   const forgetBrowser = useForgetBrowser();
+  const restartToUpdate = useRestartToUpdate();
 
   const newChat = () => open(NewChatModal, {});
   useHotkeys('ctrl+k', newChat, {
@@ -108,6 +110,9 @@ export function AppNavigation({
                 : []),
               ...(isAdmin
                 ? [{ label: 'Storage…', onClick: () => navigate('/admin') }]
+                : []),
+              ...(restartToUpdate
+                ? [{ label: 'Restart to Update', onClick: restartToUpdate }]
                 : []),
             ]}
           />

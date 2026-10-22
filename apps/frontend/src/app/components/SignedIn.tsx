@@ -17,7 +17,7 @@ import { useOpenChatFromNotifications } from '../hooks/use-service-worker';
 import { SignedInContext, type Viewer } from '../hooks/use-signed-in';
 import { useTypists } from '../hooks/use-typing';
 import { useWatching } from '../hooks/use-watching';
-import { LoadingState } from './LoadingState';
+import { Connecting } from './Connecting';
 import { NotificationsBlockedDialog } from './NotificationsBlockedDialog';
 import { NotificationsDialog } from './NotificationsDialog';
 
@@ -27,17 +27,22 @@ import { NotificationsDialog } from './NotificationsDialog';
  * on screen: the live feed, alerts, typing, the notifications offer and the
  * notifications' links. A view under it only draws itself, so it can't stop
  * any of them.
+ *
+ * Only the server saying nobody is signed in (`me: null`) is signed out. A
+ * server that's asleep or out of reach is waited for, and someone already in
+ * stays in while it's asked again.
  */
 export function SignedIn() {
-  const { data, loading, error } = useQuery(ME);
+  const { data, previousData, error, refetch } = useQuery(ME);
   const location = useLocation();
+  const answer = data ?? previousData;
 
-  if (loading) return <LoadingState label="Connecting" fill />;
-  if (error || !data?.me) {
+  if (answer?.me) return <Live viewer={answer.me} isAdmin={!!answer.admin} />;
+  if (answer) {
     // Back here after signing in.
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
-  return <Live viewer={data.me} isAdmin={!!data.admin} />;
+  return <Connecting failed={!!error} onRetry={() => void refetch()} />;
 }
 
 function Live({ viewer, isAdmin }: { viewer: Viewer; isAdmin: boolean }) {

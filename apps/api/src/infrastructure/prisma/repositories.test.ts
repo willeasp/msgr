@@ -1,3 +1,7 @@
+import { mkdirSync, mkdtempSync, readdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ChatId } from '../../domain/chat.js';
 import {
@@ -6,6 +10,7 @@ import {
   type Fixtures,
 } from '../../testing/repository-contract.js';
 import { PrismaClient } from './client.js';
+import { pendingMigrations } from './migrations.js';
 import { prismaRepositories } from './repositories.js';
 import { prismaStorageGauge } from './storage-gauge.js';
 import { toUser, userFields } from './user.repository.js';
@@ -33,6 +38,26 @@ describe.runIf(url)('prisma', () => {
         repositories: prismaRepositories(db),
         fixtures: prismaFixtures(db),
       };
+    });
+  });
+
+  describe('migrations', () => {
+    const MIGRATIONS = fileURLToPath(
+      new URL('../../../prisma/migrations', import.meta.url)
+    );
+
+    it('sees a migrated database is up to date, and what a new migration adds', async () => {
+      expect(await pendingMigrations(db, MIGRATIONS)).toEqual([]);
+
+      // The same history, and one migration the database hasn't seen.
+      const next = mkdtempSync(join(tmpdir(), 'msgr-migrations-'));
+      for (const entry of readdirSync(MIGRATIONS, { withFileTypes: true })) {
+        if (entry.isDirectory()) mkdirSync(join(next, entry.name));
+      }
+      mkdirSync(join(next, '29991231000000_next'));
+      expect(await pendingMigrations(db, next)).toEqual([
+        '29991231000000_next',
+      ]);
     });
   });
 

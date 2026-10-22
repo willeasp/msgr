@@ -1,6 +1,7 @@
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { brotliCompressSync, gzipSync } from 'node:zlib';
 import { createClient, type Client } from 'graphql-ws';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
@@ -32,13 +33,33 @@ const socketWith = (headers: Record<string, string>) =>
     }
   };
 
-/** A built frontend: an index page and one asset. */
+const SCRIPT = 'console.log("msgr")';
+
+/** A built frontend: an index page, a file, and a hashed asset compressed ahead of time. */
 function builtApp() {
   const dir = mkdtempSync(join(tmpdir(), 'msgr-app-'));
   writeFileSync(join(dir, 'index.html'), '<title>Msgr</title>');
-  writeFileSync(join(dir, 'app.js'), 'console.log("msgr")');
+  writeFileSync(join(dir, 'app.js'), SCRIPT);
+  mkdirSync(join(dir, 'assets'));
+  const asset = join(dir, 'assets', 'index-abc123.js');
+  writeFileSync(asset, SCRIPT);
+  writeFileSync(`${asset}.br`, brotliCompressSync(SCRIPT));
+  writeFileSync(`${asset}.gz`, gzipSync(SCRIPT));
   return dir;
 }
+
+/** What `startServer` needs to know, for a server of a test's own. */
+const testConfig = {
+  port: 0,
+  corsOrigin: 'http://localhost:4200',
+  jwtSecret: TEST_JWT_SECRET,
+  sessionTtlSeconds: 60,
+  secureCookies: false,
+  staticDir: null,
+  push: null,
+  admins: [],
+  storageLimit: null,
+};
 
 describe('server', () => {
   const events = createPubSubMessageEvents();
@@ -75,15 +96,9 @@ describe('server', () => {
       passwordHash: fakeHash('secret'),
     });
     server = await startServer(app.deps, {
-      port: 0,
+      ...testConfig,
       corsOrigin: APP_ORIGIN,
-      jwtSecret: TEST_JWT_SECRET,
-      sessionTtlSeconds: 60,
-      secureCookies: false,
       staticDir: builtApp(),
-      push: null,
-      admins: [],
-      storageLimit: null,
     });
   });
 
@@ -339,5 +354,74 @@ describe('server', () => {
     expect(await (await post('{ __typename }')).json()).toEqual({
       data: { __typename: 'Query' },
     });
+  });
+
+  it('sends what the build compressed, and keeps hashed assets for a year', async () => {
+    const site = server.url.replace(/\/graphql$/, '');
+    const asset = (encoding: string) =>
+      fetch(`${site}/assets/index-abc123.js`, {
+        headers: { 'accept-encoding': encoding },
+      });
+
+    // fetch decompresses as it reads, so the body is the script either way.
+    for (const [accepted, sent] of [
+      ['gzip, deflate, br, zstd', 'br'],
+      ['gzip', 'gzip'],
+      ['identity', null],
+    ] as const) {
+      const response = await asset(accepted);
+      expect(response.headers.get('content-encoding')).toBe(sent);
+      expect(response.headers.get('content-type')).toMatch(/javascript/);
+      expect(response.headers.get('vary')).toBe('Accept-Encoding');
+      expect(response.headers.get('cache-control')).toBe(
+        'public, max-age=31536000, immutable'
+      );
+      expect(await response.text()).toBe(SCRIPT);
+    }
+
+    // A missing asset is missing, not the app in its place.
+    expect((await fetch(`${site}/assets/index-gone.js`)).status).toBe(404);
+    // The app itself is asked about again each time.
+    expect((await fetch(site)).headers.get('cache-control')).toBe(
+      'public, max-age=0'
+    );
+  });
+
+  it('says nothing about itself, and keeps other windows out', async () => {
+    const page = await fetch(server.url.replace(/\/graphql$/, ''));
+    expect(page.headers.get('x-powered-by')).toBeNull();
+    expect(page.headers.get('cross-origin-opener-policy')).toBe('same-origin');
+    // Only for an https address, which this isn't.
+    expect(page.headers.get('strict-transport-security')).toBeNull();
+  });
+});
+
+describe('a server that is starting', () => {
+  it('answers its health check at once, and GraphQL once the database is ready', async () => {
+    let markReady = () => undefined as void;
+    const ready = new Promise<void>((done) => (markReady = done));
+    const starting = await startServer(createTestApp().deps, testConfig, ready);
+    try {
+      const health = await fetch(starting.url.replace(/graphql$/, 'healthz'));
+      expect(health.status).toBe(204);
+      expect(health.headers.get('cache-control')).toBe('no-store');
+
+      let answered = false;
+      const query = fetch(starting.url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ query: '{ __typename }' }),
+      }).then((response) => {
+        answered = true;
+        return response.json();
+      });
+      await new Promise((wait) => setTimeout(wait, 50));
+      expect(answered).toBe(false);
+
+      markReady();
+      expect(await query).toEqual({ data: { __typename: 'Query' } });
+    } finally {
+      await starting.stop();
+    }
   });
 });

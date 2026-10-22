@@ -1,14 +1,10 @@
 import { typingLine } from '../../../lib/typing';
 import { useMovieTick } from '../../hooks/use-movie';
 import { useTypingIn, type Typists } from '../../hooks/use-typing';
-import { WATCH } from '../icons';
+import { watchAt } from '../icons';
 import { PixelIcon } from '../PixelIcon';
 import { PixelText } from '../PixelText';
 import styles from './TypingStatus.module.css';
-
-/** Two of the movies' ticks to each place of the hand: round in two seconds. */
-const watchAt = (tick: number) =>
-  WATCH[Math.floor(tick / 2) % WATCH.length] ?? [];
 
 /**
  * "Ana is typing…" beside the classic wristwatch, its hand going round, for

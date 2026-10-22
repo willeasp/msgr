@@ -35,5 +35,6 @@ COPY --from=build /app/apps/api/prisma apps/api/prisma
 COPY --from=build /app/apps/frontend/dist apps/frontend/dist
 COPY --from=build /app/libs/media/dist libs/media/dist
 EXPOSE 4000
-# Bring the database up to date, then serve.
-CMD ["sh", "-c", "npx prisma migrate deploy --schema apps/api/prisma/schema.prisma && exec node apps/api/dist/main.js"]
+# Serve at once; the server brings the database up to date itself, running
+# the Prisma CLI only when a migration is pending.
+CMD ["node", "apps/api/dist/main.js"]

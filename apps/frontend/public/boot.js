@@ -1,5 +1,6 @@
-// Theme the first paint. Mirrors loadTheme() in src/lib/theme.ts, which
-// validates and re-applies it once the app boots.
+// Theme the first paint, and the browser's bars around it. Mirrors loadTheme()
+// and applyTheme() (src/app/browser/theme.ts), which validate and re-apply it
+// once the app boots.
 (function () {
   let theme = {};
   try {
@@ -14,4 +15,7 @@
     'theme-' +
     (dark ? 'dark' : 'light') +
     (theme.tint ? ' tint-' + theme.tint : '');
+  const paper = getComputedStyle(document.body).getPropertyValue('--paper');
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta && paper) meta.setAttribute('content', paper.trim());
 })();
