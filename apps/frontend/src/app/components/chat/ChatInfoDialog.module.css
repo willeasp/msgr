@@ -1,0 +1,17 @@
+/* The people, a face and a name to a row, scrolling if there are many. */
+.people {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--line) * 0.5);
+  max-height: 50vh;
+  margin: calc(var(--line) * 0.5) 0 var(--line);
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+
+  & li {
+    display: flex;
+    gap: 1ch;
+    align-items: center;
+  }
+}

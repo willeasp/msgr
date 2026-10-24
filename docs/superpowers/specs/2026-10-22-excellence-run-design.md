@@ -296,6 +296,11 @@ Answered 2026-10-22:
 4. **Sacred: open.** Replacing it is recommended (the fields, dialogs and menus go anyway; what's left doesn't justify a second style system). Trimming it is the alternative. Decided before PR 4.
 5. **Each PR has its own `claude/…` branch**, so the next can be in review while the previous one is.
 
+Answered 2026-10-24:
+
+6. **Sacred stays**, its fields made fast and correct in place (PR 4) rather than replaced.
+7. **Phones keep the desktop's look** ([ADR 0013](../../adr/0013-phones-keep-the-desktops-look.md)), after seeing each part of the phone layout built: only Back and Info in the title bar, the composer kept on the keyboard, and Get Info by holding. Edge to edge, the clock's removal, the back swipe, the zoom rectangles, the thumb-sized controls and the one-row composer are not taken.
+
 ## Out of scope
 
 - Reading or sending offline, and keeping chats on the device.

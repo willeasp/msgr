@@ -14,6 +14,7 @@ import { MessageMovie } from './MessageMovie';
 import { MessagePicture } from './MessagePicture';
 import { MessageSound } from './MessageSound';
 import { LinkPreviewCard } from './LinkPreviewCard';
+import { useLongPress } from '../../hooks/use-long-press';
 import styles from './MessageBubble.module.css';
 
 interface MessageBubbleProps {
@@ -35,7 +36,7 @@ interface MessageBubbleProps {
   onDrawOnIt?: (picture: KeptPicture) => void;
   /** Opens the paint window over a movie; offered under each one. */
   onDrawOnMovie?: (movie: KeptMovie) => void;
-  /** Opens Get Info on the message: a click or tap on the bubble. */
+  /** Opens Get Info on the message: a click on the bubble, or a finger held on it. */
   onGetInfo?: (messageId: string) => void;
 }
 
@@ -55,6 +56,20 @@ export const MessageBubble = memo(function MessageBubble({
   const Bubble = isCurrentUser ? MessageViewer : Message;
   const { picture, movie, sound } = message;
   const content = message.content ?? '';
+  // A click, or a finger held on it, opens Get Info; a tap doesn't, so
+  // scrolling past a message never opens a dialog.
+  const getInfo = useLongPress({
+    onClick: (e) => {
+      // A link opens itself, a sound's controls play it, and dragging over
+      // the words selects them.
+      if ((e.target as Element).closest('a, button, [data-own-clicks]')) {
+        return;
+      }
+      if (window.getSelection()?.toString()) return;
+      onGetInfo?.(message.id);
+    },
+    onHold: () => onGetInfo?.(message.id),
+  });
 
   return (
     <div
@@ -77,17 +92,8 @@ export const MessageBubble = memo(function MessageBubble({
           <div
             className={styles.pick}
             data-pressable={onGetInfo ? true : undefined}
-            onClick={(e) => {
-              // A link opens itself, a sound's controls play it, and
-              // dragging over the words selects them.
-              if (
-                (e.target as Element).closest('a, button, [data-own-clicks]')
-              ) {
-                return;
-              }
-              if (window.getSelection()?.toString()) return;
-              onGetInfo?.(message.id);
-            }}
+            data-pressed={getInfo.pressed || undefined}
+            {...(onGetInfo ? getInfo.handlers : {})}
           >
             <Bubble>
               {picture && <MessagePicture picture={picture} />}

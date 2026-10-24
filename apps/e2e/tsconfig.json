@@ -11,6 +11,7 @@
   "include": [
     "*.ts",
     "tests/**/*.ts",
+    "phone/**/*.ts",
     "screenshots/**/*.ts",
     "measure/**/*.ts"
   ],

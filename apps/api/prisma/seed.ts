@@ -17,6 +17,9 @@ const people = {
   // In no chat either: the e2e's every other account is at the throttle's
   // ten logins a run, so a spec that needs someone of its own signs in here.
   frank: { email: 'frank@example.com', name: 'Frank Moss' },
+  // In no chat: the phone specs' other person, so each phone has logins to
+  // spare (Frank signs in on the iPhone, Grace on the Pixel).
+  grace: { email: 'grace@example.com', name: 'Grace Hall' },
 };
 type Person = keyof typeof people;
 

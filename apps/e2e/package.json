@@ -5,7 +5,7 @@
   "type": "module",
   "description": "End-to-end tests: a real browser against the production build and a real database.",
   "scripts": {
-    "e2e": "playwright test --project=e2e",
+    "e2e": "playwright test --project=e2e --project=pixel --project=iphone",
     "screenshots": "playwright test --project=screenshots",
     "measure": "playwright test --project=measure --reporter=line"
   },
