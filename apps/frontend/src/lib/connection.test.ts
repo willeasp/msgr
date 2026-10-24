@@ -1,6 +1,6 @@
 import { ServerError, ServerParseError } from '@apollo/client/errors';
-import { describe, expect, it } from 'vitest';
-import { isWorthRetrying, sessionOf, waitOf } from './connection';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { isWorthRetrying, sessionOf, silenceWatch, waitOf } from './connection';
 
 const response = (status: number) => new Response('', { status });
 const serverError = (status: number) =>
@@ -96,5 +96,44 @@ describe('waitOf', () => {
         expect(waitOf({ online, slow, failed: true })).toBe('failed');
       }
     }
+  });
+});
+
+describe('silenceWatch', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('gives up on a socket whose ping goes unanswered', () => {
+    const silent = vi.fn();
+    const watch = silenceWatch(5_000, silent);
+    watch.asked();
+    vi.advanceTimersByTime(4_999);
+    expect(silent).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(silent).toHaveBeenCalledOnce();
+  });
+
+  it('keeps a socket that answers', () => {
+    const silent = vi.fn();
+    const watch = silenceWatch(5_000, silent);
+    watch.asked();
+    vi.advanceTimersByTime(3_000);
+    watch.answered();
+    vi.advanceTimersByTime(10_000);
+    expect(silent).not.toHaveBeenCalled();
+  });
+
+  it('keeps the first deadline when asked again meanwhile', () => {
+    const silent = vi.fn();
+    const watch = silenceWatch(5_000, silent);
+    watch.asked();
+    vi.advanceTimersByTime(3_000);
+    watch.asked();
+    vi.advanceTimersByTime(2_000);
+    expect(silent).toHaveBeenCalledOnce();
+    // And watches afresh once it has given up.
+    watch.asked();
+    vi.advanceTimersByTime(5_000);
+    expect(silent).toHaveBeenCalledTimes(2);
   });
 });
