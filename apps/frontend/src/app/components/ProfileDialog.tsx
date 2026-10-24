@@ -7,16 +7,13 @@ import { toWire, type KeptPicture } from '../../lib/picture-wire';
 import AlertBanner from '../../sacred/components/AlertBanner';
 import Button from '../../sacred/components/Button';
 import Input from '../../sacred/components/Input';
-import {
-  useModals,
-  useModalStack,
-} from '../../sacred/components/page/ModalContext';
+import { useModals } from '../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../sacred/modules/hotkeys';
 import { pictures } from '../data/media';
 import { ME } from '../data/me';
 import { useInks } from '../hooks/use-inks';
 import { usePicture } from '../hooks/use-picture';
-import { PaintDialog } from './dialogs';
+import { PaintDialog, useOnTop } from './dialogs';
 import { firstPicture } from '../../lib/files';
 import { pictureFromFile } from '../browser/picture-file';
 import { DialogButtons, MacDialog } from './MacDialog';
@@ -48,7 +45,7 @@ const UPDATE_PROFILE = gql(`
 /** Your name and picture, as everyone sees them. From File → Profile…. */
 export function ProfileDialog() {
   const { open, close } = useModals();
-  const modalStack = useModalStack();
+  const onTop = useOnTop();
   const { data } = useQuery(ME);
   const me = data?.me;
   const [name, setName] = useState(me?.name ?? '');
@@ -64,10 +61,9 @@ export function ProfileDialog() {
   const [saving, setSaving] = useState(false);
 
   // Only while on top: Escape in the paint window above is the paint window's.
-  const [depth] = useState(modalStack.length);
   useHotkeys('Escape', () => close(), {
     enableOnFormTags: true,
-    enabled: modalStack.length === depth,
+    enabled: onTop,
   });
 
   const take = (bits: Bits | null) => {

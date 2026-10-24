@@ -46,5 +46,7 @@ function subscribe(listener: () => void) {
   };
 }
 
+const current = () => now;
+
 /** The current time, updated on the minute and on waking. */
-export const useClock = (): Date => useSyncExternalStore(subscribe, () => now);
+export const useClock = (): Date => useSyncExternalStore(subscribe, current);

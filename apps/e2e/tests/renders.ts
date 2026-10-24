@@ -15,6 +15,8 @@ export interface Renders {
   /** Rendered components whose elements lie inside the container asked about. */
   readonly inside: number;
   readonly byLabel: Readonly<Record<string, number>>;
+  /** The same, of those inside the container. */
+  readonly insideByLabel: Readonly<Record<string, number>>;
   readonly commits: number;
 }
 
@@ -25,6 +27,7 @@ declare global {
       total: number;
       inside: number;
       byLabel: Record<string, number>;
+      insideByLabel: Record<string, number>;
       commits: number;
     };
   }
@@ -51,6 +54,7 @@ export async function countRenders(page: Page): Promise<void> {
       total: 0,
       inside: 0,
       byLabel: {} as Record<string, number>,
+      insideByLabel: {} as Record<string, number>,
       commits: 0,
     };
     window.__renders = state;
@@ -88,7 +92,10 @@ export async function countRenders(page: Page): Promise<void> {
         ? document.querySelector(state.container)
         : null;
       const at = firstElement(fiber) ?? hostAbove(fiber);
-      if (container && at && container.contains(at)) state.inside += 1;
+      if (container && at && container.contains(at)) {
+        state.inside += 1;
+        state.insideByLabel[label] = (state.insideByLabel[label] ?? 0) + 1;
+      }
     };
     // A subtree React skipped keeps its old children: nothing in it ran.
     const walk = (fiber: Fiber | null) => {
@@ -138,6 +145,7 @@ export async function rendersDuring(
       total: 0,
       inside: 0,
       byLabel: {},
+      insideByLabel: {},
       commits: 0,
     });
   }, container);
@@ -150,6 +158,7 @@ export async function rendersDuring(
       total: state.total,
       inside: state.inside,
       byLabel: { ...state.byLabel },
+      insideByLabel: { ...state.insideByLabel },
       commits: state.commits,
     };
   });

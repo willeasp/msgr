@@ -17,6 +17,10 @@ export function loadTheme(): Theme {
 /** Fired on `window` whenever the theme changes, for what CSS can't repaint. */
 export const THEME_CHANGED = 'msgr:theme-changed';
 
+let version = 0;
+/** Which theme this is: one more with every change, for what keeps its colours. */
+export const themeVersion = () => version;
+
 /**
  * Puts the theme on <body>, and the browser's bars around the page (a phone's
  * status bar, Safari's) in its paper; with `save`, keeps it for the next visit.
@@ -36,6 +40,7 @@ export function applyTheme(theme: Theme, { save = false } = {}): void {
       ?.setAttribute('content', paper);
   }
   if (save) keep('theme', serializeTheme(theme));
+  version += 1;
   window.dispatchEvent(new Event(THEME_CHANGED));
 }
 
@@ -46,8 +51,9 @@ let pen: CanvasRenderingContext2D | null | undefined;
 const resolved = new Map<string, Rgba | null>();
 
 /**
- * Any colour CSS computes (`rgb(…)`, a tint's `oklch(…)`) as sRGB, by
- * painting it on a pixel of its own; null if the browser can't paint it.
+ * Any colour CSS computes (`rgb(…)`, a tint's `oklch(…)`, a transparent
+ * `rgba(0, 0, 0, 0)`) as sRGB, by painting it on a pixel of its own; null
+ * if the browser can't read it.
  */
 export function rgbaOf(css: string): Rgba | null {
   if (resolved.has(css)) return resolved.get(css) ?? null;
@@ -55,13 +61,21 @@ export function rgbaOf(css: string): Rgba | null {
     .createElement('canvas')
     .getContext('2d', { willReadFrequently: true });
   if (!pen) return null;
-  pen.clearRect(0, 0, 1, 1);
-  pen.fillStyle = 'transparent'; // Kept if the browser can't read `css`.
+  // A colour the pen can't read leaves its last one: two different ones
+  // before it tell that apart from a colour as clear as glass.
+  pen.fillStyle = '#000001';
   pen.fillStyle = css;
+  const read = pen.fillStyle;
+  pen.fillStyle = '#000002';
+  pen.fillStyle = css;
+  if (pen.fillStyle !== read) {
+    resolved.set(css, null);
+    return null;
+  }
+  pen.clearRect(0, 0, 1, 1);
   pen.fillRect(0, 0, 1, 1);
   const [r = 0, g = 0, b = 0, a = 0] = pen.getImageData(0, 0, 1, 1).data;
-  const rgba: Rgba | null =
-    a === 0 && css !== 'transparent' ? null : [r, g, b, a];
+  const rgba: Rgba = [r, g, b, a];
   resolved.set(css, rgba);
   return rgba;
 }

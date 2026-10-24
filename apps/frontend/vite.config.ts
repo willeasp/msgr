@@ -1,13 +1,9 @@
 /// <reference types='vitest' />
 
-// Synchronous plain-object Vite config with NO top-level imports.
-// Nx/other tooling that introspects the project graph can safely require() this file.
-//
-// Note: Plugin integrations (like @vitejs/plugin-react) are intentionally omitted here
-// because importing them at the top-level can trigger ESM/CJS interop errors during
-// project graph processing. If you need to enable plugins for normal dev/build runs,
-// load them dynamically in a separate runtime entry or switch to a runtime-only
-// config loader that uses dynamic import() when starting the dev server.
+// A synchronous plain-object Vite config with no top-level imports, so Nx's
+// project graph can read it; plugin packages are imported inside `plugins`,
+// where Vite awaits them, since importing them at the top can trip ESM/CJS
+// interop while the graph is built.
 const config = {
   root: __dirname,
   cacheDir: '../../node_modules/.vite/apps/frontend',
@@ -54,8 +50,9 @@ const config = {
      * JSX with Fast Refresh in development, and the React Compiler, which
      * memoizes components and hooks so a change re-renders only what reads
      * it; vendored Sacred keeps upstream's code as it is. Before it, each
-     * gql() becomes an import of its own document, so operations load with
-     * the screens that use them rather than in a map of them all.
+     * gql() becomes an import of its own document, so no map of every
+     * operation's text is shipped. (The documents stay in one module, which
+     * the first load carries whole: Rollup splits modules, not exports.)
      */
     Promise.all([
       import('@vitejs/plugin-react'),

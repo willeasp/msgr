@@ -1,12 +1,20 @@
-import { parseSync, transformSync, traverse, type NodePath } from '@babel/core';
+import {
+  parseSync,
+  transformSync,
+  traverse,
+  type NodePath,
+  type PluginItem,
+} from '@babel/core';
+import { babelOptimizerPlugin } from '@graphql-codegen/client-preset';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
 
 /*
- * The React Compiler memoizes every component and hook it can compile, so a
- * change re-renders only what reads it (vite.config.ts). One it can't compile
- * it leaves as written, silently: this says which, and why.
+ * The React Compiler memoizes every component and hook it compiles, so a
+ * change re-renders only what reads it (vite.config.ts). One it can't
+ * compile, or doesn't take for a component, it leaves as written, silently:
+ * these say which, and why, on the same plugins the build runs.
  */
 
 const SRC = new URL('.', import.meta.url).pathname;
@@ -15,40 +23,17 @@ const sources = (readdirSync(SRC, { recursive: true }) as string[]).filter(
     /\.tsx?$/.test(file) &&
     !/\.test\.tsx?$|__generated__|^sacred\//.test(file.replaceAll('\\', '/'))
 );
-
-it('compiles every component and hook', () => {
-  const events: (CompilerEvent & { file: string })[] = [];
-  for (const file of sources) {
-    transformSync(readFileSync(join(SRC, file), 'utf8'), {
-      filename: file,
-      babelrc: false,
-      configFile: false,
-      plugins: [
-        ['@babel/plugin-syntax-typescript', { isTSX: file.endsWith('.tsx') }],
-        [
-          'babel-plugin-react-compiler',
-          {
-            logger: {
-              logEvent: (_: string, event: CompilerEvent) =>
-                events.push({ ...event, file }),
-            },
-          },
-        ],
-      ],
-    });
-  }
-  const failures = events
-    .filter((event) => event.kind === 'CompileError')
-    .map((event) => {
-      const detail = event.detail?.options ?? event.detail;
-      return `${event.file}:${event.fnLoc?.start.line}: ${detail?.reason}`;
-    });
-  expect(failures).toEqual([]);
-  // Every function component and hook in the app, give or take a few.
-  const compiled = events.filter((event) => event.kind === 'CompileSuccess');
-  expect(compiled.length).toBeGreaterThan(80);
-  // Compiling the whole app takes a few seconds, more beside other suites.
-}, 60_000);
+const syntax = (file: string): PluginItem => [
+  '@babel/plugin-syntax-typescript',
+  { isTSX: file.endsWith('.tsx') },
+];
+const parse = (file: string) =>
+  parseSync(readFileSync(join(SRC, file), 'utf8'), {
+    filename: file,
+    babelrc: false,
+    configFile: false,
+    plugins: [syntax(file)],
+  });
 
 interface CompilerEvent {
   kind: string;
@@ -56,54 +41,110 @@ interface CompilerEvent {
   detail?: { reason?: string; options?: { reason?: string } };
 }
 
-/** A component (`ChatWindow`) or hook (`useClock`), by the name it's given. */
-function isComponentOrHook(path: NodePath): boolean {
-  if (!path.isFunction()) return false;
-  const node = path.node;
-  const own = 'id' in node && node.id ? node.id.name : null;
-  const parent = path.parentPath?.node;
-  const name =
-    own ??
-    (parent?.type === 'VariableDeclarator' && parent.id.type === 'Identifier'
-      ? parent.id.name
-      : null);
-  return name !== null && /^(use[A-Z0-9]|[A-Z])/.test(name);
-}
+/** A component (`ChatWindow`) or hook (`useClock`), by its name. */
+const isComponentOrHookName = (name: string | null | undefined) =>
+  !!name && /^(use[A-Z0-9]|[A-Z])/.test(name);
 
-it("never reassigns a module's variable inside a component or hook", () => {
-  // The compiler takes such a variable as constant there, and may read it
-  // after it was reassigned: keep that code in a plain function outside.
-  const found: string[] = [];
+/** The name a function is given: its own, or the variable's it's assigned to. */
+function nameOf(path: NodePath): string | null {
+  if (!path.isFunction()) return null;
+  const node = path.node;
+  if ('id' in node && node.id) return node.id.name;
+  const parent = path.parentPath?.node;
+  return parent?.type === 'VariableDeclarator' &&
+    parent.id.type === 'Identifier'
+    ? parent.id.name
+    : null;
+}
+const isComponentOrHook = (path: NodePath) =>
+  isComponentOrHookName(nameOf(path));
+
+it('compiles every component and hook', () => {
+  const failures: string[] = [];
+  let compiled = 0;
   for (const file of sources) {
-    const ast = parseSync(readFileSync(join(SRC, file), 'utf8'), {
+    const events: CompilerEvent[] = [];
+    transformSync(readFileSync(join(SRC, file), 'utf8'), {
       filename: file,
       babelrc: false,
       configFile: false,
+      // As vite.config.ts runs them.
       plugins: [
-        ['@babel/plugin-syntax-typescript', { isTSX: file.endsWith('.tsx') }],
+        syntax(file),
+        [
+          babelOptimizerPlugin,
+          { artifactDirectory: `${SRC}lib/__generated__`, gqlTagName: 'gql' },
+        ],
+        [
+          'babel-plugin-react-compiler',
+          {
+            logger: {
+              logEvent: (_: string, event: CompilerEvent) => events.push(event),
+            },
+          },
+        ],
       ],
     });
-    if (!ast) continue;
-    const reassigned = (path: NodePath, name: string | null) => {
-      const binding = name ? path.scope.getBinding(name) : undefined;
-      if (binding?.kind !== 'let' || !binding.scope.path.isProgram()) return;
-      if (path.findParent(isComponentOrHook)) {
-        found.push(`${file}:${path.node.loc?.start.line}: ${name}`);
+    for (const event of events) {
+      if (event.kind === 'CompileSuccess') compiled += 1;
+      if (event.kind === 'CompileError') {
+        const detail = event.detail?.options ?? event.detail;
+        failures.push(`${file}:${event.fnLoc?.start.line}: ${detail?.reason}`);
       }
-    };
+    }
+
+    // A component or hook at the top of a module (exported, or in memo())
+    // that the compiler said nothing about was skipped: it took it for
+    // neither, such as one returning a string or an array, not elements.
+    const heard = new Set(events.map((event) => event.fnLoc?.start.line));
+    const ast = parse(file);
+    if (!ast) continue;
     traverse(ast, {
-      AssignmentExpression: (path) =>
-        reassigned(
-          path,
-          path.node.left.type === 'Identifier' ? path.node.left.name : null
-        ),
-      UpdateExpression: (path) =>
-        reassigned(
-          path,
-          path.node.argument.type === 'Identifier'
-            ? path.node.argument.name
-            : null
-        ),
+      Function(path) {
+        if (!isComponentOrHook(path)) return;
+        const atTop = path.findParent(
+          (parent) => parent.isFunction() || parent.isProgram()
+        );
+        if (!atTop?.isProgram()) return;
+        const line = path.node.loc?.start.line;
+        if (!heard.has(line)) {
+          failures.push(`${file}:${line}: ${nameOf(path)} was skipped`);
+        }
+      },
+    });
+  }
+  expect(failures).toEqual([]);
+  // Every function component and hook in the app, give or take a few.
+  expect(compiled).toBeGreaterThan(80);
+  // Compiling the whole app takes a few seconds, more beside other suites.
+}, 60_000);
+
+it("never reads or reassigns a module's `let` inside a component or hook", () => {
+  // The compiler takes such a variable for constant there: it once read one
+  // after a call that reassigned it. Only plain functions outside touch them.
+  const found: string[] = [];
+  for (const file of sources) {
+    const ast = parse(file);
+    if (!ast) continue;
+    traverse(ast, {
+      Program(program) {
+        for (const binding of Object.values(program.scope.bindings)) {
+          // A class is a `let` too, to Babel: only variables can change.
+          if (binding.kind !== 'let' || !binding.path.isVariableDeclarator()) {
+            continue;
+          }
+          for (const path of [
+            ...binding.referencePaths,
+            ...binding.constantViolations,
+          ]) {
+            if (path.findParent(isComponentOrHook)) {
+              found.push(
+                `${file}:${path.node.loc?.start.line}: ${binding.identifier.name}`
+              );
+            }
+          }
+        }
+      },
     });
   }
   expect(found).toEqual([]);

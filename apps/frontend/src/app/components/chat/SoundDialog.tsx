@@ -48,7 +48,6 @@ type Stage =
 /** Bars along the timeline: plenty for any width it's shown at. */
 const BARS = 240;
 
-/** Why recording failed, in words for the person. */
 /** A sound file's samples, at least a tenth of a second of them, or why not. */
 async function samplesOf(from: Blob): Promise<Float32Array> {
   const read = await readSound(from);
@@ -58,6 +57,7 @@ async function samplesOf(from: Blob): Promise<Float32Array> {
   return read;
 }
 
+/** Why recording failed, in words for the person. */
 function recordingProblem(error: unknown): string {
   if (!canRecord()) {
     return 'This browser can’t record. Choose a file instead.';

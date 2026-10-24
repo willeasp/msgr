@@ -27,6 +27,18 @@ const ok = async () =>
     }
   );
 const settle = () => act(() => new Promise((done) => setTimeout(done, 20)));
+/** Settles until `check` holds, two seconds at most: however busy the machine. */
+async function until(check: () => void) {
+  for (let waited = 0; ; waited += 10) {
+    try {
+      check();
+      return;
+    } catch (error) {
+      if (waited >= 2000) throw error;
+    }
+    await act(() => new Promise((done) => setTimeout(done, 10)));
+  }
+}
 
 function mount() {
   let last: Bits | null = null;
@@ -55,8 +67,7 @@ describe('usePicture', () => {
     vi.stubGlobal('fetch', fetch);
     const view = mount();
     await view.render(picture());
-    await settle();
-    expect(view.last()).toEqual(bits);
+    await until(() => expect(view.last()).toEqual(bits));
     expect(fetch).toHaveBeenCalledTimes(1);
     await view.unmount();
   });
@@ -65,7 +76,7 @@ describe('usePicture', () => {
     vi.stubGlobal('fetch', vi.fn(ok));
     const view = mount();
     await view.render(picture());
-    await settle();
+    await until(() => expect(view.last()).toEqual(bits));
     let respond = (_: Response) => undefined as void;
     vi.stubGlobal(
       'fetch',
@@ -74,8 +85,7 @@ describe('usePicture', () => {
     await view.render(picture());
     expect(view.last()).toBeNull();
     respond(await ok());
-    await settle();
-    expect(view.last()).toEqual(bits);
+    await until(() => expect(view.last()).toEqual(bits));
     await view.unmount();
   });
 
@@ -88,8 +98,7 @@ describe('usePicture', () => {
     await settle();
     expect(fetch).not.toHaveBeenCalled();
     await view.render(far, true);
-    await settle();
-    expect(view.last()).toEqual(bits);
+    await until(() => expect(view.last()).toEqual(bits));
 
     const kept = picture();
     pictures.keep(kept, bits);
@@ -109,11 +118,10 @@ describe('usePicture', () => {
     const p = picture();
     const view = mount();
     await view.render(p);
-    await settle();
+    await until(() => expect(pictures.now(p)).toEqual({ state: 'failed' }));
     expect(view.last()).toBeNull();
     await act(() => window.dispatchEvent(new Event('online')));
-    await settle();
-    expect(view.last()).toEqual(bits);
+    await until(() => expect(view.last()).toEqual(bits));
     await view.unmount();
   });
 

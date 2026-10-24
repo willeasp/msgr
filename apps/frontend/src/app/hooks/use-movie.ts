@@ -45,7 +45,7 @@ const currentTick = () => tick;
  * it neither re-renders nor keeps the timer going.
  */
 export const useMovieTick = (active = true) =>
-  useSyncExternalStore(active ? subscribe : unsubscribed, () => tick);
+  useSyncExternalStore(active ? subscribe : unsubscribed, currentTick);
 
 /**
  * Paints `frameAt(tick)` on the canvas: at once, on every tick while

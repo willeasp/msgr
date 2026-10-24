@@ -29,20 +29,24 @@ export function PixelText({
   text: string;
   size?: 16 | 32;
 }) {
-  const pieces = splitEmoji(text);
-  if (pieces.every((piece) => 'text' in piece)) return text;
-  return pieces.map((piece, i) => {
-    if ('text' in piece) return piece.text;
-    const mask = maskFor(piece.emoji);
-    if (!mask) return piece.emoji;
-    return (
-      <span
-        key={i}
-        className={size === 32 ? styles.big : styles.emoji}
-        style={{ '--emoji': mask } as CSSProperties}
-      >
-        <span className={styles.char}>{piece.emoji}</span>
-      </span>
-    );
-  });
+  // Elements, not a bare string or array: the React Compiler then knows it
+  // for a component, and keeps each text's pieces until the text changes.
+  return (
+    <>
+      {splitEmoji(text).map((piece, i) => {
+        if ('text' in piece) return piece.text;
+        const mask = maskFor(piece.emoji);
+        if (!mask) return piece.emoji;
+        return (
+          <span
+            key={i}
+            className={size === 32 ? styles.big : styles.emoji}
+            style={{ '--emoji': mask } as CSSProperties}
+          >
+            <span className={styles.char}>{piece.emoji}</span>
+          </span>
+        );
+      })}
+    </>
+  );
 }
