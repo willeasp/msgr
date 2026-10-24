@@ -59,27 +59,25 @@ test('the login form edits like any other, and shows a long address as it scroll
   await page.goto('/login');
   const email = page.getByLabel('Email');
 
-  // Longer than the field: the drawn copy scrolls with it, its insertion
-  // point in view.
+  // Longer than the field: the drawn copy scrolls with it, and on as far as
+  // its insertion point, a block wider than the browser's caret, needs.
   await email.pressSequentially('firstname.lastname@company-domain.example');
   await expectInStep(email);
   const scrolled = await email.evaluate((el: HTMLInputElement) => {
     const copy = el.previousElementSibling as HTMLElement;
     const block = copy.querySelector('[class*="__block"]') as HTMLElement;
+    const { right, width } = block.getBoundingClientRect();
     return {
       field: el.scrollLeft,
-      copy: copy.scrollLeft,
-      blockInView:
-        block.getBoundingClientRect().right <=
-        copy.getBoundingClientRect().right + 1,
+      past: copy.scrollLeft - el.scrollLeft,
+      block: Math.ceil(width),
+      blockInView: right <= copy.getBoundingClientRect().right + 0.5,
     };
   });
   expect(scrolled.field).toBeGreaterThan(0);
-  expect(scrolled).toEqual({
-    field: scrolled.field,
-    copy: scrolled.field,
-    blockInView: true,
-  });
+  expect(scrolled.past).toBeGreaterThanOrEqual(0);
+  expect(scrolled.past).toBeLessThanOrEqual(scrolled.block);
+  expect(scrolled.blockInView).toBe(true);
 
   // A slip in the middle of each, put right where it is.
   await email.fill('');

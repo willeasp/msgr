@@ -16,6 +16,7 @@ function Input({ caretChars, isBlink = true, label, placeholder, onChange, type,
 
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const displayedRef = React.useRef<HTMLDivElement | null>(null);
+  const blockRef = React.useRef<HTMLSpanElement | null>(null);
   const [typed, setTyped] = React.useState<string>(defaultValue?.toString() || '');
   const [isFocused, setIsFocused] = React.useState<boolean>(false);
   const [selection, setSelection] = React.useState<Selection>({ start: typed.length, end: typed.length, text: typed });
@@ -67,9 +68,15 @@ function Input({ caretChars, isBlink = true, label, placeholder, onChange, type,
     }
   };
 
-  // A text longer than the field scrolls the input; the copy scrolls with it.
+  // A text longer than the field scrolls the input; the copy scrolls with it,
+  // and on as far as its block, wider than the browser's caret, needs to show
+  // whole. Measured only when the field scrolls.
   const onHandleScroll = (e: React.UIEvent<HTMLInputElement>) => {
-    if (displayedRef.current) displayedRef.current.scrollLeft = e.currentTarget.scrollLeft;
+    const displayed = displayedRef.current;
+    if (!displayed) return;
+    displayed.scrollLeft = e.currentTarget.scrollLeft;
+    const past = (blockRef.current?.getBoundingClientRect().right ?? 0) - displayed.getBoundingClientRect().right;
+    if (past > 0) displayed.scrollLeft += Math.ceil(past);
   };
 
   const isPlaceholderVisible = !text && placeholder;
@@ -93,7 +100,9 @@ function Input({ caretChars, isBlink = true, label, placeholder, onChange, type,
             <>
               {maskText(text.substring(0, at.start))}
               {at.start === at.end ? (
-                <span className={Utilities.classNames(styles.block, isBlink && styles.blink)}>{caretChars || ''}</span>
+                <span ref={blockRef} className={Utilities.classNames(styles.block, isBlink && styles.blink)}>
+                  {caretChars || ''}
+                </span>
               ) : (
                 <span className={styles.selection}>{maskText(text.substring(at.start, at.end))}</span>
               )}
