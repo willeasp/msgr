@@ -47,6 +47,8 @@ jobs:
       - run: npm run lint
       - run: npm run test
       - run: npm run build
+      - name: The first load's JavaScript stays within its budget
+        run: node apps/frontend/scripts/bundle.mjs --check
       - name: Install Chromium for the e2e tests
         run: npm --workspace=@msgr/e2e exec playwright install --with-deps chromium
       - name: End-to-end tests

@@ -1,13 +1,9 @@
 /// <reference types='vitest' />
 
-// Synchronous plain-object Vite config with NO top-level imports.
-// Nx/other tooling that introspects the project graph can safely require() this file.
-//
-// Note: Plugin integrations (like @vitejs/plugin-react) are intentionally omitted here
-// because importing them at the top-level can trigger ESM/CJS interop errors during
-// project graph processing. If you need to enable plugins for normal dev/build runs,
-// load them dynamically in a separate runtime entry or switch to a runtime-only
-// config loader that uses dynamic import() when starting the dev server.
+// A synchronous plain-object Vite config with no top-level imports, so Nx's
+// project graph can read it; plugin packages are imported inside `plugins`,
+// where Vite awaits them, since importing them at the top can trip ESM/CJS
+// interop while the graph is built.
 const config = {
   root: __dirname,
   cacheDir: '../../node_modules/.vite/apps/frontend',
@@ -47,11 +43,39 @@ const config = {
       },
     },
   },
-  // Plain objects, so the file stays a synchronous plain object: a plugin's
-  // modules are imported inside its hooks. If you need plugin-react features
-  // (fast refresh, automatic runtime), load the plugin dynamically when running
-  // Vite (outside of project-graph checks).
+  // A plugin package is imported where Vite awaits it, never at the top, so
+  // the file stays a synchronous plain object for Nx's project graph.
   plugins: [
+    /*
+     * JSX with Fast Refresh in development, and the React Compiler, which
+     * memoizes components and hooks so a change re-renders only what reads
+     * it; vendored Sacred keeps upstream's code as it is. Before it, each
+     * gql() becomes an import of its own document, so no map of every
+     * operation's text is shipped. (The documents stay in one module, which
+     * the first load carries whole: Rollup splits modules, not exports.)
+     */
+    Promise.all([
+      import('@vitejs/plugin-react'),
+      import('@graphql-codegen/client-preset'),
+    ]).then(([{ default: react }, { babelOptimizerPlugin }]) =>
+      react({
+        babel: {
+          plugins: [
+            [
+              babelOptimizerPlugin,
+              {
+                artifactDirectory: `${__dirname}/src/lib/__generated__`,
+                gqlTagName: 'gql',
+              },
+            ],
+            [
+              'babel-plugin-react-compiler',
+              { sources: (file: string) => !file.includes('/src/sacred/') },
+            ],
+          ],
+        },
+      })
+    ),
     {
       /*
        * The app's shell: writes this build's version and every file it made

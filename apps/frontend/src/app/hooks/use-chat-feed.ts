@@ -149,7 +149,10 @@ export function useChatFeed(handlers: {
     latest.current = handlers;
   });
 
+  // Every event goes to the cache and the handlers; none re-renders SignedIn,
+  // which hosts the feed: what changed re-renders what reads it.
   useSubscription(MESSAGE_RECEIVED_SUBSCRIPTION, {
+    ignoreResults: true,
     onData: ({ data, client }) => {
       const message = data.data?.messageReceived;
       if (!message) return;
@@ -158,9 +161,10 @@ export function useChatFeed(handlers: {
     },
   });
 
-  useSubscription(PROFILE_CHANGED_SUBSCRIPTION);
+  useSubscription(PROFILE_CHANGED_SUBSCRIPTION, { ignoreResults: true });
 
   useSubscription(TYPING_SUBSCRIPTION, {
+    ignoreResults: true,
     onData: ({ data }) => {
       const event = data.data?.typing;
       if (event) latest.current.onTyping(event);
@@ -168,6 +172,7 @@ export function useChatFeed(handlers: {
   });
 
   useSubscription(CHAT_ADDED_SUBSCRIPTION, {
+    ignoreResults: true,
     onData: ({ data, client }) => {
       const event = data.data?.chatAdded;
       if (!event) return;

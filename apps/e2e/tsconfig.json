@@ -8,5 +8,15 @@
     "lib": ["es2022", "dom"],
     "types": ["node"]
   },
-  "include": ["*.ts", "tests/**/*.ts", "screenshots/**/*.ts"]
+  "include": [
+    "*.ts",
+    "tests/**/*.ts",
+    "screenshots/**/*.ts",
+    "measure/**/*.ts"
+  ],
+  "references": [
+    {
+      "path": "../../libs/media"
+    }
+  ]
 }

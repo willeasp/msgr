@@ -97,6 +97,16 @@ data, browser → lib. `lib/` holds the pure logic, each with tests;
 and storage; `app/data/` holds the GraphQL several parts share and the
 cache writes; `app/hooks/` holds the live feed, alerts and the clock.
 
+Each event re-renders only what shows it. The React Compiler memoizes every
+component and hook (a test fails if one stops compiling); the live feed's
+events go to the cache without re-rendering `SignedIn`; only `Ago` reads the
+clock; a message's bubble is drawn again only when its own props change; and
+movies step by painting, never by rendering. Dialogs and the pages other than
+the desktop load the first time they're needed. `npm run measure` reports
+what each of these costs on the production build, and CI holds the render
+counts (`apps/e2e/tests/renders.spec.ts`) and the first load's size
+(`apps/frontend/scripts/bundle.mjs`) to their budgets.
+
 ## Accounts and security
 
 Sign-up is invite-only ([ADR 0003](adr/0003-invite-only-accounts.md)). The

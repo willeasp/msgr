@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { blank, getPixel, setPixel } from '@msgr/media';
+import { blank, getPixel, setPixel, type Bits } from '@msgr/media';
 import {
   PATTERNS,
   coverStroke,
   fill,
-  inkRuns,
   line,
   newDrawing,
   paintStroke,
@@ -20,6 +19,23 @@ const pattern = (name: string): Pattern => {
 };
 const black = pattern('Black');
 const grey = pattern('Grey');
+
+/** Each row's runs of ink, as [x, y, length]: a picture, described. */
+function inkRuns(bits: Bits): [number, number, number][] {
+  const runs: [number, number, number][] = [];
+  for (let y = 0; y < bits.height; y++) {
+    let start = -1;
+    for (let x = 0; x <= bits.width; x++) {
+      const ink = getPixel(bits, x, y);
+      if (ink && start < 0) start = x;
+      if (!ink && start >= 0) {
+        runs.push([start, y, x - start]);
+        start = -1;
+      }
+    }
+  }
+  return runs;
+}
 
 describe('the bitmap', () => {
   it('starts a drawing blank at 256×160', () => {

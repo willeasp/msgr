@@ -5,6 +5,7 @@ import {
   attach,
   chatsWindow,
   chatWindow,
+  chooseMenu,
   signIn,
 } from './support';
 
@@ -115,7 +116,40 @@ test('a video becomes a movie: part of it chosen, drawn on, sent, and looping li
   await expect(
     chatsWindow(bob).getByRole('link', { name: /Project Team/ })
   ).toContainText('Movie');
+
+  // Looping on, it takes each theme's ink and paper, a tint's included.
+  for (const theme of ['Dark', 'Green Tint', 'Light', 'No Tint']) {
+    await chooseMenu(bob, 'View', theme);
+    await expect.poll(() => inkAndPaper(movie)).toEqual('as styled');
+  }
 });
+
+/** Whether a canvas shows exactly its CSS ink and paper, and nothing else. */
+const inkAndPaper = (canvas: Locator) =>
+  canvas.evaluate((element: HTMLCanvasElement) => {
+    const data = element
+      .getContext('2d')
+      ?.getImageData(0, 0, element.width, element.height).data;
+    const seen = new Set<string>();
+    for (let i = 0; data && i < data.length; i += 4) {
+      seen.add(`${data[i]},${data[i + 1]},${data[i + 2]},${data[i + 3]}`);
+    }
+    // The CSS colours as the browser draws them.
+    const pen = document.createElement('canvas').getContext('2d');
+    const drawn = (css: string) => {
+      if (!pen) return '';
+      pen.clearRect(0, 0, 1, 1);
+      pen.fillStyle = css;
+      pen.fillRect(0, 0, 1, 1);
+      return Array.from(pen.getImageData(0, 0, 1, 1).data).join(',');
+    };
+    const { color, backgroundColor } = getComputedStyle(element);
+    const styled = new Set([drawn(color), drawn(backgroundColor)]);
+    return [...seen].every((colour) => styled.has(colour)) &&
+      seen.size === styled.size
+      ? 'as styled'
+      : `${[...seen].join(' ')} for ${[...styled].join(' ')}`;
+  });
 
 test('a video longer than ten minutes is turned away', async ({ page }) => {
   await page.goto('/login');

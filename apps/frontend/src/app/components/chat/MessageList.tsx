@@ -84,7 +84,7 @@ export function MessageList({
           showName={showNames}
           onDrawOnIt={onDrawOnIt}
           onDrawOnMovie={onDrawOnMovie}
-          onGetInfo={onGetInfo && (() => onGetInfo(message.id))}
+          onGetInfo={onGetInfo}
         />
       ))}
       <div ref={messagesEndRef} />

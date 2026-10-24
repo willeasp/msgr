@@ -22,6 +22,9 @@ Kept small so upstream diffs stay readable:
   (`DropdownMenuTrigger`).
 - `DropdownMenuTrigger` returns focus to its trigger only if nothing else took
   it, so a menu item that opens a dialog leaves the dialog's field focused.
+- `page/ModalContext.tsx` keeps the actions (`useModals`) and the stack
+  (`useModalStack`) in contexts of their own, the actions made once, so
+  opening a dialog re-renders only what shows the stack.
 - `common/utilities.ts` keeps only the helpers these components call.
 - `modules/hotkeys.ts` replaces upstream's vendored `react-hotkeys-hook` with
   the one call it needs, `useHotkeys(keys, callback, options)`.

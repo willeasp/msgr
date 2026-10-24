@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useRef } from 'react';
 import { blank, frameOf } from '@msgr/media';
 import type { KeptMovie } from '../../../lib/movie-wire';
-import { pixelSize, useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
-import { useMovie, useMovieTick, useOnScreen } from '../../hooks/use-movie';
+import { pixelSize } from '../../hooks/use-bitmap-canvas';
+import { useMovie, useMovieSteps, useOnScreen } from '../../hooks/use-movie';
 import styles from './MessagePicture.module.css';
 
 /**
@@ -16,14 +16,14 @@ export function MessageMovie({ movie }: { movie: KeptMovie }) {
     () => blank(movie.width, movie.height),
     [movie.width, movie.height]
   );
-  const [shown, setShown] = useState(empty);
-  const { ref } = useBitmapCanvas(shown);
+  const ref = useRef<HTMLCanvasElement>(null);
   const onScreen = useOnScreen(ref);
   const frames = useMovie(movie, onScreen.ever);
-  const tick = useMovieTick(onScreen.now);
-  useEffect(() => {
-    setShown(frames ? frameOf(frames, tick % frames.count) : empty);
-  }, [frames, tick, empty]);
+  useMovieSteps(
+    ref,
+    (tick) => (frames ? frameOf(frames, tick % frames.count) : empty),
+    onScreen.now && frames !== null
+  );
 
   return (
     <canvas

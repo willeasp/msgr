@@ -18,5 +18,7 @@ export function useWatching(chatId: string | undefined) {
   useSubscription(WATCHING, {
     variables: { chatId: chatId ?? '' },
     skip: !chatId || !visible,
+    // It never sends anything; holding it is the message.
+    ignoreResults: true,
   });
 }

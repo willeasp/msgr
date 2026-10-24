@@ -17,25 +17,25 @@ export function useSoundPlayer(codes: SoundCodes | null) {
   const mine = state.kind === 'playing' && state.owner === owner;
   const [at, setAt] = useState(0);
   useEffect(() => () => audio.stop(owner), [owner]);
+  // Every frame while it plays.
   useEffect(() => {
-    if (!mine) {
-      setAt(0);
-      return;
-    }
+    if (!mine) return;
     let frame = 0;
     const step = () => {
       setAt(audio.position());
       frame = requestAnimationFrame(step);
     };
-    step();
+    frame = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frame);
   }, [mine, state]);
   return {
     playing: mine,
-    at,
+    at: mine ? at : 0,
     /** Plays from `from` seconds, or another sound in its place. Call it from a click. */
     play: (from = 0, sound = codes) => {
-      if (sound) audio.play(owner, sound, from);
+      if (!sound) return;
+      setAt(from);
+      audio.play(owner, sound, from);
     },
     stop: () => audio.stop(owner),
   };

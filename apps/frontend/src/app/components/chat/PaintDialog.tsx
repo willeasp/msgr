@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { blank, getPixel, isBlank, type Bits, type Frames } from '@msgr/media';
 import { frameShown, type Drawing } from '../../../lib/movie';
 import {
@@ -15,8 +15,8 @@ import type { Bitmap } from '../../../lib/pixels';
 import Button from '../../../sacred/components/Button';
 import { useModals } from '../../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../../sacred/modules/hotkeys';
-import { pixelSize, useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
-import { useMovieTick } from '../../hooks/use-movie';
+import { pixelSize } from '../../hooks/use-bitmap-canvas';
+import { useMovieSteps } from '../../hooks/use-movie';
 import { BRUSH, BUCKET, ERASER, PENCIL } from '../icons';
 import { DialogButtons, MacDialog } from '../MacDialog';
 import { PixelIcon } from '../PixelIcon';
@@ -87,19 +87,19 @@ export function PaintDialog(props: PaintDialogProps) {
   const [shown] = useState<Bits>(() =>
     movie ? blank(movie.width, movie.height) : bits
   );
-  const { ref, repaint } = useBitmapCanvas(shown);
-  // A picture stands still: no frames to step through.
-  const tick = useMovieTick(!!movie);
-  // The frame showing now, with the drawing over it.
-  const compose = useCallback(() => {
-    if (movie && mask) {
-      frameShown(movie, tick % movie.count, { ink: bits, mask }, shown);
-    }
-  }, [movie, mask, bits, shown, tick]);
-  useEffect(() => {
-    compose();
-    repaint();
-  }, [compose, repaint]);
+  const ref = useRef<HTMLCanvasElement>(null);
+  // The frame showing now, with the drawing over it; a picture stands still.
+  const repaint = useMovieSteps(
+    ref,
+    (tick) =>
+      movie && mask
+        ? frameShown(movie, tick % movie.count, { ink: bits, mask }, shown)
+        : shown,
+    !!movie
+  );
+  // A stroke repaints once a frame, however fast the pointer reports.
+  const painting = useRef(0);
+  useEffect(() => () => cancelAnimationFrame(painting.current), []);
   const [tool, setTool] = useState<Tool>('pencil');
   const [pattern, setPattern] = useState<(typeof PATTERNS)[number]>(
     PATTERNS[0]
@@ -119,8 +119,12 @@ export function PaintDialog(props: PaintDialogProps) {
   } | null>(null);
 
   const drew = () => {
-    compose();
-    repaint();
+    if (!painting.current) {
+      painting.current = requestAnimationFrame(() => {
+        painting.current = 0;
+        repaint();
+      });
+    }
     setChanged(true);
     setEmpty(!movie && isBlank(bits));
   };

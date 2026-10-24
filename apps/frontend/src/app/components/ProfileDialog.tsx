@@ -13,7 +13,7 @@ import { pictures } from '../data/media';
 import { ME } from '../data/me';
 import { useInks } from '../hooks/use-inks';
 import { usePicture } from '../hooks/use-picture';
-import { PaintDialog } from './chat/PaintDialog';
+import { PaintDialog, useOnTop } from './dialogs';
 import { firstPicture } from '../../lib/files';
 import { pictureFromFile } from '../browser/picture-file';
 import { DialogButtons, MacDialog } from './MacDialog';
@@ -44,7 +44,8 @@ const UPDATE_PROFILE = gql(`
 
 /** Your name and picture, as everyone sees them. From File → Profile…. */
 export function ProfileDialog() {
-  const { open, close, modalStack } = useModals();
+  const { open, close } = useModals();
+  const onTop = useOnTop();
   const { data } = useQuery(ME);
   const me = data?.me;
   const [name, setName] = useState(me?.name ?? '');
@@ -60,10 +61,9 @@ export function ProfileDialog() {
   const [saving, setSaving] = useState(false);
 
   // Only while on top: Escape in the paint window above is the paint window's.
-  const depth = useRef(modalStack.length);
   useHotkeys('Escape', () => close(), {
     enableOnFormTags: true,
-    enabled: modalStack.length === depth.current,
+    enabled: onTop,
   });
 
   const take = (bits: Bits | null) => {
@@ -84,11 +84,11 @@ export function ProfileDialog() {
       setError('That picture comes out blank: nothing in it is dark.');
     else take(bits);
   };
-  const save = async () => {
+  const save = () => {
     if (!me || saving) return;
     setError(null);
     setSaving(true);
-    try {
+    const send = async () => {
       // Saved together: an unchanged avatar is sent again as it is.
       const avatar =
         drawn === undefined ? me.avatar && (await kept(me.avatar)) : drawn;
@@ -101,15 +101,16 @@ export function ProfileDialog() {
         },
       });
       close();
-    } catch (failure) {
-      setError(
-        failure instanceof Error
-          ? failure.message
-          : 'Could not save. Try again.'
-      );
-    } finally {
-      setSaving(false);
-    }
+    };
+    void send()
+      .catch((failure: unknown) =>
+        setError(
+          failure instanceof Error
+            ? failure.message
+            : 'Could not save. Try again.'
+        )
+      )
+      .finally(() => setSaving(false));
   };
 
   return (

@@ -6,9 +6,11 @@
   "description": "End-to-end tests: a real browser against the production build and a real database.",
   "scripts": {
     "e2e": "playwright test --project=e2e",
-    "screenshots": "playwright test --project=screenshots"
+    "screenshots": "playwright test --project=screenshots",
+    "measure": "playwright test --project=measure --reporter=line"
   },
   "devDependencies": {
+    "@msgr/media": "*",
     "@playwright/test": "^1.64.0"
   }
 }

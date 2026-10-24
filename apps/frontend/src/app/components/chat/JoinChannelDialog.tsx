@@ -24,7 +24,7 @@ const CHANNELS = gql(`
   }
 `);
 
-interface JoinChannelDialogProps {
+export interface JoinChannelDialogProps {
   /** `new` is File → New Channel…: just a name, no directory. */
   mode?: 'join' | 'new';
 }

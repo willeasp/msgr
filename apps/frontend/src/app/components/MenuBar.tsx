@@ -4,7 +4,7 @@ import Navigation from '../../sacred/components/Navigation';
 import RowSpaceBetween from '../../sacred/components/RowSpaceBetween';
 import { useModals } from '../../sacred/components/page/ModalContext';
 import { useClock } from '../hooks/use-clock';
-import { AboutDialog } from './AboutDialog';
+import { AboutDialog } from './dialogs';
 import { MARK } from './icons';
 import { PixelIcon } from './PixelIcon';
 import styles from './MenuBar.module.css';
@@ -24,10 +24,11 @@ export interface MenuItem {
 export function Menu({
   title,
   items,
-  button = <ActionButton>{title}</ActionButton>,
+  button,
 }: {
   title: string;
   items: MenuItem[];
+  /** The menu's title as an ActionButton, unless another is given. */
   button?: React.ReactElement<React.HTMLAttributes<HTMLElement>>;
 }) {
   return (
@@ -43,7 +44,7 @@ export function Menu({
         onClick,
       }))}
     >
-      {button}
+      {button ?? <ActionButton>{title}</ActionButton>}
     </DropdownMenuTrigger>
   );
 }

@@ -15,13 +15,52 @@ import {
 import { Timeline } from './Timeline';
 import styles from './TrimDialog.module.css';
 
-interface TrimDialogProps {
+export interface TrimDialogProps {
   /** The window's: "Movie for Ada". */
   title: string;
   /** A video picked, pasted or dropped; streamed, never read whole. */
   file: File;
   /** Takes the finished movie. */
   onDone: (movie: Frames) => void;
+}
+
+/** How far making a movie has got. */
+interface Making {
+  readonly stage: 'Reading' | 'Dithering';
+  readonly done: number;
+  readonly of: number;
+}
+
+/**
+ * Reads the part of the video and dithers it into a movie, a frame at a
+ * time; null if stopped first.
+ */
+async function movieFrom(
+  video: HTMLVideoElement,
+  part: Part,
+  signal: AbortSignal,
+  progress: (making: Making) => void
+): Promise<Frames | null> {
+  const size = movieSize(video);
+  // iOS draws nothing from a video that has never played; a play() inside
+  // the click fixes that.
+  await video.play().catch(() => undefined);
+  video.pause();
+  progress({ stage: 'Reading', done: 0, of: 0 });
+  const grey = await captureGrey(video, part, size, {
+    signal,
+    onFrame: (done, of) => progress({ stage: 'Reading', done, of }),
+  });
+  const count = grey.length / (size.width * size.height);
+  const steps = makeMovie(grey, size.width, size.height, count);
+  for (;;) {
+    if (signal.aborted) return null;
+    const step = steps.next();
+    if (step.done) return step.value;
+    progress({ stage: 'Dithering', done: step.value, of: count });
+    // Lets the page paint between frames.
+    await new Promise((resolve) => setTimeout(resolve));
+  }
 }
 
 const clock = (s: number) =>
@@ -36,15 +75,10 @@ export function TrimDialog({ title, file, onDone }: TrimDialogProps) {
   const { close } = useModals();
   const video = useRef<HTMLVideoElement>(null);
   const track = useRef<HTMLDivElement>(null);
-  const [url, setUrl] = useState<string | null>(null);
   const [duration, setDuration] = useState(0);
   const [part, setPart] = useState<Part>({ start: 0, end: 0 });
   const [problem, setProblem] = useState<string | null>(null);
-  const [making, setMaking] = useState<{
-    stage: 'Reading' | 'Dithering';
-    done: number;
-    of: number;
-  } | null>(null);
+  const [making, setMaking] = useState<Making | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [playhead, setPlayhead] = useState<number | null>(null);
   const [strip, setStrip] = useState<Bits>(() => blank(1, 1));
@@ -52,8 +86,10 @@ export function TrimDialog({ title, file, onDone }: TrimDialogProps) {
 
   useEffect(() => {
     // An object URL lets the browser stream the file from disk.
+    const v = video.current;
+    if (!v) return;
     const made = URL.createObjectURL(file);
-    setUrl(made);
+    v.src = made;
     return () => URL.revokeObjectURL(made);
   }, [file]);
 
@@ -82,7 +118,7 @@ export function TrimDialog({ title, file, onDone }: TrimDialogProps) {
   useEffect(() => {
     const v = video.current;
     const box = track.current;
-    if (!ready || !url || !v || !box) return;
+    if (!ready || !v || !box) return;
     const height = 24;
     const width = Math.max(
       1,
@@ -93,7 +129,7 @@ export function TrimDialog({ title, file, onDone }: TrimDialogProps) {
       Math.round((height * v.videoWidth) / v.videoHeight)
     );
     const signal = { stopped: false };
-    void thumbnailStrip(url, duration, { width, height, cell }, signal).then(
+    void thumbnailStrip(v.src, duration, { width, height, cell }, signal).then(
       (light) => {
         if (light && !signal.stopped) setStrip(atkinson(light, width, height));
       }
@@ -101,7 +137,7 @@ export function TrimDialog({ title, file, onDone }: TrimDialogProps) {
     return () => {
       signal.stopped = true;
     };
-  }, [ready, url, duration]);
+  }, [ready, duration]);
 
   // The chosen part, looping, while previewing.
   useEffect(() => {
@@ -132,47 +168,31 @@ export function TrimDialog({ title, file, onDone }: TrimDialogProps) {
     show(at);
   };
 
-  const make = async () => {
+  const make = () => {
     const v = video.current;
     if (!v || making) return;
     setPreviewing(false);
     setProblem(null);
     const controller = new AbortController();
     abort.current = controller;
-    const size = movieSize(v);
-    try {
-      // iOS draws nothing from a video that has never played; a play() inside
-      // the click fixes that.
-      await v.play().catch(() => undefined);
-      v.pause();
-      setMaking({ stage: 'Reading', done: 0, of: 0 });
-      const grey = await captureGrey(v, part, size, {
-        signal: controller.signal,
-        onFrame: (done, of) => setMaking({ stage: 'Reading', done, of }),
+    void movieFrom(v, part, controller.signal, setMaking)
+      .then((movie) => {
+        if (!movie) return;
+        onDone(movie);
+        close();
+      })
+      .catch((error: unknown) =>
+        setProblem(
+          error instanceof Error
+            ? error.message
+            : 'That video couldn’t be read.'
+        )
+      )
+      .finally(() => {
+        if (abort.current === controller) abort.current = null;
+        setMaking(null);
+        v.playbackRate = 1;
       });
-      const count = grey.length / (size.width * size.height);
-      const steps = makeMovie(grey, size.width, size.height, count);
-      for (;;) {
-        if (controller.signal.aborted) return;
-        const step = steps.next();
-        if (step.done) {
-          onDone(step.value);
-          close();
-          return;
-        }
-        setMaking({ stage: 'Dithering', done: step.value, of: count });
-        // Lets the page paint between frames.
-        await new Promise((resolve) => setTimeout(resolve));
-      }
-    } catch (error) {
-      setProblem(
-        error instanceof Error ? error.message : 'That video couldn’t be read.'
-      );
-    } finally {
-      if (abort.current === controller) abort.current = null;
-      setMaking(null);
-      v.playbackRate = 1;
-    }
   };
   const stop = () => abort.current?.abort();
 
@@ -185,7 +205,6 @@ export function TrimDialog({ title, file, onDone }: TrimDialogProps) {
       <div className={styles.preview}>
         <video
           ref={video}
-          src={url ?? undefined}
           muted
           playsInline
           preload="auto"

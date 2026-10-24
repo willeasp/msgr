@@ -117,3 +117,79 @@ test('a server that answers with an error can be left for the login page', async
   await signIn(page, 'erin@example.com');
   await expect(chatsWindow(page)).toBeVisible();
 });
+
+test('a dialog opens with no network, though it loads only when needed', async ({
+  page,
+}) => {
+  await signedInWithShell(page);
+  await page.context().setOffline(true);
+
+  await chooseMenu(page, 'File', 'Profile…');
+  await expect(page.getByRole('dialog', { name: 'Profile' })).toBeVisible();
+});
+
+test('a dialog that can no longer be fetched says so, and offers a reload', async ({
+  browser,
+}) => {
+  // A page the shell doesn't keep, after a deploy replaced what it would load.
+  const context = await browser.newContext({ serviceWorkers: 'block' });
+  await context.route(/\/assets\/ProfileDialog-[^/]+\.js$/, (route) =>
+    route.fulfill({ status: 404 })
+  );
+  const page = await context.newPage();
+  await page.goto('/login');
+  await signIn(page, 'erin@example.com');
+
+  await chooseMenu(page, 'File', 'Profile…');
+  const failed = page.getByRole('dialog', { name: 'Msgr' });
+  await expect(failed).toContainText('This couldn’t be opened.');
+  await expect(failed.getByRole('button', { name: 'Reload' })).toBeVisible();
+  await failed.getByRole('button', { name: 'Cancel' }).click();
+  await expect(failed).toBeHidden();
+  // The rest of the app carries on; Escape closes it too, as any dialog.
+  await expect(chatsWindow(page)).toBeVisible();
+  await chooseMenu(page, 'File', 'Profile…');
+  await expect(failed).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(failed).toBeHidden();
+  await context.close();
+});
+
+test('a page the shell does not keep fetches a dialog only to open it, and its Escape stays its own', async ({
+  browser,
+}) => {
+  // A first visit on a slow network: nothing is on the device yet. A fetch
+  // made early and failed would stay failed for the page, so none is made.
+  const context = await browser.newContext({ serviceWorkers: 'block' });
+  let asked = 0;
+  let release = () => undefined as void;
+  const held = new Promise<void>((done) => (release = done));
+  await context.route(/\/assets\/ProfileDialog-[^/]+\.js$/, async (route) => {
+    asked += 1;
+    await held;
+    await route.continue();
+  });
+  const page = await context.newPage();
+  await page.goto('/login');
+  await signIn(page, 'diana@example.com');
+  await page.waitForTimeout(1000);
+  expect(asked).toBe(0);
+
+  // Profile, still coming, under New Chat (⌃K) opened over it meanwhile.
+  await chooseMenu(page, 'File', 'Profile…');
+  await page.keyboard.press('Control+k');
+  const newChat = page.getByRole('dialog', { name: 'New Chat' });
+  await expect(newChat).toBeVisible();
+  release();
+  const profile = page.getByRole('dialog', { name: 'Profile' });
+  await expect(profile).toBeAttached();
+  expect(asked).toBe(1);
+
+  // One Escape closes the dialog on top, the next the one it opened over.
+  await page.keyboard.press('Escape');
+  await expect(newChat).toBeHidden();
+  await expect(profile).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(profile).toBeHidden();
+  await context.close();
+});

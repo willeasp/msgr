@@ -1,15 +1,28 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import {
   anotherPerson,
   attach,
   chatsWindow,
   chatWindow,
+  chooseMenu,
   signIn,
 } from './support';
 
 // Two seconds of a 440 Hz beep.
 const BEEP = fileURLToPath(new URL('../fixtures/beep.wav', import.meta.url));
+
+/** How many colours a canvas shows: one is a blank block, whatever its shape. */
+const coloursOn = (canvas: Locator) =>
+  canvas.evaluate((element) => {
+    const c = element as HTMLCanvasElement;
+    const data = c.getContext('2d')?.getImageData(0, 0, c.width, c.height).data;
+    const seen = new Set<string>();
+    for (let i = 0; data && i < data.length; i += 4) {
+      seen.add(`${data[i]},${data[i + 1]},${data[i + 2]},${data[i + 3]}`);
+    }
+    return seen.size;
+  });
 
 test('a file becomes a sound: part of it chosen, heard squashed, sent and played', async ({
   page,
@@ -47,6 +60,11 @@ test('a file becomes a sound: part of it chosen, heard squashed, sent and played
   await chat.getByRole('button', { name: 'Send', exact: true }).click();
   await expect(attached).toBeHidden();
 
+  // Its shape shows in the sender's own, inverted, bubble.
+  const mine = chat.getByRole('group', { name: 'Sound' }).last();
+  await expect(mine).toContainText('0:01');
+  await expect.poll(() => coloursOn(mine.locator('canvas'))).toBeGreaterThan(1);
+
   // Test's copy plays, its time counting, and stops by itself.
   const sound = chatWindow(test, 'Charlie Brown')
     .getByRole('group', { name: 'Sound' })
@@ -66,6 +84,12 @@ test('a file becomes a sound: part of it chosen, heard squashed, sent and played
   await expect(
     chatsWindow(test).getByRole('link', { name: /Charlie Brown/ })
   ).toContainText('Sound');
+
+  // And its shape shows on the dark screen, never a white block.
+  await chooseMenu(test, 'View', 'Dark');
+  await expect
+    .poll(() => coloursOn(sound.locator('canvas')))
+    .toBeGreaterThan(1);
 });
 
 test('a sound is recorded from the microphone', async ({ browser }) => {

@@ -65,3 +65,7 @@ export function onServiceWorkerMessage(
   return () =>
     navigator.serviceWorker.removeEventListener('message', onMessage);
 }
+
+/** Whether the shell answers this page: every part of Msgr is on the device. */
+export const keptOnDevice = (): boolean =>
+  'serviceWorker' in navigator && navigator.serviceWorker.controller !== null;

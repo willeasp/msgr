@@ -4,9 +4,11 @@ import {
   useSyncExternalStore,
   type RefObject,
 } from 'react';
-import { MOVIE_FPS } from '@msgr/media';
+import { MOVIE_FPS, type Bits } from '@msgr/media';
 import type { KeptMovie } from '../../lib/movie-wire';
+import { THEME_CHANGED } from '../browser/theme';
 import { movies } from '../data/media';
+import { paintBits } from './use-bitmap-canvas';
 import { useMedia } from './use-media';
 
 // One timer for every movie on the page, so they step together, and only
@@ -35,6 +37,7 @@ function subscribe(onTick: () => void) {
 }
 
 const unsubscribed = () => () => undefined;
+const currentTick = () => tick;
 
 /**
  * The movies' shared frame count: frame `tick % count` of each is showing.
@@ -42,7 +45,35 @@ const unsubscribed = () => () => undefined;
  * it neither re-renders nor keeps the timer going.
  */
 export const useMovieTick = (active = true) =>
-  useSyncExternalStore(active ? subscribe : unsubscribed, () => tick);
+  useSyncExternalStore(active ? subscribe : unsubscribed, currentTick);
+
+/**
+ * Paints `frameAt(tick)` on the canvas: at once, on every tick while
+ * `active`, and whenever the theme changes. It re-renders nothing: a movie
+ * steps by painting, on the page's one timer, with every other movie.
+ */
+export function useMovieSteps(
+  ref: RefObject<HTMLCanvasElement | null>,
+  frameAt: (tick: number) => Bits,
+  active: boolean
+): () => void {
+  useEffect(() => {
+    const paint = () => {
+      if (ref.current) paintBits(ref.current, frameAt(currentTick()));
+    };
+    paint();
+    window.addEventListener(THEME_CHANGED, paint);
+    const stop = active ? subscribe(paint) : undefined;
+    return () => {
+      window.removeEventListener(THEME_CHANGED, paint);
+      stop?.();
+    };
+  }, [ref, frameAt, active]);
+  // Paints this tick's frame now: after drawing on it, say.
+  return () => {
+    if (ref.current) paintBits(ref.current, frameAt(currentTick()));
+  };
+}
 
 /**
  * Whether the element is on screen or nearly, and whether it ever has been:

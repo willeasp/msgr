@@ -15,13 +15,17 @@ import {
   setup,
   useNotifications,
 } from '../hooks/use-notifications';
+import { keptOnDevice } from '../browser/service-worker';
 import { useOpenChatFromNotifications } from '../hooks/use-service-worker';
 import { SignedInContext, type Viewer } from '../hooks/use-signed-in';
 import { useTypists } from '../hooks/use-typing';
 import { useWatching } from '../hooks/use-watching';
 import { Connecting } from './Connecting';
-import { NotificationsBlockedDialog } from './NotificationsBlockedDialog';
-import { NotificationsDialog } from './NotificationsDialog';
+import {
+  NotificationsBlockedDialog,
+  NotificationsDialog,
+  prefetchDialogs,
+} from './dialogs';
 
 /**
  * The layout of every signed-in route: it sends anyone signed out to /login,
@@ -56,6 +60,17 @@ function Live({ viewer, isAdmin }: { viewer: Viewer; isAdmin: boolean }) {
   useWatching(chatOnScreen ?? undefined);
   useOpenChatFromNotifications();
   useMediaRetry();
+  // The dialogs, while nothing else is going on, if the shell has them: a
+  // fetch that failed would stay failed for the page (dialogs.tsx).
+  useEffect(() => {
+    if (!keptOnDevice()) return;
+    // Safari has no idle callback: a few seconds in, then.
+    const idle =
+      window.requestIdleCallback ?? ((then) => setTimeout(then, 3000));
+    const cancel = window.cancelIdleCallback ?? clearTimeout;
+    const id = idle(prefetchDialogs);
+    return () => cancel(id);
+  }, []);
   const install = useInstallPrompt();
   const notifications = useNotifications();
 
