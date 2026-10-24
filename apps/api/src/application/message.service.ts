@@ -1,4 +1,4 @@
-import { ChatId, visibleTo } from '../domain/chat.js';
+import { ChatId, visibleTo, type Chat } from '../domain/chat.js';
 import {
   notFound,
   type InvalidInput,
@@ -8,6 +8,7 @@ import {
   MessageBody,
   MessageContent,
   MessageId,
+  type MediaPart,
   type Message,
 } from '../domain/message.js';
 import { Movie, type RawMovie } from '../domain/movie.js';
@@ -22,6 +23,9 @@ import { createNotifier } from './notifier.js';
 import type { Dependencies } from './ports.js';
 
 export type MessageService = ReturnType<typeof createMessageService>;
+
+/** A page of history, as asked for: see `Page.parse`. */
+type PageArgs = Parameters<typeof Page.parse>[0];
 
 export function createMessageService(deps: Dependencies, loaders: Loaders) {
   const { repositories, events, typingEvents, clock } = deps;
@@ -62,6 +66,22 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
     return chat.ok ? ok(message) : err(notFound('Message'));
   }
 
+  /**
+   * A page of the chat's history. A cursor must be one of the chat's own
+   * messages: any other answers as missing, so a client starts again from the
+   * newest rather than taking an empty page for no news.
+   */
+  async function history(
+    chat: Chat,
+    page: Page
+  ): Promise<Result<Message[], NotFound>> {
+    if (page.kind !== 'newest') {
+      const from = await loaders.message.load(page.cursor);
+      if (from?.chatId !== chat.id) return err(notFound('Message'));
+    }
+    return ok(await loaders.messages(page).load(chat.id));
+  }
+
   return {
     /** A message in one of the viewer's chats, or null, as for a missing one. */
     async find(viewer: User, messageId: string): Promise<Message | null> {
@@ -69,13 +89,10 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
       return message.ok ? message.value : null;
     },
 
+    /** A page of the history of one of the viewer's chats (`history`). */
     async list(
       viewer: User,
-      input: {
-        readonly chatId: string;
-        readonly limit?: number | null;
-        readonly offset?: number | null;
-      }
+      input: PageArgs & { readonly chatId: string }
     ): Promise<Result<Message[], InvalidInput | NotFound>> {
       const page = Page.parse(input);
       if (!page.ok) return page;
@@ -86,7 +103,34 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
       );
       if (!chat.ok) return chat;
 
-      return ok(await loaders.messages(page.value).load(chat.value.id));
+      return history(chat.value, page.value);
+    },
+
+    /**
+     * A page of a chat already shown to the viewer (`Chat.messages`), with
+     * the same rules as `list`.
+     */
+    async history(
+      chat: Chat,
+      args: PageArgs
+    ): Promise<Result<Message[], InvalidInput | NotFound>> {
+      const page = Page.parse(args);
+      return page.ok ? history(chat, page.value) : page;
+    },
+
+    /**
+     * The bytes of a message's picture, movie or sound, for whoever may see
+     * the message. Any other message, or a part it hasn't, answers as missing.
+     */
+    async media(
+      viewer: User,
+      messageId: string,
+      part: MediaPart
+    ): Promise<Result<Uint8Array<ArrayBuffer>, NotFound>> {
+      const message = await visible(viewer, messageId);
+      if (!message.ok) return message;
+      const media = await loaders.media.load(message.value.id);
+      return media?.part === part ? ok(media.bytes) : err(notFound('Message'));
     },
 
     /**

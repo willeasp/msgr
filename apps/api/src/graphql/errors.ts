@@ -1,4 +1,5 @@
-import { GraphQLError } from 'graphql';
+import { unwrapResolverError } from '@apollo/server/errors';
+import { GraphQLError, type GraphQLFormattedError } from 'graphql';
 import type { DomainError } from '../domain/errors.js';
 import type { Result } from '../domain/result.js';
 
@@ -34,3 +35,37 @@ export const unauthenticated = () =>
   new GraphQLError('You must be signed in', {
     extensions: { code: 'UNAUTHENTICATED' },
   });
+
+/**
+ * What a client hears of a defect (a dropped database connection, a broken
+ * invariant): that something went wrong, never the defect's own words, which
+ * may name hosts or data. They're logged here instead. Domain errors and
+ * GraphQL's own (syntax, validation) carry a code and pass as they are.
+ */
+export const DEFECT = 'Something went wrong';
+
+/** Apollo's formatError, for queries and mutations over HTTP. */
+export function maskDefects(
+  formatted: GraphQLFormattedError,
+  error: unknown
+): GraphQLFormattedError {
+  if (formatted.extensions?.['code'] !== 'INTERNAL_SERVER_ERROR') {
+    return formatted;
+  }
+  console.error(unwrapResolverError(error));
+  return {
+    message: DEFECT,
+    path: formatted.path,
+    extensions: { code: 'INTERNAL_SERVER_ERROR' },
+  };
+}
+
+/** The same for subscriptions' events over the socket, whose errors carry no code yet. */
+export function maskDefect(error: GraphQLError): GraphQLError {
+  if (error.extensions['code'] !== undefined) return error;
+  console.error(error.originalError ?? error);
+  return new GraphQLError(DEFECT, {
+    path: error.path,
+    extensions: { code: 'INTERNAL_SERVER_ERROR' },
+  });
+}

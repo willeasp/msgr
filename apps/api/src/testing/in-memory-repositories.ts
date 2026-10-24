@@ -1,4 +1,4 @@
-import type { Repositories } from '../application/ports.js';
+import type { MessageMedia, Repositories } from '../application/ports.js';
 import {
   ChatId,
   isParticipant,
@@ -9,7 +9,13 @@ import {
   type GroupChat,
 } from '../domain/chat.js';
 import type { Invite, InviteCode } from '../domain/invite.js';
-import { MessageId, type Message } from '../domain/message.js';
+import {
+  mediaPartOf,
+  MessageBody,
+  MessageId,
+  type Message,
+  type NewMessage,
+} from '../domain/message.js';
 import type { PushSubscription } from '../domain/push.js';
 import type { Read } from '../domain/read.js';
 import { err, ok } from '../domain/result.js';
@@ -45,6 +51,8 @@ export function createInMemoryRepositories(): {
     return !!record && !record.used && at < record.invite.expiresAt;
   };
   const messages: Message[] = [];
+  // Each message's picture, movie or sound bytes, kept apart as in Postgres.
+  const media = new Map<MessageId, MessageMedia>();
   // Each reader's marks: how far they had read a chat, and when.
   const marks: { messageId: MessageId; readerId: UserId; at: Date }[] = [];
   const messageById = (id: MessageId) =>
@@ -192,24 +200,42 @@ export function createInMemoryRepositories(): {
       findByIds: async (ids) =>
         messages.filter((message) => ids.includes(message.id)),
 
-      findPages: async (chatIds, { limit, offset }) =>
-        distinct(chatIds).flatMap((chatId) =>
-          messages
+      findPages: async (chatIds, page) =>
+        distinct(chatIds).flatMap((chatId) => {
+          const history = messages
             .filter((message) => message.chatId === chatId)
-            .sort(
-              (a, b) =>
-                b.createdAt.getTime() - a.createdAt.getTime() ||
-                compare(b.id, a.id)
-            )
-            .slice(offset, offset + limit)
-            .reverse()
-        ),
+            .sort((a, b) => (isBefore(a, b) ? 1 : -1));
+          if (page.kind === 'newest') {
+            return history
+              .slice(page.offset, page.offset + page.limit)
+              .reverse();
+          }
+          const at = history.findIndex((message) => message.id === page.cursor);
+          if (at === -1) return [];
+          const window =
+            page.kind === 'before'
+              ? history.slice(at + 1)
+              : history.slice(0, at);
+          return window.slice(0, page.limit).reverse();
+        }),
+
+      findMedia: async (ids) =>
+        distinct(ids).flatMap((messageId) => {
+          const kept = media.get(messageId);
+          return kept ? [kept] : [];
+        }),
 
       append: async (input) => {
         const record = chats.get(input.chatId);
         if (!record) throw new Error(`Unknown chat ${input.chatId}`);
         requireUser(input.senderId);
-        const message: Message = { id: MessageId(nextId()), ...input };
+        const message = keep(MessageId(nextId()), input);
+        const part = mediaPartOf(input);
+        const bytes =
+          input.picture?.deflated ?? input.movie?.coded ?? input.sound?.coded;
+        if (part && bytes) {
+          media.set(message.id, { messageId: message.id, part, bytes });
+        }
         messages.push(message);
         record.activeAt = input.createdAt;
         return message;
@@ -289,6 +315,25 @@ export function createInMemoryRepositories(): {
   };
 
   return { repositories, fixtures };
+}
+
+/** A message as kept: its media's sizes, without their bytes. */
+function keep(id: MessageId, sent: NewMessage): Message {
+  const { picture, movie, sound } = sent;
+  const body = MessageBody.of(
+    sent.content,
+    picture && { width: picture.width, height: picture.height },
+    movie && { width: movie.width, height: movie.height, frames: movie.frames },
+    sound && { frames: sound.frames }
+  );
+  if (!body.ok) throw new Error(body.error.reason);
+  return {
+    id,
+    chatId: sent.chatId,
+    senderId: sent.senderId,
+    createdAt: sent.createdAt,
+    ...body.value,
+  };
 }
 
 /** Earlier in its chat's history: by time, then by id, as pages are ordered. */

@@ -2,7 +2,7 @@ import { blank, setPixel, toBase64 } from '@msgr/media';
 import { deflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { zlibPictureCodec } from '../infrastructure/zlib-picture-codec.js';
-import { Picture, type RawPicture } from './picture.js';
+import { Picture, pictureVersion, type RawPicture } from './picture.js';
 
 const inked = (width: number, height: number) => {
   const bits = blank(width, height);
@@ -101,5 +101,32 @@ describe('Picture.parse', () => {
       zlibPictureCodec
     );
     expect(result).toMatchObject({ ok: false, error: { field: 'picture' } });
+  });
+});
+
+describe('pictureVersion', () => {
+  const picture = (width: number, height: number, x = 0) => {
+    const bits = blank(width, height);
+    setPixel(bits, x, 0, true);
+    const parsed = Picture.parse(
+      wire(width, height, bits.bytes),
+      zlibPictureCodec
+    );
+    if (!parsed.ok) throw new Error(parsed.error.reason);
+    return parsed.value;
+  };
+
+  it('names the same picture the same way, and a different one differently', () => {
+    expect(pictureVersion(picture(64, 64))).toBe(
+      pictureVersion(picture(64, 64))
+    );
+    expect(pictureVersion(picture(64, 64, 1))).not.toBe(
+      pictureVersion(picture(64, 64))
+    );
+    // The same ink on a page of another size is another picture.
+    expect(pictureVersion(picture(32, 64))).not.toBe(
+      pictureVersion(picture(64, 64))
+    );
+    expect(pictureVersion(picture(64, 64))).toMatch(/^[0-9a-z]+$/);
   });
 });

@@ -10,7 +10,12 @@ import type {
 import type { Invite, InviteCode } from '../domain/invite.js';
 import type { LinkPreview } from '../domain/link-preview.js';
 import type { Url } from '../domain/link.js';
-import type { Message, MessageId, NewMessage } from '../domain/message.js';
+import type {
+  MediaPart,
+  Message,
+  MessageId,
+  NewMessage,
+} from '../domain/message.js';
 import type { Page } from '../domain/page.js';
 import type { Notification, PushSubscription } from '../domain/push.js';
 import type { Read } from '../domain/read.js';
@@ -67,13 +72,25 @@ export interface ChatRepository {
   leaveChannel(chatId: ChatId, userId: UserId): Promise<void>;
 }
 
+/** The bytes of a kept message's picture, movie or sound. */
+export interface MessageMedia {
+  readonly messageId: MessageId;
+  /** Which part of the message the bytes are. */
+  readonly part: MediaPart;
+  readonly bytes: Uint8Array<ArrayBuffer>;
+}
+
+/** Messages as kept: their media's sizes, and their bytes only when asked for. */
 export interface MessageRepository {
   findByIds(ids: readonly MessageId[]): Promise<Message[]>;
   /**
    * For each chat, `page` counted from its newest message, returned oldest
-   * first. Ties on `createdAt` are broken by id.
+   * first. Ties on `createdAt` are broken by id. A cursor that isn't one of
+   * the chat's messages finds nothing in it.
    */
   findPages(chatIds: readonly ChatId[], page: Page): Promise<Message[]>;
+  /** Each message's picture, movie or sound bytes; text alone is left out. */
+  findMedia(ids: readonly MessageId[]): Promise<MessageMedia[]>;
   /** Stores the message and marks its chat as active, atomically. */
   append(message: NewMessage): Promise<Message>;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MessageBody, MessageContent } from './message.js';
+import { mediaPartOf, MessageBody, MessageContent } from './message.js';
 import type { Movie } from './movie.js';
 import type { Picture } from './picture.js';
 import type { Sound } from './sound.js';
@@ -91,5 +91,26 @@ describe('MessageBody.of', () => {
     expect(MessageBody.of(text, picture, movie, null)).toEqual(two('movie'));
     expect(MessageBody.of(text, picture, null, sound)).toEqual(two('sound'));
     expect(MessageBody.of(null, null, movie, sound)).toEqual(two('sound'));
+  });
+});
+
+describe('mediaPartOf', () => {
+  const text = 'hi' as MessageContent;
+  it('names the part with bytes of its own, if any', () => {
+    const none = { picture: null, movie: null, sound: null };
+    expect(mediaPartOf({ content: text, ...none })).toBeNull();
+    expect(
+      mediaPartOf({ content: null, ...none, picture: { width: 1, height: 1 } })
+    ).toBe('picture');
+    expect(
+      mediaPartOf({
+        content: text,
+        ...none,
+        movie: { width: 1, height: 1, frames: 1 },
+      })
+    ).toBe('movie');
+    expect(mediaPartOf({ content: null, ...none, sound: { frames: 2 } })).toBe(
+      'sound'
+    );
   });
 });

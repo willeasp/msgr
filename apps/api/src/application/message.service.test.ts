@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Message } from '../domain/message.js';
+import type { User } from '../domain/user.js';
 import { Page } from '../domain/page.js';
+import { ok } from '../domain/result.js';
 import { exampleMovie, movieInput } from '../testing/movies.js';
 import { examplePicture, pictureInput } from '../testing/pictures.js';
 import { exampleSound, soundInput } from '../testing/sounds.js';
@@ -19,6 +21,21 @@ async function team() {
   const linus = await app.fixtures.user({ name: 'Linus' });
   const chat = await app.fixtures.groupChat('Team', [ada, grace]);
   return { ...app, ada, grace, linus, chat };
+}
+
+/** Sends each [sender, text] to the chat in turn; the messages as sent. */
+async function sendAll(
+  services: Awaited<ReturnType<typeof team>>['services'],
+  chatId: string,
+  messages: readonly (readonly [User, string])[]
+): Promise<Message[]> {
+  const sent: Message[] = [];
+  for (const [sender, content] of messages) {
+    sent.push(
+      expectOk(await services().messages.send(sender, { chatId, content }))
+    );
+  }
+  return sent;
 }
 
 describe('sending a message', () => {
@@ -149,15 +166,19 @@ describe('sending a picture', () => {
       chatId: chat.id,
       senderId: ada.id,
       content: null,
-      picture: examplePicture(),
+      picture: {
+        width: examplePicture().width,
+        height: examplePicture().height,
+      },
       movie: null,
       sound: null,
       createdAt: expect.any(Date),
     });
-    expect(captioned).toMatchObject({
-      content: 'look',
-      picture: examplePicture(),
-    });
+    expect(captioned).toMatchObject({ content: 'look' });
+    // Its bytes, as the server compressed them, come on their own.
+    expect(
+      await services().messages.media(grace, captioned.id, 'picture')
+    ).toEqual(ok(examplePicture().deflated));
     expect(await toGrace).toEqual(alone);
     expect(await toLinus).toBe('nothing');
   });
@@ -220,11 +241,18 @@ describe('sending a movie', () => {
       senderId: ada.id,
       content: null,
       picture: null,
-      movie: exampleMovie(),
+      movie: {
+        width: exampleMovie().width,
+        height: exampleMovie().height,
+        frames: exampleMovie().frames,
+      },
       sound: null,
       createdAt: expect.any(Date),
     });
-    expect(captioned).toMatchObject({ content: 'look', movie: exampleMovie() });
+    expect(captioned).toMatchObject({ content: 'look' });
+    expect(await services().messages.media(ada, alone.id, 'movie')).toEqual(
+      ok(exampleMovie().coded)
+    );
     expect(await toGrace).toEqual(alone);
   });
 
@@ -274,13 +302,13 @@ describe('sending a sound', () => {
       content: null,
       picture: null,
       movie: null,
-      sound: exampleSound(),
+      sound: { frames: exampleSound().frames },
       createdAt: expect.any(Date),
     });
-    expect(captioned).toMatchObject({
-      content: 'listen',
-      sound: exampleSound(),
-    });
+    expect(captioned).toMatchObject({ content: 'listen' });
+    expect(await services().messages.media(ada, alone.id, 'sound')).toEqual(
+      ok(exampleSound().coded)
+    );
     expect(await toGrace).toEqual(alone);
   });
 
@@ -341,6 +369,41 @@ describe('reading messages', () => {
     });
   });
 
+  it('pages from a cursor in the chat, and not from one anywhere else', async () => {
+    const { services, fixtures, ada, grace, chat } = await team();
+    const [one, two, three] = (await sendAll(services, chat.id, [
+      [ada, 'one'],
+      [grace, 'two'],
+      [ada, 'three'],
+    ])) as [Message, Message, Message];
+    const elsewhere = await fixtures.groupChat('Elsewhere', [ada]);
+    const aside = expectOk(
+      await services().messages.send(ada, {
+        chatId: elsewhere.id,
+        content: 'aside',
+      })
+    );
+
+    expect(
+      await services().messages.list(grace, {
+        chatId: chat.id,
+        before: three.id,
+      })
+    ).toEqual(ok([one, two]));
+    expect(
+      await services().messages.list(grace, { chatId: chat.id, after: one.id })
+    ).toEqual(ok([two, three]));
+    // A cursor from another chat, or none at all, is missing: start again.
+    for (const cursor of [aside.id, 'missing']) {
+      expect(
+        await services().messages.list(grace, {
+          chatId: chat.id,
+          after: cursor,
+        })
+      ).toEqual({ ok: false, error: { type: 'NotFound', entity: 'Message' } });
+    }
+  });
+
   it('rejects a page outside the bounds', async () => {
     const { services, ada, chat } = await team();
 
@@ -353,6 +416,42 @@ describe('reading messages', () => {
       ok: false,
       error: { type: 'InvalidInput', field: 'limit' },
     });
+  });
+});
+
+describe("a message's media", () => {
+  it('is for whoever may see the message, and only the part it has', async () => {
+    const { services, ada, grace, linus, chat } = await team();
+    const picture = expectOk(
+      await services().messages.send(ada, {
+        chatId: chat.id,
+        picture: pictureInput(),
+      })
+    );
+    const text = expectOk(
+      await services().messages.send(ada, { chatId: chat.id, content: 'hi' })
+    );
+    const missing = {
+      ok: false,
+      error: { type: 'NotFound', entity: 'Message' },
+    };
+
+    expect(
+      await services().messages.media(grace, picture.id, 'picture')
+    ).toEqual(ok(examplePicture().deflated));
+    // Not theirs, not that part, or no media at all: all the same as missing.
+    expect(
+      await services().messages.media(linus, picture.id, 'picture')
+    ).toEqual(missing);
+    expect(await services().messages.media(grace, picture.id, 'movie')).toEqual(
+      missing
+    );
+    expect(await services().messages.media(grace, text.id, 'picture')).toEqual(
+      missing
+    );
+    expect(await services().messages.media(grace, 'missing', 'sound')).toEqual(
+      missing
+    );
   });
 });
 

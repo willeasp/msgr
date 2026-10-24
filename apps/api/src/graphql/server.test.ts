@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { brotliCompressSync, gzipSync } from 'node:zlib';
 import { createClient, type Client } from 'graphql-ws';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
 import {
   byteLength,
@@ -14,13 +14,15 @@ import {
 } from '@msgr/media';
 import type { MessageEvents } from '../application/ports.js';
 import type { User } from '../domain/user.js';
+import { pictureVersion } from '../domain/picture.js';
 import { createPubSubMessageEvents } from '../infrastructure/message-events.js';
+import { examplePicture, pictureInput } from '../testing/pictures.js';
 import {
   createTestApp,
   fakeHash,
   TEST_JWT_SECRET,
 } from '../testing/harness.js';
-import { startServer, type Server } from './server.js';
+import { MAX_SUBSCRIPTIONS, startServer, type Server } from './server.js';
 
 const LOGIN = `mutation { login(email: "ada@example.com", password: "secret") { token } }`;
 const APP_ORIGIN = 'http://localhost:4200';
@@ -120,6 +122,8 @@ describe('server', () => {
     expect(logout.headers.get('set-cookie')).toMatch(
       /^token=; Path=\/; Expires=Thu, 01 Jan 1970/
     );
+    // Media kept by the browser goes too.
+    expect(logout.headers.get('clear-site-data')).toBe('"cache"');
   });
 
   it('takes the largest movie a message can carry, noise in every frame', async () => {
@@ -239,6 +243,57 @@ describe('server', () => {
     }
   });
 
+  it(`lets a socket hold ${MAX_SUBSCRIPTIONS} subscriptions, and no more`, async () => {
+    const { data } = (await (await post(LOGIN)).json()) as {
+      data: { login: { token: string } };
+    };
+    const client = createClient({
+      url: server.url.replace(/^http/, 'ws'),
+      webSocketImpl: WebSocket,
+      connectionParams: { token: data.login.token },
+    });
+    const refused: unknown[] = [];
+    const stops: (() => void)[] = [];
+    const subscribe = () =>
+      new Promise<void>((settled) => {
+        stops.push(
+          client.subscribe(
+            { query: 'subscription { typing { chatId } }' },
+            {
+              next: () => undefined,
+              error: (error) => {
+                refused.push(error);
+                settled();
+              },
+              complete: settled,
+            }
+          )
+        );
+        // Held, unless refused at once.
+        setTimeout(settled, 50);
+      });
+
+    try {
+      for (let i = 0; i < MAX_SUBSCRIPTIONS; i++) await subscribe();
+      expect(refused).toEqual([]);
+      await subscribe();
+      expect(refused).toEqual([
+        [
+          expect.objectContaining({
+            message: `A connection may hold at most ${MAX_SUBSCRIPTIONS} subscriptions.`,
+          }),
+        ],
+      ]);
+      // One let go makes room again.
+      stops[0]?.();
+      await new Promise((wait) => setTimeout(wait, 50));
+      await subscribe();
+      expect(refused).toHaveLength(1);
+    } finally {
+      await client.dispose();
+    }
+  });
+
   it('authenticates subscriptions with the token from login', async () => {
     const { data } = (await (await post(LOGIN)).json()) as {
       data: { login: { token: string } };
@@ -319,6 +374,73 @@ describe('server', () => {
     socket.send('x'.repeat(256 * 1024));
 
     expect(await closed).toBe(1009);
+  });
+
+  it("serves a message's media at its own address, to whoever may see it", async () => {
+    const grace = await app.fixtures.user({ name: 'Grace' });
+    const notes = await app.fixtures.groupChat('Pictures', [ada]);
+    const sent = await app.services().messages.send(ada, {
+      chatId: notes.id,
+      picture: pictureInput(13, 7),
+    });
+    if (!sent.ok) throw new Error('not sent');
+    const site = server.url.replace(/\/graphql$/, '');
+    const fetchAs = (path: string, cookie?: string) =>
+      fetch(`${site}${path}`, { headers: cookie ? { cookie } : {} });
+    const cookie = await sessionCookie();
+
+    const picture = await fetchAs(`/media/${sent.value.id}/picture`, cookie);
+    expect(picture.status).toBe(200);
+    expect(picture.headers.get('cache-control')).toBe(
+      'private, max-age=31536000, immutable'
+    );
+    // Kept by the browser for this session alone: whoever signs in next asks again.
+    expect(picture.headers.get('vary')).toMatch(/cookie/i);
+    expect(new Uint8Array(await picture.arrayBuffer())).toEqual(
+      examplePicture(13, 7).deflated
+    );
+
+    // No session, someone else's, a part it hasn't: all missing, kept by nobody.
+    const graceCookie = `token=${await app.deps.tokens.issue(grace.id)}`;
+    for (const [path, as] of [
+      [`/media/${sent.value.id}/picture`, undefined],
+      [`/media/${sent.value.id}/picture`, graceCookie],
+      [`/media/${sent.value.id}/movie`, cookie],
+      [`/media/${sent.value.id}/anything`, cookie],
+      ['/media/missing/picture', cookie],
+      // Each has one address, and an id the database can't hold names nothing.
+      [`/MEDIA/${sent.value.id}/picture`, cookie],
+      [`/media/${sent.value.id}/picture/`, cookie],
+      [`/media/${sent.value.id}`, cookie],
+      ['/media/a%00b/picture', cookie],
+      [`/avatars/${ada.id}%00/v1`, cookie],
+    ] as const) {
+      const response = await fetchAs(path, as);
+      expect(response.status).toBe(404);
+      expect(response.headers.get('cache-control')).toBe('no-store');
+    }
+  });
+
+  it('serves an avatar at an address that names its version', async () => {
+    const saved = await app.services().users.updateProfile(ada, {
+      name: 'Ada',
+      avatar: pictureInput(64, 64),
+    });
+    if (!saved.ok || !saved.value.avatar) throw new Error('not saved');
+    const site = server.url.replace(/\/graphql$/, '');
+    const path = `/avatars/${ada.id}/${pictureVersion(saved.value.avatar)}`;
+    const cookie = await sessionCookie();
+
+    const avatar = await fetch(`${site}${path}`, { headers: { cookie } });
+    expect(avatar.status).toBe(200);
+    expect(new Uint8Array(await avatar.arrayBuffer())).toEqual(
+      saved.value.avatar.deflated
+    );
+    expect((await fetch(`${site}${path}`)).status).toBe(404);
+    expect(
+      (await fetch(`${site}/avatars/${ada.id}/stale`, { headers: { cookie } }))
+        .status
+    ).toBe(404);
   });
 
   it('serves the app, and its client-side routes, from the same address', async () => {
@@ -429,10 +551,13 @@ describe('a server that is starting', () => {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ query: '{ __typename }' }),
       });
+      const media = fetch(`${site}/media/m1/picture`);
       expect(await answeredSoon(health)).toBe(false);
       expect(await answeredSoon(query)).toBe(false);
+      expect(await answeredSoon(media)).toBe(false);
 
       open();
+      expect((await media).status).toBe(404);
       expect((await health).status).toBe(204);
       expect((await health).headers.get('cache-control')).toBe('no-store');
       expect(await (await query).json()).toEqual({
@@ -542,6 +667,108 @@ describe('the built app, compressed', () => {
       );
     } finally {
       await secure.stop();
+    }
+  });
+});
+
+describe("a defect's own words", () => {
+  it('stay on the server, logged, while the client hears only that something went wrong', async () => {
+    const app = createTestApp();
+    const ada = await app.fixtures.user({ name: 'Ada' });
+    app.deps.repositories.chats.findByParticipant = () =>
+      Promise.reject(
+        new Error("Can't reach database server at db.secret:5432")
+      );
+    const logged = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const server = await startServer(app.deps, {
+      port: 0,
+      corsOrigin: APP_ORIGIN,
+      jwtSecret: TEST_JWT_SECRET,
+      sessionTtlSeconds: 60,
+      secureCookies: false,
+      staticDir: null,
+      push: null,
+      admins: [],
+      storageLimit: null,
+    });
+    try {
+      const token = await app.deps.tokens.issue(ada.id);
+      const ask = (query: string) =>
+        fetch(server.url, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            cookie: `token=${token}`,
+          },
+          body: JSON.stringify({ query }),
+        }).then((response) => response.json());
+
+      expect(await ask('{ chats { id } }')).toEqual({
+        data: null,
+        errors: [
+          {
+            message: 'Something went wrong',
+            path: ['chats'],
+            extensions: { code: 'INTERNAL_SERVER_ERROR' },
+          },
+        ],
+      });
+      expect(String(logged.mock.calls[0]?.[0])).toContain('db.secret');
+
+      // A domain error, and GraphQL's own, still say what's wrong.
+      const refused = (await ask(
+        '{ chats { messages { chat { messages { id } } } } }'
+      )) as { errors: { message: string }[] };
+      expect(refused.errors[0]?.message).toBe(
+        'A query may not read messages inside messages.'
+      );
+    } finally {
+      logged.mockRestore();
+      await server.stop();
+    }
+  });
+
+  it('stay on the server when media is asked for, too', async () => {
+    const app = createTestApp();
+    const ada = await app.fixtures.user({ name: 'Ada' });
+    const chat = await app.fixtures.groupChat('Pictures', [ada]);
+    const sent = await app.services().messages.send(ada, {
+      chatId: chat.id,
+      picture: pictureInput(13, 7),
+    });
+    if (!sent.ok) throw new Error('not sent');
+    app.deps.repositories.messages.findMedia = () =>
+      Promise.reject(
+        new Error("Can't reach database server at db.secret:5432")
+      );
+    const logged = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const server = await startServer(app.deps, {
+      port: 0,
+      corsOrigin: APP_ORIGIN,
+      jwtSecret: TEST_JWT_SECRET,
+      sessionTtlSeconds: 60,
+      secureCookies: false,
+      staticDir: null,
+      push: null,
+      admins: [],
+      storageLimit: null,
+    });
+    try {
+      const response = await fetch(
+        server.url.replace(/\/graphql$/, `/media/${sent.value.id}/picture`),
+        { headers: { cookie: `token=${await app.deps.tokens.issue(ada.id)}` } }
+      );
+      expect(response.status).toBe(500);
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      expect(await response.text()).toBe('');
+      expect(String(logged.mock.calls[0]?.[0])).toContain('db.secret');
+    } finally {
+      logged.mockRestore();
+      await server.stop();
     }
   });
 });

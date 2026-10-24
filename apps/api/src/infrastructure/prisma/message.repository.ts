@@ -6,30 +6,34 @@ import {
   type Message,
   type MessageContent,
 } from '../../domain/message.js';
-import type { Movie } from '../../domain/movie.js';
-import type { Picture } from '../../domain/picture.js';
-import type { Sound } from '../../domain/sound.js';
+import type { MovieSize } from '../../domain/movie.js';
+import type { PictureSize } from '../../domain/picture.js';
+import type { SoundLength } from '../../domain/sound.js';
 import { UserId } from '../../domain/user.js';
 import { Prisma, type PrismaClient } from './client.js';
 
+/** A kept message: its media's sizes, never their bytes (`findMedia`). */
 const messageFields = {
   id: true,
   chatId: true,
   senderId: true,
   content: true,
-  picture: true,
   pictureWidth: true,
   pictureHeight: true,
-  movie: true,
   movieWidth: true,
   movieHeight: true,
   movieFrames: true,
-  sound: true,
   soundFrames: true,
   createdAt: true,
 } satisfies Prisma.MessageSelect;
 
 type MessageRow = Prisma.MessageGetPayload<{ select: typeof messageFields }>;
+
+const COLUMNS = Prisma.raw(
+  Object.keys(messageFields)
+    .map((column) => `"${column}"`)
+    .join(', ')
+);
 
 export function prismaMessageRepository(db: PrismaClient): MessageRepository {
   return {
@@ -41,24 +45,54 @@ export function prismaMessageRepository(db: PrismaClient): MessageRepository {
       return rows.map(toMessage);
     },
 
-    async findPages(chatIds, { limit, offset }) {
+    async findPages(chatIds, page) {
       if (chatIds.length === 0) return [];
-      // One query for every chat: rank each chat's messages newest-first and
-      // keep the requested window of ranks.
+      // A cursor counts only within the same chat: from any other, or none,
+      // it finds nothing.
+      const window =
+        page.kind === 'newest'
+          ? Prisma.empty
+          : Prisma.sql`
+            AND ("createdAt", "id") ${Prisma.raw(
+              page.kind === 'before' ? '<' : '>'
+            )} (
+              SELECT "createdAt", "id" FROM "Message"
+              WHERE "id" = ${page.cursor} AND "chatId" = chat.id
+            )`;
+      const offset = page.kind === 'newest' ? page.offset : 0;
+      // Each chat's newest first, straight down its (chatId, createdAt, id)
+      // index and no further than the page: a long history costs nothing.
       const rows = await db.$queryRaw<MessageRow[]>`
-        SELECT "id", "chatId", "senderId", "content", "picture",
-          "pictureWidth", "pictureHeight", "movie", "movieWidth",
-          "movieHeight", "movieFrames", "sound", "soundFrames", "createdAt"
-        FROM (
-          SELECT *, ROW_NUMBER() OVER (
-            PARTITION BY "chatId" ORDER BY "createdAt" DESC, "id" DESC
-          ) AS "rank"
-          FROM "Message"
-          WHERE "chatId" IN (${Prisma.join(chatIds)})
-        ) AS ranked
-        WHERE "rank" > ${offset} AND "rank" <= ${offset + limit}
-        ORDER BY "chatId", "createdAt", "id"`;
+        SELECT page.* FROM (
+          SELECT DISTINCT unnest(ARRAY[${Prisma.join(chatIds)}]::text[]) AS id
+        ) AS chat
+        CROSS JOIN LATERAL (
+          SELECT ${COLUMNS} FROM "Message"
+          WHERE "chatId" = chat.id ${window}
+          ORDER BY "createdAt" DESC, "id" DESC
+          LIMIT ${page.limit} OFFSET ${offset}
+        ) AS page
+        ORDER BY page."chatId", page."createdAt", page."id"`;
       return rows.map(toMessage);
+    },
+
+    async findMedia(ids) {
+      const rows = await db.message.findMany({
+        where: { id: { in: [...ids] } },
+        select: { id: true, picture: true, movie: true, sound: true },
+      });
+      return rows.flatMap(({ id, picture, movie, sound }) => {
+        const [part, bytes] = picture
+          ? (['picture', picture] as const)
+          : movie
+          ? (['movie', movie] as const)
+          : sound
+          ? (['sound', sound] as const)
+          : [null, null];
+        return part
+          ? [{ messageId: MessageId(id), part, bytes: new Uint8Array(bytes) }]
+          : [];
+      });
     },
 
     async append(message) {
@@ -111,41 +145,22 @@ function toMessage(row: MessageRow): Message {
   return { ...sent, ...body.value };
 }
 
-/** Checked when it was sent, and held to its size by a CHECK since. */
-function pictureOf({
-  id,
-  picture,
+// The CHECK keeps each part's size set exactly when its bytes are.
+
+const pictureOf = ({
   pictureWidth: width,
   pictureHeight: height,
-}: MessageRow): Picture | null {
-  if (picture === null) return null;
-  if (width === null || height === null) {
-    throw new Error(`Message ${id} has a picture without its size`);
-  }
-  // Raw queries hand back a Buffer; keep one type either way.
-  return { width, height, deflated: new Uint8Array(picture) } as Picture;
-}
+}: MessageRow): PictureSize | null =>
+  width === null || height === null ? null : { width, height };
 
-/** Checked when it was sent, and held to its size by a CHECK since. */
-function movieOf({
-  id,
-  movie,
+const movieOf = ({
   movieWidth: width,
   movieHeight: height,
   movieFrames: frames,
-}: MessageRow): Movie | null {
-  if (movie === null) return null;
-  if (width === null || height === null || frames === null) {
-    throw new Error(`Message ${id} has a movie without its size`);
-  }
-  return { width, height, frames, coded: new Uint8Array(movie) } as Movie;
-}
+}: MessageRow): MovieSize | null =>
+  width === null || height === null || frames === null
+    ? null
+    : { width, height, frames };
 
-/** Checked when it was sent, and held to its length by a CHECK since. */
-function soundOf({ id, sound, soundFrames: frames }: MessageRow): Sound | null {
-  if (sound === null) return null;
-  if (frames === null) {
-    throw new Error(`Message ${id} has a sound without its length`);
-  }
-  return { frames, coded: new Uint8Array(sound) } as Sound;
-}
+const soundOf = ({ soundFrames: frames }: MessageRow): SoundLength | null =>
+  frames === null ? null : { frames };

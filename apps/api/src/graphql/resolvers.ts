@@ -2,7 +2,6 @@ import { toBase64 } from '@msgr/media';
 import { loadExisting } from '../application/loaders.js';
 import { counterpart } from '../domain/chat.js';
 import type { Message } from '../domain/message.js';
-import { Page } from '../domain/page.js';
 import type { ChatAdded } from '../domain/chat.js';
 import type { Typing } from '../domain/typing.js';
 import type { User } from '../domain/user.js';
@@ -14,6 +13,7 @@ import type {
 } from './__generated__/resolvers.js';
 import { requireViewer, startSession } from './context.js';
 import { unwrap } from './errors.js';
+import { mediaBytes, mediaUrl, servedAvatar, servedParts } from './media.js';
 import { DateTime } from './scalars.js';
 
 /*
@@ -178,8 +178,8 @@ export const resolvers: Resolvers = {
       Promise.all(
         chat.participantIds.map((id) => loadExisting(loaders.user, id))
       ),
-    messages: (chat, page, { loaders }) =>
-      loaders.messages(unwrap(Page.parse(page))).load(chat.id),
+    messages: async (chat, page, ctx) =>
+      unwrap(await ctx.services.messages.history(chat, page)),
   },
 
   ChannelListing: {
@@ -190,19 +190,33 @@ export const resolvers: Resolvers = {
     chatId: (channel) => channel.id,
   },
 
+  User: {
+    avatar: servedAvatar,
+  },
+
   Picture: {
-    bits: (picture) => toBase64(picture.deflated),
+    url: ({ source }) => mediaUrl(source),
+    bits: async ({ source }, _, { loaders }) =>
+      toBase64(await mediaBytes(source, loaders)),
   },
 
   Movie: {
-    bits: (movie) => toBase64(movie.coded),
+    url: ({ source }) => mediaUrl(source),
+    bits: async ({ source }, _, { loaders }) =>
+      toBase64(await mediaBytes(source, loaders)),
   },
 
   Sound: {
-    bits: (sound) => toBase64(sound.coded),
+    url: ({ source }) => mediaUrl(source),
+    bits: async ({ source }, _, { loaders }) =>
+      toBase64(await mediaBytes(source, loaders)),
   },
 
   Message: {
+    // Each part's size, and where its bytes are: never the bytes themselves.
+    picture: (message) => servedParts(message).picture,
+    movie: (message) => servedParts(message).movie,
+    sound: (message) => servedParts(message).sound,
     sender: (message, _, { loaders }) =>
       loadExisting(loaders.user, message.senderId),
     chat: (message, _, { loaders }) =>

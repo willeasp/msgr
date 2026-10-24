@@ -9,6 +9,7 @@ import {
   getOperationAST,
   GraphQLError,
   parse,
+  validate,
   type DocumentNode,
 } from 'graphql';
 import { useServer } from 'graphql-ws/use/ws';
@@ -25,6 +26,9 @@ import {
   type Context,
   type SessionCookie,
 } from './context.js';
+import { boundedQueries } from './bounded-queries.js';
+import { maskDefect, maskDefects } from './errors.js';
+import { serveMedia } from './media.js';
 import { oneThingPerMutation } from './one-thing-per-mutation.js';
 import { resolvers } from './resolvers.js';
 import { typeDefs } from './schema.js';
@@ -33,6 +37,8 @@ export const schema = makeExecutableSchema({ typeDefs, resolvers });
 
 const PATH = '/graphql';
 const COOKIE = 'token';
+/** Subscriptions one socket may hold; the app holds 5. */
+export const MAX_SUBSCRIPTIONS = 20;
 
 /**
  * Scripts, styles, fonts and connections only from this address; images may
@@ -107,7 +113,15 @@ export async function startServer(
       },
       // Messages, and the movies they may carry, are sent over HTTP, where
       // bodies and the work they ask for are bounded; the socket only listens.
-      onSubscribe: (_, _id, payload) => {
+      onSubscribe: (ctx, _id, payload) => {
+        // Every subscription runs again for every event: a socket holds a few.
+        if (Object.keys(ctx.subscriptions).length > MAX_SUBSCRIPTIONS) {
+          return [
+            new GraphQLError(
+              `A connection may hold at most ${MAX_SUBSCRIPTIONS} subscriptions.`
+            ),
+          ];
+        }
         let document: DocumentNode;
         try {
           document = parse(payload.query);
@@ -118,8 +132,13 @@ export async function startServer(
         if (operation?.operation !== 'subscription') {
           return [new GraphQLError('Only subscriptions go over the socket.')];
         }
-        return undefined;
+        const unbounded = validate(schema, document, [boundedQueries]);
+        return unbounded.length > 0 ? unbounded : undefined;
       },
+      onNext: (_ctx, _id, _payload, _args, result) =>
+        result.errors
+          ? { ...result, errors: result.errors.map(maskDefect) }
+          : undefined,
       // One context per subscription, alive across many events: batch, don't cache.
       context: ({ connectionParams, extra }) =>
         createContext(deps, {
@@ -140,7 +159,8 @@ export async function startServer(
 
   const apollo = new ApolloServer<Context>({
     schema,
-    validationRules: [oneThingPerMutation],
+    validationRules: [oneThingPerMutation, boundedQueries],
+    formatError: maskDefects,
     // main.ts stops the server itself, after any migration under way.
     stopOnTerminationSignals: false,
     plugins: [
@@ -180,6 +200,17 @@ export async function startServer(
     })
   );
 
+  // Pictures', movies' and sounds' bytes, at addresses of their own.
+  app.use(
+    ['/media', '/avatars'],
+    async (_req, _res, next) => {
+      await ready;
+      next();
+    },
+    cookieParser()
+  );
+  serveMedia(app, deps, (req) => stringOrUndefined(req.cookies?.[COOKIE]));
+
   if (config.staticDir) serveApp(app, resolve(config.staticDir));
 
   await new Promise<void>((done) => httpServer.listen(config.port, done));
@@ -203,7 +234,10 @@ function httpCookie(res: Response, config: Config): SessionCookie {
         ...options,
         maxAge: config.sessionTtlSeconds * 1000,
       }),
-    clear: () => res.clearCookie(COOKIE, options),
+    // And whatever the browser kept for the session (media, by address), so
+    // nothing of it stays on the device for whoever uses it next.
+    clear: () =>
+      res.clearCookie(COOKIE, options).set('Clear-Site-Data', '"cache"'),
   };
 }
 

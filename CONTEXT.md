@@ -91,7 +91,7 @@ The live notice that a participant is writing a message to a chat, told to its o
 _Avoid_: Composing, presence
 
 **Page**:
-A window into a chat's history, counted back from the newest message and returned oldest first.
+A window into a chat's history, returned oldest first: its newest messages, those just before a given one, or the newest of those after one.
 
 **Feed**:
 The live stream of every message posted to any chat the viewer participates in, including the viewer's own messages.

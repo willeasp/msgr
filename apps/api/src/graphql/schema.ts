@@ -51,8 +51,16 @@ export const typeDefs = /* GraphQL */ `
     participants: [User!]!
     "In a direct chat, the other person; null in any other."
     counterpart: User
-    "Paged back from the newest message (offset 0); each page is returned oldest first."
-    messages(limit: Int, offset: Int): [Message!]!
+    "Paged back from the newest message; each page is returned oldest first. See Query.messages."
+    messages(
+      limit: Int
+      offset: Int
+        @deprecated(
+          reason: "Page with before: a history that grows while it's read shifts every offset."
+        )
+      before: ID
+      after: ID
+    ): [Message!]!
   }
 
   enum ChatAddedReason {
@@ -129,6 +137,11 @@ export const typeDefs = /* GraphQL */ `
     height: Int!
     "Rows top to bottom, each padded to whole bytes, 8 pixels a byte with the leftmost in the high bit, 1 for ink; compressed with raw DEFLATE, in base64."
     bits: String!
+      @deprecated(reason: "Fetch url: bytes travel once, and are kept.")
+    """
+    Where its bytes are: the same bits, raw rather than in base64. On this server, for whoever may see it, and never different, so keep them. Opaque: follow it, don't build one.
+    """
+    url: String!
   }
 
   "As Picture: the server checks its bits inflate to exactly its size."
@@ -145,6 +158,11 @@ export const typeDefs = /* GraphQL */ `
     frames: Int!
     "Its frames, each laid out as a Picture's bits, coded by encodeMovie from @msgr/media, in base64."
     bits: String!
+      @deprecated(reason: "Fetch url: bytes travel once, and are kept.")
+    """
+    Where its bytes are: the same bits, raw rather than in base64. On this server, for whoever may see it, and never different, so keep them. Opaque: follow it, don't build one.
+    """
+    url: String!
   }
 
   "As Movie: the server decodes its bits to exactly its size and takes them only if they're exactly how encodeMovie codes those frames, and never a blank one."
@@ -161,6 +179,11 @@ export const typeDefs = /* GraphQL */ `
     frames: Int!
     "Its codes, made by encodeSound from @msgr/media, in base64."
     bits: String!
+      @deprecated(reason: "Fetch url: bytes travel once, and are kept.")
+    """
+    Where its bytes are: the same bits, raw rather than in base64. On this server, for whoever may see it, and never different, so keep them. Opaque: follow it, don't build one.
+    """
+    url: String!
   }
 
   "As Sound: the server decodes its bits to exactly its length and takes them only if they're exactly how encodeSound codes what they decode to, and never a silent one."
@@ -243,8 +266,19 @@ export const typeDefs = /* GraphQL */ `
     chats: [Chat!]!
     "A chat the viewer is in, or null."
     chat(id: ID!): Chat
-    "Paged back from the newest message (offset 0); each page is returned oldest first."
-    messages(chatId: ID!, limit: Int, offset: Int): [Message!]!
+    """
+    Paged back from the newest message; each page is returned oldest first. With before, the messages just older than that one; with after, the newest of those newer than it, so a page as long as limit may have left a gap. A cursor that isn't one of the chat's messages is not found.
+    """
+    messages(
+      chatId: ID!
+      limit: Int
+      offset: Int
+        @deprecated(
+          reason: "Page with before: a history that grows while it's read shifts every offset."
+        )
+      before: ID
+      after: ID
+    ): [Message!]!
     "Every channel, by name, joined or not."
     channels: [ChannelListing!]!
     "A message in a chat the viewer is in, or null."

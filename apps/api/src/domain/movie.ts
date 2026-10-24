@@ -14,18 +14,24 @@ import { invalidInput, type InvalidInput } from './errors.js';
 import { err, ok, type Result } from './result.js';
 
 /**
+ * What's known of a kept movie without its bytes, which are fetched on their
+ * own: never the bytes too, so a movie can't pass for one.
+ */
+export interface MovieSize {
+  readonly width: number;
+  readonly height: number;
+  readonly frames: number;
+  readonly coded?: never;
+}
+
+/**
  * A black-and-white movie, 1 to 320 pixels a side and 1 to 48 frames, played
  * at 8 frames a second, looping. Its frames are in the `@msgr/media` layout,
  * coded exactly as `encodeMovie` codes them. Never blank. Its size, frames
  * and bits were checked against each other once, here.
  */
 export type Movie = Brand<
-  {
-    readonly width: number;
-    readonly height: number;
-    readonly frames: number;
-    readonly coded: Uint8Array<ArrayBuffer>;
-  },
+  Omit<MovieSize, 'coded'> & { readonly coded: Uint8Array<ArrayBuffer> },
   'Movie'
 >;
 
