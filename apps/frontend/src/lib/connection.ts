@@ -25,6 +25,34 @@ export function isWorthRetrying(
   return ServerParseError.is(error) || error instanceof TypeError;
 }
 
+/** How long the server may take to answer a ping before its socket is taken for dead. */
+export const PONG_WAIT_MS = 5_000;
+
+/**
+ * A watch on a socket that may have died without a word, as a phone's does
+ * when it sleeps or the camera or photo picker covers the page: the page
+ * comes back to a socket that still says it's open, and hears nothing more.
+ * Say `asked` when a ping goes out and `answered` when its pong comes back
+ * (or the socket closes); `onSilent` runs if none comes within `waitMs`.
+ * Asking again while waiting keeps the first deadline.
+ */
+export function silenceWatch(waitMs: number, onSilent: () => void) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return {
+    asked() {
+      if (timer !== undefined) return;
+      timer = setTimeout(() => {
+        timer = undefined;
+        onSilent();
+      }, waitMs);
+    },
+    answered() {
+      clearTimeout(timer);
+      timer = undefined;
+    },
+  };
+}
+
 /** How long a wait for the server goes unremarked before it's explained. */
 export const QUIET_MS = 1500;
 
