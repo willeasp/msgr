@@ -140,22 +140,25 @@ function placeIn(away: (newestSeen: string | null) => void) {
   let atEnd = true;
   let anchor: Anchor | null = null;
   let newest: string | undefined;
+  // Where it last scrolled to: only the viewer scrolling up leaves the end.
+  let lastTop = 0;
 
+  const toEnd = (element: HTMLElement) => {
+    element.scrollTop = element.scrollHeight;
+    lastTop = element.scrollTop;
+  };
   const toNewest = () => {
     if (!log) return;
     atEnd = true;
     anchor = null;
     away(null);
-    log.scrollTop = log.scrollHeight;
+    toEnd(log);
   };
   // At the end, still there; away from it, the message read by where it
   // was; gone (the history started again, events missed), as if opened.
   const keep = () => {
     if (!log) return;
-    if (atEnd) {
-      log.scrollTop = log.scrollHeight;
-      return;
-    }
+    if (atEnd) return toEnd(log);
     if (!anchor) return;
     if (!anchor.node.isConnected) return toNewest();
     const moved = topIn(log, anchor.node) - anchor.top;
@@ -167,6 +170,14 @@ function placeIn(away: (newestSeen: string | null) => void) {
     watch(element: HTMLElement, content: HTMLElement) {
       log = element;
       const scrolled = () => {
+        const up = element.scrollTop < lastTop;
+        lastTop = element.scrollTop;
+        // Something that grew below, seen by this scroll's event before
+        // the resize is, hasn't moved the viewer from the end.
+        if (atEnd && !up) {
+          if (!isAtEnd(element)) toEnd(element);
+          return;
+        }
         atEnd = isAtEnd(element);
         anchor = atEnd ? null : readingBy(element, content);
         away(atEnd ? null : newest ?? null);
