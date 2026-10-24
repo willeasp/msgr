@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { countRenders, rendersDuring, type Renders } from './renders';
-import { anotherPerson, chatWindow, signIn } from './support';
+import { anotherPerson, chatWindow, joinChannel, signIn } from './support';
 
 /*
  * What happens re-renders only what shows it (CLAUDE.md, "Render what
@@ -27,17 +27,6 @@ async function graphql(page: Page, query: string, variables = {}) {
   if (body.errors) throw new Error(JSON.stringify(body.errors));
   return body.data ?? {};
 }
-const join = async (page: Page, name: string) =>
-  (
-    await graphql(
-      page,
-      'mutation ($name: String!) { joinChannel(name: $name) { id } }',
-      {
-        name,
-      }
-    )
-  )['joinChannel']?.id ?? '';
-
 test('a typing notice, a message, the clock and Get Info each render only what they change', async ({
   page,
   browser,
@@ -47,7 +36,7 @@ test('a typing notice, a message, the clock and Get Info each render only what t
   const writer = await anotherPerson(browser);
   await writer.goto('/login');
   await signIn(writer, 'bob@example.com');
-  const chatId = await join(writer, name);
+  const chatId = await joinChannel(writer, name);
   for (const line of ['One', 'Two', 'Three', 'Four']) {
     await graphql(
       writer,
@@ -64,7 +53,7 @@ test('a typing notice, a message, the clock and Get Info each render only what t
   await countRenders(page);
   await page.goto('/login');
   await signIn(page, 'diana@example.com');
-  await join(page, name);
+  await joinChannel(page, name);
   await page.goto(`/${chatId}`);
   const chat = chatWindow(page, CHAT);
   const history = chat.locator(LOG);
