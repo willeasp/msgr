@@ -54,10 +54,14 @@ export const fakeBrowser = (name: string) =>
 
 /** Records every push instead of sending it; answers 'gone' for the endpoints in `gone`. */
 export function recordingPushSender(gone: readonly string[] = []) {
-  const sent: { endpoint: string; notification: Notification }[] = [];
+  const sent: {
+    endpoint: string;
+    notification: Notification;
+    unread: number;
+  }[] = [];
   const sender: PushSender = {
-    send: async ({ endpoint }, notification) => {
-      sent.push({ endpoint, notification });
+    send: async ({ endpoint }, { notification, unread }) => {
+      sent.push({ endpoint, notification, unread });
       return gone.includes(endpoint) ? 'gone' : 'sent';
     },
   };

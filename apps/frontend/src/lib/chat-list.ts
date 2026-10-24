@@ -7,22 +7,37 @@ export type ChatRow = GetChatsQuery['chats'][number];
 export type ReceivedMessage =
   OnMessageReceivedForSidebarSubscription['messageReceived'];
 
+/** Whoever the message reaches: the viewer, and whether they're reading its chat now. */
+export interface Receiver {
+  readonly viewerId: string;
+  /** On their screen, on a page they can see. */
+  readonly reading: boolean;
+}
+
 /**
  * The chat list after a message arrives: its chat moves to the top with the
  * message as its preview, joining the list if this is the chat's first message
  * the viewer has seen. This matches the server's most-recently-active order.
- * A message older than the chat's preview, arriving late, changes nothing.
+ * A message older than the chat's preview, arriving late, changes nothing,
+ * and so does one already there. It's unread, as the server counts it
+ * (`Chat.unreadCount`), unless the viewer is reading the chat or sent it,
+ * which reads everything before it.
  */
 export function withReceivedMessage(
   chats: readonly ChatRow[],
-  { chat, id, content, movie, sound, createdAt }: ReceivedMessage
+  { chat, id, content, movie, sound, createdAt, sender }: ReceivedMessage,
+  { viewerId, reading }: Receiver
 ): readonly ChatRow[] {
-  const preview = chats.find((row) => row.id === chat.id)?.messages[0];
+  const known = chats.find((row) => row.id === chat.id);
+  const preview = known?.messages[0];
+  if (preview?.id === id) return chats;
   if (preview && Date.parse(preview.createdAt) > Date.parse(createdAt))
     return chats;
+  const read = reading || sender.id === viewerId;
   return [
     {
       ...chat,
+      unreadCount: read ? 0 : (known?.unreadCount ?? 0) + 1,
       messages: [
         {
           id,
@@ -54,3 +69,7 @@ export function withChat(
 ): readonly ChatRow[] {
   return chats.some(({ id }) => id === chat.id) ? chats : [chat, ...chats];
 }
+
+/** A chat's unread count as the list shows it: a small number stays small. */
+export const unreadLabel = (count: number): string =>
+  count > 99 ? '99+' : String(count);

@@ -149,6 +149,7 @@ describe('signUp', () => {
             body: 'They used your invite. Say hello!',
             chatId: welcome.chat?.id,
           },
+          unread: 0,
         },
       ])
     );

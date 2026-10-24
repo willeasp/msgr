@@ -14,7 +14,7 @@ import {
   type MessageContent,
 } from '../domain/message.js';
 import type { PushSubscription } from '../domain/push.js';
-import type { Read } from '../domain/read.js';
+import type { Read, UnreadTotal } from '../domain/read.js';
 import { exampleMovie } from './movies.js';
 import { exampleSound } from './sounds.js';
 import { exampleAvatar, examplePicture } from './pictures.js';
@@ -800,6 +800,108 @@ export function repositoryContract(
       expect(
         await repositories.reads.findByMessageIds([earlier.id, later.id])
       ).toEqual([{ messageId: earlier.id, readerId: grace.id, at: at(1) }]);
+    });
+
+    it('counts what others sent after the last message read, or sent', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const linus = await fixtures.user({ name: 'Linus' });
+      const team = await fixtures.groupChat('Team', [ada, grace, linus]);
+      const unread = (reader: User) =>
+        repositories.reads.countUnread(reader.id, [team.id]);
+      await send(team, ada, 'one', '2030-01-01T00:01:00Z');
+      await send(team, ada, 'two', '2030-01-01T00:02:00Z');
+
+      // Nothing read: everyone else's messages.
+      expect(await unread(linus)).toEqual([{ chatId: team.id, count: 2 }]);
+      // Sending reads what came before it.
+      await send(team, grace, 'three', '2030-01-01T00:03:00Z');
+      const four = await send(team, ada, 'four', '2030-01-01T00:04:00Z');
+      const five = await send(team, linus, 'five', '2030-01-01T00:05:00Z');
+      expect(await unread(grace)).toEqual([{ chatId: team.id, count: 2 }]);
+      expect(await unread(ada)).toEqual([{ chatId: team.id, count: 1 }]);
+      // Nothing after their own: left out.
+      expect(await unread(linus)).toEqual([]);
+
+      await repositories.reads.markRead(four, grace.id, at(1));
+      expect(await unread(grace)).toEqual([{ chatId: team.id, count: 1 }]);
+      await repositories.reads.markRead(five, grace.id, at(2));
+      expect(await unread(grace)).toEqual([]);
+      // Reading back over what's been read changes nothing.
+      await repositories.reads.markRead(four, grace.id, at(3));
+      expect(await unread(grace)).toEqual([]);
+    });
+
+    it('counts each chat on its own, leaving out unknown chats', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const linus = await fixtures.user({ name: 'Linus' });
+      const direct = await repositories.chats.saveDirect(pairOf(ada, grace));
+      const team = await fixtures.groupChat('Team', [ada, grace, linus]);
+      const quiet = await fixtures.groupChat('Quiet', [ada, grace]);
+      await send(direct, ada, 'hi', '2030-01-01T00:01:00Z');
+      await send(direct, ada, 'there', '2030-01-01T00:02:00Z');
+      const news = await send(team, linus, 'news', '2030-01-01T00:03:00Z');
+      // Reading one chat reads nothing in another.
+      await repositories.reads.markRead(news, grace.id, at(1));
+
+      const found = await repositories.reads.countUnread(grace.id, [
+        direct.id,
+        team.id,
+        quiet.id,
+        ChatId('missing'),
+        direct.id,
+      ]);
+      expect(found).toEqual([{ chatId: direct.id, count: 2 }]);
+      expect(await repositories.reads.countUnread(grace.id, [])).toEqual([]);
+    });
+
+    it('counts messages sent at the same moment in id order, as pages do', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const direct = await repositories.chats.saveDirect(pairOf(ada, grace));
+      const [earlier] = sortById([
+        await send(direct, ada, 'a', '2030-01-01T00:01:00Z'),
+        await send(direct, ada, 'b', '2030-01-01T00:01:00Z'),
+      ]) as [Message, Message];
+
+      await repositories.reads.markRead(earlier, grace.id, at(1));
+
+      expect(
+        await repositories.reads.countUnread(grace.id, [direct.id])
+      ).toEqual([{ chatId: direct.id, count: 1 }]);
+    });
+
+    it('sums every chat each reader is in, and no one else’s', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const linus = await fixtures.user({ name: 'Linus' });
+      const direct = await repositories.chats.saveDirect(pairOf(ada, grace));
+      const team = await fixtures.groupChat('Team', [ada, grace, linus]);
+      const theirs = await fixtures.groupChat('Theirs', [ada, linus]);
+      await send(direct, ada, 'hi', '2030-01-01T00:01:00Z');
+      await send(direct, ada, 'there', '2030-01-01T00:02:00Z');
+      await send(team, linus, 'news', '2030-01-01T00:03:00Z');
+      await send(theirs, linus, 'not for Grace', '2030-01-01T00:04:00Z');
+      const byReader = (found: readonly UnreadTotal[]) =>
+        [...found].sort((a, b) => (a.readerId < b.readerId ? -1 : 1));
+
+      expect(
+        byReader(
+          await repositories.reads.countAllUnread([
+            grace.id,
+            ada.id,
+            linus.id,
+            UserId('missing'),
+          ])
+        )
+      ).toEqual(
+        byReader([
+          { readerId: grace.id, total: 3 },
+          { readerId: ada.id, total: 2 },
+        ])
+      );
+      expect(await repositories.reads.countAllUnread([])).toEqual([]);
     });
   });
 

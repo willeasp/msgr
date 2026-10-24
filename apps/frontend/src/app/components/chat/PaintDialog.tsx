@@ -17,7 +17,7 @@ import { useModals } from '../../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../../sacred/modules/hotkeys';
 import { pixelSize } from '../../hooks/use-bitmap-canvas';
 import { useMovieSteps } from '../../hooks/use-movie';
-import { BRUSH, BUCKET, ERASER, PENCIL } from '../icons';
+import { BRUSH, BUCKET, ERASER, PENCIL } from '../dialog-icons';
 import { DialogButtons, MacDialog } from '../MacDialog';
 import { PixelIcon } from '../PixelIcon';
 import styles from './PaintDialog.module.css';

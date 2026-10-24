@@ -19,6 +19,8 @@ export interface Loaders {
   /** A message's picture, movie or sound bytes; null for text alone. */
   readonly media: DataLoader<MessageId, MessageMedia | null>;
   messages(page: Page): DataLoader<ChatId, Message[]>;
+  /** How many messages in each chat `readerId` hasn't read (domain/read.ts). */
+  unread(readerId: UserId): DataLoader<ChatId, number>;
 }
 
 export interface LoaderOptions {
@@ -34,6 +36,7 @@ export function createLoaders(
   { cache }: LoaderOptions
 ): Loaders {
   const pages = new Map<string, DataLoader<ChatId, Message[]>>();
+  const unread = new Map<UserId, DataLoader<ChatId, number>>();
 
   return {
     user: byId((ids) => users.findByIds(ids), cache),
@@ -76,6 +79,24 @@ export function createLoaders(
           { cache }
         );
         pages.set(key, loader);
+      }
+      return loader;
+    },
+    unread(readerId) {
+      let loader = unread.get(readerId);
+      if (!loader) {
+        loader = new DataLoader(
+          async (chatIds) => {
+            const found = new Map(
+              (await reads.countUnread(readerId, chatIds)).map(
+                ({ chatId, count }) => [chatId, count]
+              )
+            );
+            return chatIds.map((chatId) => found.get(chatId) ?? 0);
+          },
+          { cache }
+        );
+        unread.set(readerId, loader);
       }
       return loader;
     },

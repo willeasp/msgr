@@ -93,17 +93,32 @@ async function fromShell(key, request) {
 
 self.addEventListener('push', (event) => {
   // Show every push: iOS takes away the subscription of a site whose pushes show nothing.
-  const { title, body, chatId } = event.data.json();
+  const { title, body, chatId, unread } = event.data.json();
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      tag: chatId,
-      renotify: true,
-      icon: '/icon-192.png',
-      data: { chatId },
-    })
+    Promise.all([
+      self.registration.showNotification(title, {
+        body,
+        tag: chatId,
+        renotify: true,
+        icon: '/icon-192.png',
+        data: { chatId },
+      }),
+      badge(unread),
+    ])
   );
 });
+
+/** The app icon's number: how many messages wait unread, as the server counts them. */
+async function badge(unread) {
+  if (typeof unread !== 'number' || !('setAppBadge' in navigator)) return;
+  try {
+    await (unread > 0
+      ? navigator.setAppBadge(unread)
+      : navigator.clearAppBadge());
+  } catch {
+    // Not allowed: the notification shows anyway.
+  }
+}
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();

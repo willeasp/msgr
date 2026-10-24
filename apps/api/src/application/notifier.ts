@@ -27,10 +27,22 @@ export function createNotifier({
     const browsers = await repositories.pushSubscriptions.findByUserIds(
       recipients
     );
+    if (browsers.length === 0) return;
+    // Counted after the message is kept, so it's in the badge too.
+    const unread = new Map(
+      (
+        await repositories.reads.countAllUnread([
+          ...new Set(browsers.map(({ userId }) => userId)),
+        ])
+      ).map(({ readerId, total }) => [readerId, total])
+    );
     await Promise.all(
       browsers.map(async ({ userId, subscription }) => {
         try {
-          const outcome = await pushSender.send(subscription, notification);
+          const outcome = await pushSender.send(subscription, {
+            notification,
+            unread: unread.get(userId) ?? 0,
+          });
           if (outcome === 'gone') {
             await repositories.pushSubscriptions.remove(
               subscription.endpoint,

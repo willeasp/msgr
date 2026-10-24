@@ -238,7 +238,11 @@ export function MessageInput({
           }
           if (kept && movie) movies.keep(kept, movie);
           if (sound && sent?.kind === 'sound') sounds.keep(sound, sent.codes);
-          recordMessage(cache, data.sendMessage);
+          // Sending reads everything before it.
+          recordMessage(cache, data.sendMessage, {
+            viewerId: data.sendMessage.sender.id,
+            reading: true,
+          });
         },
       });
       if (data) typing.sent();

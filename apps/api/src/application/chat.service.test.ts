@@ -215,6 +215,7 @@ describe('adding people to a channel', () => {
             body: 'It’s in your Chats now.',
             chatId: books.id,
           },
+          unread: 0,
         },
       ])
     );

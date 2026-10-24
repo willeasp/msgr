@@ -63,6 +63,26 @@ export function createInMemoryRepositories(): {
       const seen = messageById(mark.messageId);
       return seen?.chatId === message.chatId && !isBefore(seen, message);
     });
+  /** What others sent in a chat after the last message `readerId` read or sent there. */
+  const unreadIn = (chatId: ChatId, readerId: UserId) => {
+    const inChat = messages.filter((message) => message.chatId === chatId);
+    const seen = inChat.filter(
+      (message) =>
+        message.senderId === readerId ||
+        marks.some(
+          (mark) => mark.readerId === readerId && mark.messageId === message.id
+        )
+    );
+    const point = seen.reduce<Message | undefined>(
+      (latest, message) =>
+        !latest || isBefore(latest, message) ? message : latest,
+      undefined
+    );
+    return inChat.filter(
+      (message) =>
+        message.senderId !== readerId && (!point || isBefore(point, message))
+    ).length;
+  };
   const pushSubscriptions = new Map<
     string,
     { userId: UserId; subscription: PushSubscription }
@@ -267,6 +287,20 @@ export function createInMemoryRepositories(): {
           return [...first].map(
             ([readerId, at]): Read => ({ messageId: id, readerId, at })
           );
+        }),
+
+      countUnread: async (readerId, chatIds) =>
+        distinct(chatIds).flatMap((chatId) => {
+          const count = unreadIn(chatId, readerId);
+          return count ? [{ chatId, count }] : [];
+        }),
+
+      countAllUnread: async (readerIds) =>
+        distinct(readerIds).flatMap((readerId) => {
+          const total = [...chats.values()]
+            .filter(({ chat }) => isParticipant(chat, readerId))
+            .reduce((sum, { chat }) => sum + unreadIn(chat.id, readerId), 0);
+          return total ? [{ readerId, total }] : [];
         }),
     },
 

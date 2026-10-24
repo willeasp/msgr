@@ -77,6 +77,12 @@ export interface Notification {
   readonly chatId: ChatId;
 }
 
+/** A notification for one person, with how many messages they have yet to read: their app's badge. */
+export interface Push {
+  readonly notification: Notification;
+  readonly unread: number;
+}
+
 // Push payloads stop at about 4 KB, and a notification shows a few lines anyway.
 const BODY_LENGTH = 200;
 

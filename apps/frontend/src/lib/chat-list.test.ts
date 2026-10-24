@@ -1,20 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import {
+  unreadLabel,
   withChat,
   withMessage,
   withReceivedMessage,
   type ChatRow,
   type ReceivedMessage,
+  type Receiver,
 } from './chat-list';
 import { ChatKind } from './__generated__/graphql';
 
-const row = (id: string, preview: string): ChatRow => ({
+const row = (id: string, preview: string, unreadCount = 0): ChatRow => ({
   id,
   kind: ChatKind.Direct,
   title: `Chat ${id}`,
+  unreadCount,
   participants: [],
   messages: [{ id: `${id}-old`, content: preview, createdAt: '2026-01-01' }],
 });
+
+// The viewer, with the chat elsewhere: not on screen, or the page hidden.
+const away: Receiver = { viewerId: 'me', reading: false };
 
 const received = (chatId: string, content: string): ReceivedMessage => ({
   id: `${chatId}-new`,
@@ -34,13 +40,14 @@ describe('withReceivedMessage', () => {
     const existing = row('a', 'earlier');
 
     expect(
-      withReceivedMessage([existing], received('new', 'hi alice'))
+      withReceivedMessage([existing], received('new', 'hi alice'), away)
     ).toEqual([
       {
         id: 'new',
         kind: ChatKind.Direct,
         title: 'Bob',
         participants: [{ id: 'bob', name: 'Bob' }],
+        unreadCount: 1,
         messages: [
           { id: 'new-new', content: 'hi alice', createdAt: '2026-01-02' },
         ],
@@ -52,7 +59,7 @@ describe('withReceivedMessage', () => {
   it('moves a known chat to the top with the message as its preview', () => {
     const chats = [row('a', 'x'), row('b', 'y'), row('c', 'z')];
 
-    const next = withReceivedMessage(chats, received('c', 'fresh'));
+    const next = withReceivedMessage(chats, received('c', 'fresh'), away);
 
     expect(next.map(({ id }) => id)).toEqual(['c', 'a', 'b']);
     expect(next[0]?.messages).toEqual([
@@ -63,11 +70,11 @@ describe('withReceivedMessage', () => {
   // Your own send's response can land after the feed brought a later message.
   it('previews a movie by its being one, not by its frames', () => {
     const movie = { width: 8, height: 8, frames: 3, url: '/media/a-new/movie' };
-    const next = withReceivedMessage([row('a', 'x')], {
-      ...received('a', 'unused'),
-      content: null,
-      movie,
-    });
+    const next = withReceivedMessage(
+      [row('a', 'x')],
+      { ...received('a', 'unused'), content: null, movie },
+      away
+    );
 
     expect(next[0]?.messages).toEqual([
       {
@@ -80,11 +87,15 @@ describe('withReceivedMessage', () => {
   });
 
   it('previews a sound by its being one, not by its address', () => {
-    const next = withReceivedMessage([row('a', 'x')], {
-      ...received('a', 'unused'),
-      content: null,
-      sound: { frames: 51, url: '/media/a-new/sound' },
-    });
+    const next = withReceivedMessage(
+      [row('a', 'x')],
+      {
+        ...received('a', 'unused'),
+        content: null,
+        sound: { frames: 51, url: '/media/a-new/sound' },
+      },
+      away
+    );
 
     expect(next[0]?.messages).toEqual([
       {
@@ -100,7 +111,69 @@ describe('withReceivedMessage', () => {
     const chats = [row('a', 'x'), row('b', 'y')];
     const late = { ...received('b', 'stale'), createdAt: '2025-12-31' };
 
-    expect(withReceivedMessage(chats, late)).toBe(chats);
+    expect(withReceivedMessage(chats, late, away)).toBe(chats);
+  });
+
+  it("counts someone else's message as unread, on top of those before", () => {
+    const next = withReceivedMessage(
+      [row('a', 'x', 2), row('b', 'y')],
+      received('b', 'hello'),
+      away
+    );
+
+    expect(next.map(({ id, unreadCount }) => [id, unreadCount])).toEqual([
+      ['b', 1],
+      ['a', 2],
+    ]);
+    expect(
+      withReceivedMessage([row('a', 'x', 2)], received('a', 'more'), away)[0]
+        ?.unreadCount
+    ).toBe(3);
+  });
+
+  it('counts nothing in the chat being read', () => {
+    expect(
+      withReceivedMessage([row('a', 'x', 2)], received('a', 'seen'), {
+        viewerId: 'me',
+        reading: true,
+      })[0]?.unreadCount
+    ).toBe(0);
+  });
+
+  it("reads everything before the viewer's own message", () => {
+    const mine = { ...received('a', 'mine'), sender: { id: 'me', name: 'Me' } };
+
+    expect(
+      withReceivedMessage([row('a', 'x', 4)], mine, away)[0]?.unreadCount
+    ).toBe(0);
+    expect(withReceivedMessage([], mine, away)[0]?.unreadCount).toBe(0);
+  });
+
+  it('counts a chat new to the list by its one message', () => {
+    expect(
+      withReceivedMessage([], received('new', 'hi'), away)[0]?.unreadCount
+    ).toBe(1);
+  });
+
+  // Sent and delivered both arrive: whichever comes second changes nothing.
+  it('counts a message once, however often it arrives', () => {
+    const once = withReceivedMessage(
+      [row('a', 'x')],
+      received('a', 'hi'),
+      away
+    );
+
+    expect(withReceivedMessage(once, received('a', 'hi'), away)).toBe(once);
+    expect(once[0]?.unreadCount).toBe(1);
+  });
+});
+
+describe('unreadLabel', () => {
+  it('says how many, up to 99', () => {
+    expect(unreadLabel(1)).toBe('1');
+    expect(unreadLabel(99)).toBe('99');
+    expect(unreadLabel(100)).toBe('99+');
+    expect(unreadLabel(5000)).toBe('99+');
   });
 });
 

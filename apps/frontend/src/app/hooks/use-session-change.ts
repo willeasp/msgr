@@ -1,14 +1,15 @@
 import { useApolloClient, useMutation } from '@apollo/client/react';
 import { useNavigate } from 'react-router-dom';
 import { gql } from '../../lib/__generated__';
+import { showBadge } from '../browser/badge';
 import { forgetMedia } from '../data/media';
 import { useForgetBrowser } from './use-notifications';
 
 /**
  * Signing in, up or out changes who the viewer is. Everything cached belongs
  * to the previous viewer, down to "nobody is signed in", and their pictures,
- * movies and sounds too, so forget it all before going on; otherwise the app
- * keeps acting for the old one.
+ * movies and sounds too, and their app's badge, so forget it all before
+ * going on; otherwise the app keeps acting for the old one.
  */
 export function useSessionChange() {
   const client = useApolloClient();
@@ -16,6 +17,7 @@ export function useSessionChange() {
 
   return async (to: string) => {
     forgetMedia();
+    showBadge(0);
     await client.clearStore();
     navigate(to);
   };

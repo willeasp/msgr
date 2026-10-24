@@ -174,6 +174,8 @@ export const resolvers: Resolvers = {
             counterpart(chat, requireViewer(ctx).id)
           )
         : null,
+    unreadCount: (chat, _, ctx) =>
+      ctx.loaders.unread(requireViewer(ctx).id).load(chat.id),
     participants: (chat, _, { loaders }) =>
       Promise.all(
         chat.participantIds.map((id) => loadExisting(loaders.user, id))

@@ -21,6 +21,7 @@ model User {
   invite            Invite?            @relation("InviteUsed")
   pushSubscriptions PushSubscription[]
   readMarks         ReadMark[]
+  readPoints        ReadPoint[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 }
@@ -28,49 +29,52 @@ model User {
 /// Exactly one of `directKey`, `title` and `channelName` is set, which says
 /// what kind of chat it is (enforced by a CHECK constraint).
 model Chat {
-  id           String    @id @default(cuid())
+  id           String      @id @default(cuid())
   /// Direct chats only: the two participant ids, sorted and joined by ":".
   /// Unique, so two users share at most one direct chat.
-  directKey    String?   @unique
+  directKey    String?     @unique
   /// Group chats only. A direct chat is titled by its counterpart's name.
   title        String?
   /// Channels only: the name without its "#". Unique, so a name means one channel.
-  channelName  String?   @unique
-  participants User[]    @relation("ChatParticipants")
+  channelName  String?     @unique
+  participants User[]      @relation("ChatParticipants")
   messages     Message[]
-  createdAt    DateTime  @default(now())
+  readPoints   ReadPoint[]
+  createdAt    DateTime    @default(now())
   /// Bumped on every new message; orders a user's chat list.
-  updatedAt    DateTime  @updatedAt
+  updatedAt    DateTime    @updatedAt
 }
 
 /// Text, a picture, a movie or a sound, or text with one of them: at least
 /// one is set, never two attached, and each attached one has its size
 /// (enforced by a CHECK constraint).
 model Message {
-  id            String     @id @default(cuid())
+  id            String      @id @default(cuid())
   content       String?
   /// A 1-bit picture, raw DEFLATE of the `@msgr/media` layout; see domain/picture.ts.
   picture       Bytes?
-  pictureWidth  Int?       @db.SmallInt
-  pictureHeight Int?       @db.SmallInt
+  pictureWidth  Int?        @db.SmallInt
+  pictureHeight Int?        @db.SmallInt
   /// A 1-bit movie, its frames coded by `encodeMovie`; see domain/movie.ts.
   movie         Bytes?
-  movieWidth    Int?       @db.SmallInt
-  movieHeight   Int?       @db.SmallInt
-  movieFrames   Int?       @db.SmallInt
+  movieWidth    Int?        @db.SmallInt
+  movieHeight   Int?        @db.SmallInt
+  movieFrames   Int?        @db.SmallInt
   /// A squashed sound, its codes from `encodeSound`; see domain/sound.ts.
   sound         Bytes?
-  soundFrames   Int?       @db.SmallInt
+  soundFrames   Int?        @db.SmallInt
   senderId      String
-  sender        User       @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  sender        User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
   chatId        String
-  chat          Chat       @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  chat          Chat        @relation(fields: [chatId], references: [id], onDelete: Cascade)
   readMarks     ReadMark[]
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  readPoints    ReadPoint[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   @@index([chatId, createdAt, id])
-  @@index([senderId])
+  /// Someone's newest message in a chat, which reads all before it, at once.
+  @@index([senderId, chatId, createdAt, id])
 }
 
 /// How far someone had read a chat, and when: they read it up to and
@@ -84,6 +88,21 @@ model ReadMark {
   readAt    DateTime
 
   @@id([userId, messageId])
+  @@index([messageId])
+}
+
+/// How far someone has read a chat now: up to and including this message,
+/// their latest ReadMark there. One per person and chat, only ever moved
+/// forward, so what's unread is counted from it without walking the marks.
+model ReadPoint {
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatId    String
+  chat      Chat    @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  messageId String
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@id([userId, chatId])
   @@index([messageId])
 }
 

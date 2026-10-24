@@ -15,7 +15,7 @@ import { useHotkeys } from '../../../sacred/modules/hotkeys';
 import { audio, canRecord } from '../../browser/audio';
 import { useSoundPlayer } from '../../hooks/use-sound';
 import { DialogButtons, DialogMessage, MacDialog } from '../MacDialog';
-import { SPEAKER } from '../icons';
+import { SPEAKER } from '../dialog-icons';
 import { readSound } from '../../browser/sound-file';
 import { Timeline } from './Timeline';
 import styles from './SoundDialog.module.css';

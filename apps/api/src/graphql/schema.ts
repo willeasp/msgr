@@ -51,6 +51,8 @@ export const typeDefs = /* GraphQL */ `
     participants: [User!]!
     "In a direct chat, the other person; null in any other."
     counterpart: User
+    "How many messages others sent here after the last one the viewer read or sent."
+    unreadCount: Int!
     "Paged back from the newest message; each page is returned oldest first. See Query.messages."
     messages(
       limit: Int

@@ -71,6 +71,7 @@ const CHAT_ADDED_SUBSCRIPTION = gql(`
         id
         kind
         title
+        unreadCount
         counterpart {
           id
           name
@@ -139,6 +140,9 @@ export type AddedChat = OnChatAddedSubscription['chatAdded'];
  * history current, and hands each event on to be alerted.
  */
 export function useChatFeed(handlers: {
+  viewerId: string;
+  /** Whether the viewer is reading a chat now: on screen, on a page they see. */
+  isReading: (chatId: string) => boolean;
   onMessage: (message: ArrivedMessage) => void;
   onChatAdded: (event: AddedChat) => void;
   onTyping: (event: TypingEvent) => void;
@@ -156,7 +160,10 @@ export function useChatFeed(handlers: {
     onData: ({ data, client }) => {
       const message = data.data?.messageReceived;
       if (!message) return;
-      recordMessage(client.cache, message);
+      recordMessage(client.cache, message, {
+        viewerId: latest.current.viewerId,
+        reading: latest.current.isReading(message.chat.id),
+      });
       latest.current.onMessage(message);
     },
   });
