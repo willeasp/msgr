@@ -23,6 +23,8 @@ export interface SignedInValue {
   readonly install?: () => Promise<void>;
   /** Which chat a window shows; only `useChatOnScreen` sets it. */
   readonly showChat: React.Dispatch<React.SetStateAction<string | null>>;
+  /** Whether a chat's history is scrolled up from its newest; only `useAwayFromNewest` says. */
+  readonly awayFromNewest: (chatId: string, away: boolean) => void;
 }
 
 /** Provided by `SignedIn` (components/SignedIn.tsx) alone. */
@@ -46,4 +48,18 @@ export function useChatOnScreen(chatId: string) {
     showChat(chatId);
     return () => showChat((shown) => (shown === chatId ? null : shown));
   }, [chatId, showChat]);
+}
+
+/**
+ * Says this chat's history is scrolled up from its newest message while
+ * `away`, so what arrives meanwhile waits below, unread, counted in the chat
+ * list as if the chat weren't open. Its history calls it.
+ */
+export function useAwayFromNewest(chatId: string, away: boolean) {
+  const { awayFromNewest } = useSignedIn();
+  useEffect(() => {
+    if (!away) return;
+    awayFromNewest(chatId, true);
+    return () => awayFromNewest(chatId, false);
+  }, [chatId, away, awayFromNewest]);
 }

@@ -1,6 +1,12 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { countRenders, rendersDuring, type Renders } from './renders';
-import { anotherPerson, chatWindow, joinChannel, signIn } from './support';
+import {
+  anotherPerson,
+  chatWindow,
+  graphql,
+  joinChannel,
+  signIn,
+} from './support';
 
 /*
  * What happens re-renders only what shows it (CLAUDE.md, "Render what
@@ -10,23 +16,12 @@ import { anotherPerson, chatWindow, joinChannel, signIn } from './support';
 
 const LOG = '[role="log"]';
 
-/** How many message bubbles rendered, the time beside one not counted. */
+/** How many message bubbles rendered. */
 const bubbles = (renders: Renders) =>
   Object.entries(renders.byLabel)
     .filter(([label]) => /^MessageBubble__(own|theirs)$/.test(label))
     .reduce((total, [, count]) => total + count, 0);
 
-async function graphql(page: Page, query: string, variables = {}) {
-  const response = await page.request.post('/graphql', {
-    data: { query, variables },
-  });
-  const body = (await response.json()) as {
-    data?: Record<string, { id: string }>;
-    errors?: unknown[];
-  };
-  if (body.errors) throw new Error(JSON.stringify(body.errors));
-  return body.data ?? {};
-}
 test('a typing notice, a message, the clock and Get Info each render only what they change', async ({
   page,
   browser,
@@ -39,7 +34,7 @@ test('a typing notice, a message, the clock and Get Info each render only what t
   const chatId = await joinChannel(writer, name);
   for (const line of ['One', 'Two', 'Three', 'Four']) {
     await graphql(
-      writer,
+      writer.request,
       'mutation ($input: SendMessageInput!) { sendMessage(input: $input) { id } }',
       { input: { chatId, content: line } }
     );
@@ -68,11 +63,13 @@ test('a typing notice, a message, the clock and Get Info each render only what t
       );
     }).toPass({ intervals: [3000], timeout: 15_000 });
   });
-  // Nothing in the history, but the times, should a minute turn meanwhile.
+  // Nothing in the history, but the day's name, should a minute turn
+  // meanwhile; nor the history itself, whose frame holds the log.
   const inHistory = Object.entries(typing.insideByLabel).filter(
-    ([label]) => label !== 'MessageBubble__time'
+    ([label]) => label !== 'MessageList__day'
   );
   expect(inHistory).toEqual([]);
+  expect(typing.byLabel['MessageList__frame']).toBeUndefined();
 
   // Its own words each run, should it run again on the same server.
   const words = `Rendered once, ${Date.now()}`;
@@ -88,9 +85,10 @@ test('a typing notice, a message, the clock and Get Info each render only what t
     page.evaluate(() => window.dispatchEvent(new Event('focus')))
   );
   expect(bubbles(tick), JSON.stringify(tick.byLabel)).toBe(0);
-  // Only the times changed: each run's time, and each chat's in the list.
+  // Only what tells the time by the clock: each day's name in the history
+  // (a run's time of day doesn't change), and each chat's time in the list.
   expect(tick.total).toBeLessThanOrEqual(
-    (tick.byLabel['MessageBubble__time'] ?? 0) +
+    (tick.byLabel['MessageList__day'] ?? 0) +
       (tick.byLabel['ChatListItem__time'] ?? 0) +
       // The menu bar's clock.
       2

@@ -52,7 +52,9 @@ const config = {
      * it; vendored Sacred keeps upstream's code as it is. Before it, each
      * gql() becomes an import of its own document, so no map of every
      * operation's text is shipped. (The documents stay in one module, which
-     * the first load carries whole: Rollup splits modules, not exports.)
+     * the first load carries whole: Rollup splits modules, not exports. So
+     * alike, they gzip to almost nothing beside the rest; split by importer,
+     * the lazy chunks would pay more than the first load saves.)
      */
     Promise.all([
       import('@vitejs/plugin-react'),

@@ -141,7 +141,7 @@ export type AddedChat = OnChatAddedSubscription['chatAdded'];
  */
 export function useChatFeed(handlers: {
   viewerId: string;
-  /** Whether the viewer is reading a chat now: on screen, on a page they see. */
+  /** Whether the viewer is reading a chat now: on screen at its newest, on a page they see. */
   isReading: (chatId: string) => boolean;
   onMessage: (message: ArrivedMessage) => void;
   onChatAdded: (event: AddedChat) => void;

@@ -8,6 +8,7 @@ import {
   type Receiver,
 } from '../../lib/chat-list';
 import { gql } from '../../lib/__generated__';
+import { HISTORY_PAGE } from '../../lib/history';
 
 /*
  * The chats the whole app reads and keeps current: the list, a chat's
@@ -82,10 +83,14 @@ export const GET_CHAT_DATA = gql(`
   }
 `);
 
-/** A chat's newest messages, oldest first. */
+/**
+ * A page of a chat's history, oldest first: its newest messages, or those
+ * before `before`. The cache keeps one history per chat however it was paged
+ * (lib/cache.ts); a page is `HISTORY_PAGE` long (lib/history.ts).
+ */
 export const GET_CHAT_MESSAGES = gql(`
-  query GetChatMessages($chatId: ID!) {
-    messages(chatId: $chatId, limit: 50) {
+  query GetChatMessages($chatId: ID!, $before: ID, $limit: Int!) {
+    messages(chatId: $chatId, limit: $limit, before: $before) {
       id
       content
       picture {
@@ -137,7 +142,10 @@ export function recordMessage(
   const { chat, id, content, picture, movie, sound, createdAt, sender } =
     message;
   cache.updateQuery(
-    { query: GET_CHAT_MESSAGES, variables: { chatId: chat.id } },
+    {
+      query: GET_CHAT_MESSAGES,
+      variables: { chatId: chat.id, limit: HISTORY_PAGE },
+    },
     (existing) =>
       existing && {
         // Sent and delivered both arrive here; whichever is second changes nothing.

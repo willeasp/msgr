@@ -1,13 +1,106 @@
+/* The history and what floats over its foot. */
+.frame {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .root {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* The history keeps its own place as earlier pages arrive above
+     (MessageList); the browser's anchoring would move it twice. */
+  overflow-anchor: none;
   /* Room either side for the bubbles' 2-pixel drop shadow. */
   padding: var(--line) 1ch;
+
+  /* Focusable, so the keyboard can page through it and reach earlier pages. */
+  &:focus-visible {
+    outline: 1px dotted var(--ink);
+    outline-offset: -3px;
+  }
 }
 
 .empty {
   display: grid;
   place-items: center;
   height: 100%;
+}
+
+/* A day's name on a hairline, in the system's words. */
+.day {
+  display: flex;
+  gap: 1ch;
+  align-items: center;
+  margin: calc(var(--line) / 2) 0;
+  font-family: var(--font-family-chrome);
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: var(--line);
+
+  &::before,
+  &::after {
+    flex: 1;
+    border-top: 1px solid var(--ink);
+    content: '';
+  }
+}
+
+/* Where earlier messages are asked for: the watch while they come, and
+   Try Again if they couldn't. */
+.earlier {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1ch;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--line);
+  margin-bottom: calc(var(--line) / 2);
+  font-family: var(--font-family-chrome);
+}
+
+
+/* What arrived while the viewer read further up: inverted, over the foot. */
+.newer {
+  position: absolute;
+  bottom: calc(var(--line) / 2);
+  left: 50%;
+  display: flex;
+  gap: 1ch;
+  align-items: center;
+  padding: 2px 1.5ch;
+  border: 0;
+  border-radius: 1em;
+  background: var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+  color: var(--paper);
+  font-family: var(--font-family-chrome);
+  font-size: inherit;
+  line-height: var(--line);
+  white-space: nowrap;
+  transform: translateX(-50%);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 1px dotted var(--ink);
+    outline-offset: 2px;
+  }
+
+  /* On a phone, a thumb's target around it (ADR 0013), drawn as small. */
+  @media (max-width: 760px) {
+    &::before {
+      position: absolute;
+      inset: -16px 0 -8px;
+      content: '';
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .newer {
+    border: 1px solid ButtonText;
+  }
 }

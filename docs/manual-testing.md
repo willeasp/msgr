@@ -123,8 +123,18 @@ keyboard, notifications, layout) is checked here.
 - [ ] **Live:** Alice's message appears instantly in Test User's chat, which
       jumps to the top of the list with the new preview.
 - [ ] **Bubbles:** yours are black and on the right; theirs are outlined on the
-      left. A name and time appear only when the sender changes. Hover a bubble
-      for its full timestamp.
+      left. A name and the time of day come with the first of each run (one
+      sender, each within five minutes of the last), and each day opens with
+      its name on a ruled line.
+- [ ] **A long history on an iPhone** (Safari has no scroll anchoring of its
+      own; the app keeps the place itself, and Chromium can't show Safari's
+      momentum): in a chat of more than 50 messages, flick up to the top. The
+      wristwatch shows while the page before comes, and when it arrives, the
+      line you were reading stays put, even if the flick is still gliding.
+      Up there, have the other person write: nothing moves, "1 New Message"
+      shows below, and the chat list counts it unread until you tap the
+      button, which takes you down to it. A message you send from the box
+      takes you down too; one sent from your other device doesn't.
 - [ ] **Closed chats stay current:** with a chat _closed_, have the other person
       write in it. Opening it shows the new message.
 - [ ] **New chat:** a brand-new chat says "No messages yet. Say hello."

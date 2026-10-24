@@ -57,6 +57,9 @@ export function SignedIn() {
 function Live({ viewer, isAdmin }: { viewer: Viewer; isAdmin: boolean }) {
   const { open } = useModals();
   const [chatOnScreen, showChat] = useState<string | null>(null);
+  // A chat on screen scrolled up from its newest isn't being read: only the
+  // feed asks, as each message arrives, so it renders nothing.
+  const away = useRef<string | null>(null);
   const alerts = useAlerts(viewer.id, chatOnScreen ?? undefined);
   useWatching(chatOnScreen ?? undefined);
   useOpenChatFromNotifications();
@@ -126,7 +129,9 @@ function Live({ viewer, isAdmin }: { viewer: Viewer; isAdmin: boolean }) {
   useChatFeed({
     viewerId: viewer.id,
     isReading: (chatId) =>
-      chatId === chatOnScreen && document.visibilityState === 'visible',
+      chatId === chatOnScreen &&
+      chatId !== away.current &&
+      document.visibilityState === 'visible',
     onMessage: (message) => {
       // Their message is what they were typing.
       typists.stopped(message.chat.id, message.sender.id);
@@ -149,6 +154,10 @@ function Live({ viewer, isAdmin }: { viewer: Viewer; isAdmin: boolean }) {
         notifications: notificationsItem,
         install,
         showChat,
+        awayFromNewest: (chatId, isAway) => {
+          if (isAway) away.current = chatId;
+          else if (away.current === chatId) away.current = null;
+        },
       }}
     >
       <Outlet />

@@ -4,10 +4,10 @@ import Message from '../../../sacred/components/Message';
 import MessageViewer from '../../../sacred/components/MessageViewer';
 import { isOnlyEmoji } from '../../../lib/emoji';
 import { firstLink, splitLinks } from '../../../lib/links';
+import { formatClock } from '../../../lib/time';
 import type { KeptMovie } from '../../../lib/movie-wire';
 import type { KeptPicture } from '../../../lib/picture-wire';
 import type { KeptSound } from '../../../lib/sound-wire';
-import { Ago } from '../Ago';
 import { Face, type Person } from '../Face';
 import { PixelText } from '../PixelText';
 import { MessageMovie } from './MessageMovie';
@@ -28,7 +28,7 @@ interface MessageBubbleProps {
     createdAt: string;
   };
   isCurrentUser: boolean;
-  /** The first of a run from one sender: it shows the time, and their face if it's someone else's. */
+  /** The first of a run (lib/runs.ts): it shows the time, and their face if it's someone else's. */
   showMeta: boolean;
   /** Name the sender above the run: in groups and channels, not direct chats. */
   showName: boolean;
@@ -91,7 +91,9 @@ export const MessageBubble = memo(function MessageBubble({
           </span>
         )}
         {firstLink(content) && <LinkPreviewCard messageId={message.id} />}
-        <div className={styles.line}>
+        {/* What the history keeps in place while the viewer reads it
+            (MessageList): the words, whatever comes and goes above them. */}
+        <div className={styles.line} data-message>
           <div
             className={styles.pick}
             data-pressable={onGetInfo ? true : undefined}
@@ -130,7 +132,12 @@ export const MessageBubble = memo(function MessageBubble({
               )}
             </Bubble>
           </div>
-          {showMeta && <Ago className={styles.time} date={message.createdAt} />}
+          {showMeta && (
+            // The time of day: the day's name heads the history above it.
+            <time className={styles.time} dateTime={message.createdAt}>
+              {formatClock(message.createdAt)}
+            </time>
+          )}
         </div>
         {/* Under the bubble, not in it: the viewer's bubbles are inverted. */}
         {((picture && onDrawOnIt) || (movie && onDrawOnMovie)) && (

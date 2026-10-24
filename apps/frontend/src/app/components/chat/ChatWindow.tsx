@@ -64,6 +64,8 @@ export function ChatWindow({
   // recorded, or made from a file.
   const [attachment, setAttachment] = useState<Attachment | null>(null);
   const [attachError, setAttachError] = useState<string | null>(null);
+  // Each message sent from here takes the history to its newest.
+  const [sends, setSends] = useState(0);
   const attach = (next: Attachment) => {
     setAttachment(next);
     setAttachError(null);
@@ -206,6 +208,7 @@ export function ChatWindow({
         <MessageList
           chatId={chatId}
           currentUserId={currentUserId}
+          sends={sends}
           showNames={!!chat && chat.kind !== ChatKind.Direct}
           onDrawOnIt={drawOn}
           onDrawOnMovie={drawOnMovie}
@@ -220,6 +223,7 @@ export function ChatWindow({
           onSound={() => makeSound()}
           onAttachFile={(file) => void attachFile(file)}
           onDetach={detach}
+          onSend={() => setSends((count) => count + 1)}
         />
       </div>
     </MacWindow>

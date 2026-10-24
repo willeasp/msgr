@@ -1,8 +1,11 @@
 import {
   expect,
+  test,
+  type APIRequestContext,
   type Browser,
   type Locator,
   type Page,
+  type PlaywrightWorkerArgs,
 } from '@playwright/test';
 
 /** Every seeded account's password (apps/api/prisma/seed.ts). */
@@ -56,3 +59,67 @@ export async function joinChannel(page: Page, name: string): Promise<string> {
   if (!body.data) throw new Error(JSON.stringify(body.errors ?? body));
   return body.data.joinChannel.id;
 }
+
+/** Asks the API as whoever `request` is signed in as; its data, or it throws. */
+export async function graphql<T>(
+  request: APIRequestContext,
+  query: string,
+  variables = {}
+): Promise<T> {
+  const response = await request.post('/graphql', {
+    data: { query, variables },
+  });
+  const body = (await response.json()) as { data?: T; errors?: unknown[] };
+  if (!body.data) throw new Error(JSON.stringify(body.errors ?? body));
+  return body.data;
+}
+
+/** Signs `request` in by the API: one login against the throttle, as any. */
+export async function signInAs(request: APIRequestContext, email: string) {
+  await graphql(
+    request,
+    'mutation ($email: String!, $password: String!) { login(email: $email, password: $password) { user { id } } }',
+    { email, password: SEEDED_PASSWORD }
+  );
+}
+
+/**
+ * Someone new, signed up by the API with an invite from whoever `inviter`
+ * is: another person for a spec that signing up spares the login throttle.
+ */
+export async function newcomer(
+  playwright: PlaywrightWorkerArgs['playwright'],
+  inviter: APIRequestContext,
+  name: string
+): Promise<APIRequestContext> {
+  const { createInvite } = await graphql<{ createInvite: { code: string } }>(
+    inviter,
+    'mutation { createInvite { code } }'
+  );
+  const request = await playwright.request.newContext({
+    baseURL: test.info().project.use.baseURL,
+  });
+  await graphql(
+    request,
+    'mutation ($input: SignUpInput!) { signUp(input: $input) { user { id } } }',
+    {
+      input: {
+        inviteCode: createInvite.code,
+        name,
+        email: `${name.toLowerCase()}-${Date.now().toString(36)}@example.com`,
+        password: SEEDED_PASSWORD,
+      },
+    }
+  );
+  return request;
+}
+
+/** Resolves once the page's feed has asked for messages, so none sent after are missed. */
+export const feedListening = (page: Page) =>
+  new Promise<void>((resolve) => {
+    page.on('websocket', (socket) =>
+      socket.on('framesent', ({ payload }) => {
+        if (String(payload).includes('OnMessageReceivedForSidebar')) resolve();
+      })
+    );
+  });
