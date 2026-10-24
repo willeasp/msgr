@@ -4,8 +4,12 @@
 # Base images come from Google's mirror of Docker Hub (mirror.gcr.io): the
 # same official images, without Docker Hub's anonymous pull limit or Amazon
 # ECR Public's anonymous data cap, which builders on shared addresses run out of.
+#
+# Node is pinned to a patch release, so a builder's cached `22-slim` can't
+# ship an older runtime: 22.23.4 has the October 2026 security fixes (Brotli
+# decoder, TLS hostname checks, DNS). Bump it with each Node security release.
 
-FROM mirror.gcr.io/library/node:22-slim AS build
+FROM mirror.gcr.io/library/node:22.23.4-slim AS build
 WORKDIR /app
 RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \
   && rm -rf /var/lib/apt/lists/*
@@ -19,7 +23,7 @@ ENV NX_DAEMON=false NX_NO_CLOUD=true
 RUN npx prisma generate --schema apps/api/prisma/schema.prisma \
   && npx nx run-many -t build --projects=@msgr/api,@msgr/frontend
 
-FROM mirror.gcr.io/library/node:22-slim
+FROM mirror.gcr.io/library/node:22.23.4-slim
 WORKDIR /app
 RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \
   && rm -rf /var/lib/apt/lists/*
