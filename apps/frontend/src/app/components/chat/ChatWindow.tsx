@@ -38,7 +38,7 @@ interface ChatWindowProps {
   onAddPeople?: () => void;
   /** Who is writing where, for the title bar. */
   typists: Typists;
-  /** Opens Get Info on a message, when it's clicked. */
+  /** Opens Get Info on a message, clicked or held. */
   onGetInfo: (messageId: string) => void;
 }
 

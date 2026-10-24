@@ -478,11 +478,16 @@ a:focus {
   box-shadow: inset 0 0 0 1px var(--ink);
 }
 
-/* A finger held on a message opens Get Info, not the phone's text selection. */
+/* A finger held on a message opens Get Info, not the phone's text selection.
+   A link keeps its own menu, to open it elsewhere or copy it. */
 @media (pointer: coarse) {
   :root [data-pressable] {
     -webkit-touch-callout: none;
     user-select: none;
+  }
+
+  :root [data-pressable] a {
+    -webkit-touch-callout: default;
   }
 }
 

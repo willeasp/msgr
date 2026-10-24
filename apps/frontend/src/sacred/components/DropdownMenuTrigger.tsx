@@ -134,6 +134,8 @@ function DropdownMenuTrigger({ children, items, hotkey }: DropdownMenuTriggerPro
     <div className={styles.root}>
       {React.cloneElement(children, {
         tabIndex: 0,
+        //NOTE(msgr): Says whether its menu is open, to a trigger that takes it.
+        'aria-expanded': open,
         onClick,
         ref: mergeRefs,
       } as any)}

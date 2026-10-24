@@ -49,6 +49,7 @@ const BROWSER_ONLY = [
   'OfflineAudioContext',
   'MediaRecorder',
   'createImageBitmap',
+  'visualViewport',
 ].map((name) => ({
   name,
   message: `${name} is the browser's: use or add to app/browser/ (ADR 0010).`,
@@ -78,6 +79,11 @@ const browserOnly = {
       property,
       message: `${property} is the browser's: use app/browser/storage.ts (ADR 0010).`,
     })),
+    {
+      object: 'window',
+      property: 'visualViewport',
+      message: `visualViewport is the browser's: use app/browser/viewport.ts (ADR 0010).`,
+    },
     ...['mediaDevices', 'audioSession'].map((property) => ({
       object: 'navigator',
       property,

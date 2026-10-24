@@ -28,6 +28,14 @@ describe('pressAfter', () => {
     );
   });
 
+  it('holds after pressing, as the timers tick it: at 150 ms, then at 500', () => {
+    const pressed = after(down, { type: 'tick', at: 1000 + PRESSED_AFTER_MS });
+    expect(pressed.phase).toBe('pressed');
+    expect(
+      pressAfter(pressed, { type: 'tick', at: 1000 + HELD_AFTER_MS }).phase
+    ).toBe('held');
+  });
+
   it('lets go of a finger that moves further than a fingertip: scrolling past', () => {
     expect(after(down, { type: 'move', x: 100, y: 200 + SLOP }).phase).toBe(
       'touched'

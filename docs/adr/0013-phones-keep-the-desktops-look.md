@@ -4,7 +4,7 @@ Date: 2026-10-24 · Status: accepted
 
 ## Context
 
-Below 760 pixels Msgr shows one window at a time, but otherwise it is the
+At 760 pixels wide or less Msgr shows one window at a time, but otherwise it is the
 desktop, narrowed: a close box 13 pixels square to go back, the chat's
 people and Add People… squeezed into the line under its title, a tap on a
 message (easily made while scrolling) opening Get Info, and on an iPhone a
@@ -38,7 +38,8 @@ only what a finger needs:
   A pinch-zoomed page is left whole. The history stays at its end while the
   screen shrinks.
 - **Get Info by holding.** With a finger, a message opens Get Info when held
-  half a second (`lib/press.ts`, `useLongPress`), inverted while held; a tap
+  half a second (`lib/press.ts`, `useLongPress`), inverted once it has
+  rested 150 milliseconds; a tap
   or a scroll past opens nothing. A mouse click opens it, as before.
 
 Not taken, and why: edge to edge, the clock's removal, the swipe and the
@@ -51,8 +52,9 @@ looks like.
 - `usePhone` (`app/hooks/use-phone.ts`) says when the screen is a phone's,
   the same 760 pixels as the CSS.
 - The e2e suite gains two phone projects, Pixel 7 and iPhone 15, in
-  Chromium (`apps/e2e/phone`), run by `npm run e2e`; they sign in as Grace
-  and Frank, whom the seed adds for them. A phone's own keyboard can't be
+  Chromium (`apps/e2e/phone`), run by `npm run e2e`; they sign in as Frank and
+  Grace, who are in no chat and so have logins to spare under the throttle
+  (the seed adds Grace for them). A phone's own keyboard can't be
   shown there, so a spec puts up a pretend one through a stand-in
   `visualViewport` (`pretendKeyboard`); the real ones are checked by hand
   (`docs/manual-testing.md`).

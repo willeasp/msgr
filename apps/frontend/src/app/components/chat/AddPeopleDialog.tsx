@@ -24,6 +24,11 @@ const ADD_TO_CHANNEL = gql(`
         id
         name
         email
+        avatar {
+          width
+          height
+          url
+        }
       }
     }
   }

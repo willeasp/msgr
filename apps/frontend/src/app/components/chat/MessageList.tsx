@@ -16,7 +16,7 @@ interface MessageListProps {
   showNames: boolean;
   onDrawOnIt?: (picture: KeptPicture) => void;
   onDrawOnMovie?: (movie: KeptMovie) => void;
-  /** Opens Get Info on a message: a click on it. */
+  /** Opens Get Info on a message: a click on it, or a finger held on it. */
   onGetInfo?: (messageId: string) => void;
 }
 

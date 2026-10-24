@@ -5,7 +5,8 @@ import { visibleFrame, WHOLE, type Frame } from '../../lib/viewport';
  * a person can see (lib/viewport.ts), so the chats' screen sits between the
  * top and a phone's keyboard, its composer on the keyboard. Android resizes
  * the page for its keyboard itself (`interactive-widget`, index.html); iOS
- * lays its keyboard over the page. Measured only when what's visible changes.
+ * lays its keyboard over the page. Measured once at the start, then only when
+ * what's visible changes.
  */
 export function followVisualViewport(): () => void {
   const viewport = window.visualViewport;
@@ -26,6 +27,7 @@ export function followVisualViewport(): () => void {
   };
   viewport.addEventListener('resize', changed);
   viewport.addEventListener('scroll', changed);
+  changed();
   return () => {
     cancelAnimationFrame(frame);
     viewport.removeEventListener('resize', changed);
