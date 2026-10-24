@@ -1,4 +1,16 @@
-import { lazy, Suspense, type ComponentType, type ReactElement } from 'react';
+import {
+  Component,
+  lazy,
+  Suspense,
+  type ComponentType,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
+import Button from '../../sacred/components/Button';
+import { useModals } from '../../sacred/components/page/ModalContext';
+import { BOMB } from './icons';
+import { DialogButtons, DialogMessage, MacDialog } from './MacDialog';
+import { Muted } from './Muted';
 
 /*
  * Every dialog, loaded the first time it opens rather than with the app, so
@@ -10,6 +22,59 @@ import { lazy, Suspense, type ComponentType, type ReactElement } from 'react';
 
 const loaders: (() => Promise<unknown>)[] = [];
 
+/**
+ * What a part of Msgr that couldn't be fetched shows instead. Most likely
+ * it's from a version since replaced: a page the shell doesn't keep (the
+ * first visit, a forced reload) asks the server, which has only the newest.
+ */
+function CantLoad({ closable }: { closable: boolean }) {
+  const { close } = useModals();
+  return (
+    <MacDialog title="Msgr" modal>
+      <DialogMessage icon={BOMB}>
+        <p>This couldn’t be opened.</p>
+        <Muted>Msgr may have been updated since this page opened.</Muted>
+      </DialogMessage>
+      <DialogButtons>
+        {closable && (
+          <Button theme="SECONDARY" onClick={() => close()}>
+            Cancel
+          </Button>
+        )}
+        <Button autoFocus onClick={() => window.location.reload()}>
+          Reload
+        </Button>
+      </DialogButtons>
+    </MacDialog>
+  );
+}
+
+class LoadFailed extends Component<
+  { children: ReactNode; closable: boolean },
+  { failed: boolean }
+> {
+  override state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  override render() {
+    return this.state.failed ? (
+      <CantLoad closable={this.props.closable} />
+    ) : (
+      this.props.children
+    );
+  }
+}
+
+/** A page that loads the first time it shows (`lazy`), or says it couldn't. */
+export function Later({ children }: { children: ReactNode }) {
+  return (
+    <LoadFailed closable={false}>
+      <Suspense fallback={null}>{children}</Suspense>
+    </LoadFailed>
+  );
+}
+
 /** A dialog that loads itself; a dialog opened over it never hides it. */
 function dialog<P extends object>(
   load: () => Promise<ComponentType<P>>
@@ -20,9 +85,11 @@ function dialog<P extends object>(
   );
   return function Dialog(props: P) {
     return (
-      <Suspense fallback={null}>
-        <Loaded {...props} />
-      </Suspense>
+      <LoadFailed closable>
+        <Suspense fallback={null}>
+          <Loaded {...props} />
+        </Suspense>
+      </LoadFailed>
     );
   };
 }
@@ -68,5 +135,6 @@ export const TrimDialog = dialog(() =>
 
 /** Fetches every dialog, for when the page has nothing better to do. */
 export function prefetchDialogs(): void {
-  for (const load of loaders) void load();
+  // One that fails is tried again when it's opened, and says so if it fails then.
+  for (const load of loaders) void load().catch(() => undefined);
 }

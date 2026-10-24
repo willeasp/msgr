@@ -127,3 +127,26 @@ test('a dialog opens with no network, though it loads only when needed', async (
   await chooseMenu(page, 'File', 'Profile…');
   await expect(page.getByRole('dialog', { name: 'Profile' })).toBeVisible();
 });
+
+test('a dialog that can no longer be fetched says so, and offers a reload', async ({
+  browser,
+}) => {
+  // A page the shell doesn't keep, after a deploy replaced what it would load.
+  const context = await browser.newContext({ serviceWorkers: 'block' });
+  await context.route(/\/assets\/ProfileDialog-[^/]+\.js$/, (route) =>
+    route.fulfill({ status: 404 })
+  );
+  const page = await context.newPage();
+  await page.goto('/login');
+  await signIn(page, 'erin@example.com');
+
+  await chooseMenu(page, 'File', 'Profile…');
+  const failed = page.getByRole('dialog', { name: 'Msgr' });
+  await expect(failed).toContainText('This couldn’t be opened.');
+  await expect(failed.getByRole('button', { name: 'Reload' })).toBeVisible();
+  await failed.getByRole('button', { name: 'Cancel' }).click();
+  await expect(failed).toBeHidden();
+  // The rest of the app carries on.
+  await expect(chatsWindow(page)).toBeVisible();
+  await context.close();
+});

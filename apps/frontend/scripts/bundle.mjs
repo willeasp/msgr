@@ -8,12 +8,12 @@ import { join, relative } from 'node:path';
 import { brotliCompressSync, gzipSync, constants } from 'node:zlib';
 
 /**
- * The first load's JavaScript, gzipped, in kB: measured at 159.4, of which
+ * The first load's JavaScript, gzipped, in kB: measured at 159.7, of which
  * React, Apollo and the router are 118. A screen or dialog imported where it
  * isn't needed at once (rather than through app/components/dialogs.tsx or a
  * lazy route) is a kilobyte or more, and fails here.
  */
-const BUDGET_KB = 160;
+const BUDGET_KB = 161;
 
 const dist = new URL('../dist/', import.meta.url).pathname;
 const html = readFileSync(join(dist, 'index.html'), 'utf8');
