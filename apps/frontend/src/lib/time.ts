@@ -17,32 +17,48 @@ export function formatTime(date: Date | string, now: Date): string {
   return d.toLocaleDateString();
 }
 
+/** The time of day, to the minute: "3:05 PM", as the device's locale says it. */
+export function formatClock(date: Date | string, locale?: string): string {
+  return new Date(date).toLocaleTimeString(locale, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+/**
+ * Which day something happened, as a history heads it: "Today",
+ * "Yesterday", "Tue, Oct 21", and with the year once it's another year's.
+ * Days are counted on the device's calendar.
+ */
+export function formatDay(
+  date: Date | string,
+  now: Date,
+  locale?: string
+): string {
+  const d = new Date(date);
+  const day = (when: Date) =>
+    new Date(when.getFullYear(), when.getMonth(), when.getDate()).getTime();
+  const daysAgo = Math.round((day(now) - day(d)) / 86400000);
+  if (daysAgo === 0) return 'Today';
+  if (daysAgo === 1) return 'Yesterday';
+  const sameYear = d.getFullYear() === now.getFullYear();
+  return d.toLocaleDateString(locale, {
+    weekday: sameYear ? 'short' : undefined,
+    month: 'short',
+    day: 'numeric',
+    year: sameYear ? undefined : 'numeric',
+  });
+}
+
 /**
  * When something happened, to the minute, the way Get Info says it: "Today,
  * 3:05 PM", "Yesterday, 9:12 AM", "Tue, Oct 21, 3:05 PM", and with the year
- * once it's another year's. Days are counted on the device's calendar.
+ * once it's another year's.
  */
 export function formatStamp(
   date: Date | string,
   now: Date,
   locale?: string
 ): string {
-  const d = new Date(date);
-  const time = d.toLocaleTimeString(locale, {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-  const day = (when: Date) =>
-    new Date(when.getFullYear(), when.getMonth(), when.getDate()).getTime();
-  const daysAgo = Math.round((day(now) - day(d)) / 86400000);
-  if (daysAgo === 0) return `Today, ${time}`;
-  if (daysAgo === 1) return `Yesterday, ${time}`;
-  const sameYear = d.getFullYear() === now.getFullYear();
-  const calendar = d.toLocaleDateString(locale, {
-    weekday: sameYear ? 'short' : undefined,
-    month: 'short',
-    day: 'numeric',
-    year: sameYear ? undefined : 'numeric',
-  });
-  return `${calendar}, ${time}`;
+  return `${formatDay(date, now, locale)}, ${formatClock(date, locale)}`;
 }

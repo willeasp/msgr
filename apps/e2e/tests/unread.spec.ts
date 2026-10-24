@@ -1,40 +1,14 @@
-import {
-  expect,
-  test,
-  type APIRequestContext,
-  type Page,
-} from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   chatsWindow,
   chatWindow,
   chooseMenu,
+  feedListening,
+  graphql,
   joinChannel,
   SEEDED_PASSWORD,
   signIn,
 } from './support';
-
-async function graphql<T>(
-  request: APIRequestContext,
-  query: string,
-  variables = {}
-): Promise<T> {
-  const response = await request.post('/graphql', {
-    data: { query, variables },
-  });
-  const body = (await response.json()) as { data?: T; errors?: unknown[] };
-  if (!body.data) throw new Error(JSON.stringify(body.errors ?? body));
-  return body.data;
-}
-
-/** Resolves once the page's feed has asked for messages, so none sent after are missed. */
-const listening = (page: Page) =>
-  new Promise<void>((resolve) => {
-    page.on('websocket', (socket) =>
-      socket.on('framesent', ({ payload }) => {
-        if (String(payload).includes('OnMessageReceivedForSidebar')) resolve();
-      })
-    );
-  });
 
 /** "2 unread", not "12 unread". */
 const unreadCount = (count: number) => new RegExp(`(^|\\D)${count} unread`);
@@ -94,7 +68,7 @@ test('an unread chat counts what it holds, on the list and the app’s badge, un
       { input: { chatId, content } }
     );
 
-  let live = listening(page);
+  let live = feedListening(page);
   await page.goto('/');
   const row = chatsWindow(page).getByRole('link', { name: new RegExp(name) });
   await expect(row).toBeVisible();
@@ -114,7 +88,7 @@ test('an unread chat counts what it holds, on the list and the app’s badge, un
   await expect(chat.getByText('two')).toBeVisible();
   await expect(row).not.toContainText(/\d+ unread/);
   await expect.poll(unreadInAll).toBe(await badge());
-  live = listening(page);
+  live = feedListening(page);
   await page.reload();
   await expect(row).toBeVisible();
   await expect(row).not.toContainText(/\d+ unread/);

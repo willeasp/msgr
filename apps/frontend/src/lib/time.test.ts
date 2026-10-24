@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatStamp, formatTime } from './time';
+import { formatClock, formatDay, formatStamp, formatTime } from './time';
 
 describe('formatTime', () => {
   // Measured against the clock it is given, never one of its own.
@@ -28,6 +28,34 @@ describe('formatStamp', () => {
     );
     expect(formatStamp(new Date(2025, 11, 31, 9, 0), now, 'en-US')).toMatch(
       /^Dec 31, 2025, 9:00\sAM$/
+    );
+  });
+});
+
+describe('formatDay', () => {
+  const now = new Date(2026, 9, 21, 0, 5);
+
+  it('names a day as a history heads it: today, yesterday, the day, the year', () => {
+    expect(formatDay(new Date(2026, 9, 21, 0, 1), now, 'en-US')).toBe('Today');
+    expect(formatDay(new Date(2026, 9, 20, 23, 59), now, 'en-US')).toBe(
+      'Yesterday'
+    );
+    expect(formatDay(new Date(2026, 9, 14, 9, 0), now, 'en-US')).toBe(
+      'Wed, Oct 14'
+    );
+    expect(formatDay(new Date(2025, 11, 31, 9, 0), now, 'en-US')).toBe(
+      'Dec 31, 2025'
+    );
+  });
+});
+
+describe('formatClock', () => {
+  it('says the time of day, to the minute', () => {
+    expect(formatClock(new Date(2026, 9, 21, 15, 5), 'en-US')).toMatch(
+      /^3:05\sPM$/
+    );
+    expect(formatClock(new Date(2026, 9, 21, 0, 0), 'en-US')).toMatch(
+      /^12:00\sAM$/
     );
   });
 });

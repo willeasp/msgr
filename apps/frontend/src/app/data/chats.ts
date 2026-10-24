@@ -82,10 +82,16 @@ export const GET_CHAT_DATA = gql(`
   }
 `);
 
-/** A chat's newest messages, oldest first. */
+/** How many messages a page of history holds. */
+export const HISTORY_PAGE = 50;
+
+/**
+ * A chat's newest messages, oldest first, or the page before `before`; the
+ * cache keeps one history per chat however it was paged (lib/cache.ts).
+ */
 export const GET_CHAT_MESSAGES = gql(`
-  query GetChatMessages($chatId: ID!) {
-    messages(chatId: $chatId, limit: 50) {
+  query GetChatMessages($chatId: ID!, $before: ID) {
+    messages(chatId: $chatId, limit: 50, before: $before) {
       id
       content
       picture {

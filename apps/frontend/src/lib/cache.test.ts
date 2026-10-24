@@ -192,3 +192,114 @@ describe("a message's sound", () => {
     });
   });
 });
+
+const HISTORY = gql`
+  query History($chatId: ID!, $before: ID) {
+    messages(chatId: $chatId, limit: 2, before: $before) {
+      id
+      createdAt
+    }
+  }
+`;
+
+const page = (...ids: string[]) => ({
+  messages: ids.map((id) => ({
+    __typename: 'Message',
+    id,
+    createdAt: `2026-10-21T09:0${id}:00Z`,
+  })),
+});
+const ids = (cache: ReturnType<typeof createCache>, chatId = 'a') =>
+  cache
+    .readQuery<{ messages: { id: string }[] }>({
+      query: HISTORY,
+      variables: { chatId },
+    })
+    ?.messages.map(({ id }) => id);
+
+describe('a chat’s history in the cache', () => {
+  it('is one history however it was paged, oldest first, each message once', () => {
+    const cache = createCache();
+    cache.writeQuery({
+      query: HISTORY,
+      variables: { chatId: 'a' },
+      data: page('3', '4'),
+    });
+    cache.writeQuery({
+      query: HISTORY,
+      variables: { chatId: 'a', before: '3' },
+      data: page('1', '2'),
+    });
+    // The newest again, as opening the chat asks, with one more since.
+    cache.writeQuery({
+      query: HISTORY,
+      variables: { chatId: 'a' },
+      data: page('4', '5'),
+    });
+
+    expect(ids(cache)).toEqual(['1', '2', '3', '4', '5']);
+  });
+
+  it('starts again from a newest page that doesn’t reach what it holds: what came between was missed', () => {
+    // Sent while the socket was down, to a chat that wasn't open: the feed
+    // never heard of 5 and 6.
+    const cache = createCache();
+    cache.writeQuery({
+      query: HISTORY,
+      variables: { chatId: 'a' },
+      data: page('3', '4'),
+    });
+    cache.writeQuery({
+      query: HISTORY,
+      variables: { chatId: 'a' },
+      data: page('7', '8'),
+    });
+
+    expect(ids(cache)).toEqual(['7', '8']);
+  });
+
+  it('takes an earlier page only if it is the one before what it holds', () => {
+    const cache = createCache();
+    cache.writeQuery({
+      query: HISTORY,
+      variables: { chatId: 'a' },
+      data: page('3', '4'),
+    });
+    // Asked before 3, but the history started again while it came.
+    cache.writeQuery({
+      query: HISTORY,
+      variables: { chatId: 'a' },
+      data: page('7', '8'),
+    });
+    cache.writeQuery({
+      query: HISTORY,
+      variables: { chatId: 'a', before: '3' },
+      data: page('1', '2'),
+    });
+    expect(ids(cache)).toEqual(['7', '8']);
+
+    cache.writeQuery({
+      query: HISTORY,
+      variables: { chatId: 'a', before: '7' },
+      data: page('5', '6'),
+    });
+    expect(ids(cache)).toEqual(['5', '6', '7', '8']);
+  });
+
+  it('keeps each chat’s history apart', () => {
+    const cache = createCache();
+    cache.writeQuery({
+      query: HISTORY,
+      variables: { chatId: 'a' },
+      data: page('1'),
+    });
+    cache.writeQuery({
+      query: HISTORY,
+      variables: { chatId: 'b' },
+      data: page('2'),
+    });
+
+    expect(ids(cache, 'a')).toEqual(['1']);
+    expect(ids(cache, 'b')).toEqual(['2']);
+  });
+});

@@ -1,9 +1,7 @@
 import { typingLine } from '../../../lib/typing';
-import { useMovieTick } from '../../hooks/use-movie';
 import { useTypingIn, type Typists } from '../../hooks/use-typing';
-import { watchAt } from '../icons';
-import { PixelIcon } from '../PixelIcon';
 import { PixelText } from '../PixelText';
+import { Wristwatch } from '../Wristwatch';
 import styles from './TypingStatus.module.css';
 
 /**
@@ -20,7 +18,6 @@ export function TypingStatus({
   chatId: string;
 }) {
   const line = typingLine(useTypingIn(typists, chatId));
-  const tick = useMovieTick(line !== null);
   return (
     <span
       role="status"
@@ -29,7 +26,7 @@ export function TypingStatus({
     >
       {line && (
         <>
-          <PixelIcon bitmap={watchAt(tick)} scale={1} />
+          <Wristwatch />
           <span className={styles.line}>
             <PixelText text={line} />
           </span>

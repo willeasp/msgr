@@ -194,3 +194,12 @@ export const INFO: Bitmap = [
   '..##.....##..',
   '....#####....',
 ];
+
+/** A small arrow pointing down, to the newest messages. */
+export const DOWN: Bitmap = [
+  '#########',
+  '.#######.',
+  '..#####..',
+  '...###...',
+  '....#....',
+];
