@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useApolloClient, useMutation } from '@apollo/client/react';
+import { useApolloClient } from '@apollo/client/react';
 import { gql } from '../../lib/__generated__';
 import { GET_CHATS, recordRead } from '../data/chats';
 import { useOnline } from './use-online';
@@ -29,7 +29,6 @@ export function useReading(
   const visible = usePageVisible();
   const online = useOnline();
   const client = useApolloClient();
-  const [markRead] = useMutation(MARK_READ);
   const marked = useRef<string | null>(null);
 
   useEffect(() => {
@@ -53,9 +52,13 @@ export function useReading(
     if (!visible || !online || !readTo) return;
     if (marked.current === readTo) return;
     marked.current = readTo;
-    markRead({ variables: { messageId: readTo } }).catch(() => {
-      // Tried again with the next message, on coming back, or once online.
-      marked.current = null;
-    });
-  }, [visible, online, readTo, markRead]);
+    // By the client, not useMutation, whose loading would render the
+    // history twice for each read.
+    client
+      .mutate({ mutation: MARK_READ, variables: { messageId: readTo } })
+      .catch(() => {
+        // Tried again with the next message, on coming back, or once online.
+        marked.current = null;
+      });
+  }, [visible, online, readTo, client]);
 }

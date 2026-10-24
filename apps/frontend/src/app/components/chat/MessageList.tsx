@@ -236,7 +236,11 @@ function History({
   const [place] = useState(() =>
     placeIn((seen) => setAway((was) => (seen === null ? null : was ?? seen)))
   );
-  const [earlier, setEarlier] = useState<'idle' | 'loading' | 'failed'>('idle');
+  // Earlier messages: none asked for, the page before a message being
+  // fetched, or a fetch that failed, which Try Again asks for again.
+  const [earlier, setEarlier] = useState<
+    'idle' | 'failed' | { readonly before: string }
+  >('idle');
   // The chat's first message, once a page said nothing came before it: a
   // fact about that message, so it holds should the history start again.
   const [first, setFirst] = useState<string>();
@@ -266,6 +270,7 @@ function History({
     [newestId, oldestId, more, earlier, place]
   );
 
+  // Reaching the top asks for the page before.
   const canAsk = earlier === 'idle' && more;
   useEffect(() => {
     const element = log.current;
@@ -275,21 +280,33 @@ function History({
       ([entry]) => {
         if (!entry?.isIntersecting) return;
         watch.disconnect();
-        setEarlier('loading');
-        loadEarlier(oldestId).then(
-          (page) => {
-            const found = firstFrom(page, oldestId);
-            if (found) setFirst(found);
-            setEarlier('idle');
-          },
-          () => setEarlier('failed')
-        );
+        setEarlier({ before: oldestId });
       },
       { root: element }
     );
     watch.observe(sentinel);
     return () => watch.disconnect();
-  }, [canAsk, oldestId, loadEarlier]);
+  }, [canAsk, oldestId]);
+
+  // Fetches the page asked for; only this asking hears how it went.
+  useEffect(() => {
+    if (typeof earlier !== 'object') return;
+    let asking = true;
+    loadEarlier(earlier.before).then(
+      (page) => {
+        if (!asking) return;
+        const found = firstFrom(page, earlier.before);
+        if (found) setFirst(found);
+        setEarlier('idle');
+      },
+      () => {
+        if (asking) setEarlier('failed');
+      }
+    );
+    return () => {
+      asking = false;
+    };
+  }, [earlier, loadEarlier]);
 
   const newer = away === null ? 0 : arrivedSince(messages, away, currentUserId);
   const placed = placeMessages(messages).map(
@@ -328,7 +345,7 @@ function History({
         <div ref={content}>
           {more && (
             <div ref={top} className={styles.earlier}>
-              {earlier === 'loading' && (
+              {typeof earlier === 'object' && (
                 <>
                   <Wristwatch />
                   <span>Loading earlier messages…</span>
@@ -337,7 +354,11 @@ function History({
               {earlier === 'failed' && (
                 <>
                   <span>Couldn’t load earlier messages.</span>
-                  <Button onClick={() => setEarlier('idle')}>Try Again</Button>
+                  <Button
+                    onClick={() => oldestId && setEarlier({ before: oldestId })}
+                  >
+                    Try Again
+                  </Button>
                 </>
               )}
             </div>
