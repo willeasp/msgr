@@ -14,13 +14,24 @@ const SHELL = [];
 
 const PREFIX = 'msgr-shell-';
 const CURRENT = PREFIX + VERSION;
+/** Which shell is active and which was before it: `{ current, previous }`. */
+const ACTIVE = ['msgr-active', '/msgr-active.json'];
 /** Answered by the server alone, never from the shell: media included. */
 const SERVER = ['/graphql', '/healthz', '/media/', '/avatars/'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
-      if (SHELL.length > 0) await (await caches.open(CURRENT)).addAll(SHELL);
+      if (SHELL.length > 0) {
+        const existed = await caches.has(CURRENT);
+        try {
+          await (await caches.open(CURRENT)).addAll(SHELL);
+        } catch (error) {
+          // Opening made it: an empty shell must never pass for a version.
+          if (!existed) await caches.delete(CURRENT);
+          throw error;
+        }
+      }
       // A new version takes over at once. Pages already open keep working:
       // the previous shell, with every asset they may still ask for, stays.
       await self.skipWaiting();
@@ -31,11 +42,22 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) =>
   event.waitUntil(
     (async () => {
-      // Keys come oldest first: keep this shell and the one before it.
-      const older = (await caches.keys()).filter(
-        (name) => name.startsWith(PREFIX) && name !== CURRENT
+      // Keep this shell and the one it replaces, which pages already open
+      // still run; said outright, since an update may fail or roll back.
+      const meta = await caches.open(ACTIVE[0]);
+      const was = await meta.match(ACTIVE[1]).then((answer) => answer?.json());
+      const previous =
+        was?.current === VERSION ? was.previous : was?.current ?? null;
+      await meta.put(
+        ACTIVE[1],
+        new Response(JSON.stringify({ current: VERSION, previous }))
       );
-      await Promise.all(older.slice(0, -1).map((name) => caches.delete(name)));
+      const keep = [CURRENT, PREFIX + previous];
+      await Promise.all(
+        (await caches.keys())
+          .filter((name) => name.startsWith(PREFIX) && !keep.includes(name))
+          .map((name) => caches.delete(name))
+      );
       await self.clients.claim();
     })()
   )

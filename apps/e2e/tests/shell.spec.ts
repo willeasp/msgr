@@ -49,32 +49,71 @@ test('waits for a server that does not answer, rather than signing you out', asy
   await expect(chatsWindow(page)).toBeVisible({ timeout: 15_000 });
 });
 
-test("the browser's bars take the theme's paper", async ({ page }) => {
+test("the browser's bars take the theme's paper, as a colour every phone reads", async ({
+  page,
+}) => {
   await page.goto('/login');
-  /** The theme colour, and the page's paper, both as the browser computes them. */
-  const colours = async () => ({
-    theme: await page.evaluate(() => {
-      const probe = document.createElement('i');
-      probe.style.color =
-        document
-          .querySelector('meta[name="theme-color"]')
-          ?.getAttribute('content') ?? '';
-      document.body.append(probe);
-      const colour = getComputedStyle(probe).color;
-      probe.remove();
-      return colour;
-    }),
-    paper: await page.evaluate(
-      () => getComputedStyle(document.body).backgroundColor
-    ),
-  });
+  const themeColour = () =>
+    page
+      .locator('meta[name="theme-color"]')
+      .getAttribute('content')
+      .then((colour) => colour ?? '');
+  /** The page's paper, drawn as the browser draws it. */
+  const paper = () =>
+    page.evaluate(() => {
+      const pen = document.createElement('canvas').getContext('2d');
+      if (!pen) return 'no canvas';
+      pen.fillStyle = getComputedStyle(document.body).backgroundColor;
+      pen.fillRect(0, 0, 1, 1);
+      const [r, g, b] = pen.getImageData(0, 0, 1, 1).data;
+      return `#${[r, g, b]
+        .map((n) => (n ?? 0).toString(16).padStart(2, '0'))
+        .join('')}`;
+    });
 
   await chooseMenu(page, 'View', 'Light');
-  const light = await colours();
-  expect(light.theme).toBe(light.paper);
+  const light = await themeColour();
+  expect(light).toBe('#ffffff');
 
   await chooseMenu(page, 'View', 'Dark');
-  const dark = await colours();
-  expect(dark.theme).toBe(dark.paper);
-  expect(dark.theme).not.toBe(light.theme);
+  const dark = await themeColour();
+  expect(dark).toBe(await paper());
+  expect(dark).not.toBe(light);
+
+  // A tint's paper is worked out in CSS, as `oklch(from …)`.
+  await chooseMenu(page, 'View', 'Green Tint');
+  const green = await themeColour();
+  expect(green).toMatch(/^#[0-9a-f]{6}$/);
+  expect(green).toBe(await paper());
+  expect(green).not.toBe(dark);
+
+  // And so from the first paint.
+  await page.reload();
+  expect(await themeColour()).toBe(green);
+});
+
+test('a server that answers with an error can be left for the login page', async ({
+  page,
+}) => {
+  await signedInWithShell(page);
+  await page.context().route('**/graphql', (route) =>
+    route.request().postDataJSON()?.operationName === 'GetMe'
+      ? route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            errors: [{ message: 'Something went wrong' }],
+          }),
+        })
+      : route.continue()
+  );
+
+  await page.reload();
+  await expect(notice(page, 'Msgr couldn’t open')).toBeVisible();
+  await page.getByRole('button', { name: 'Sign In Again…' }).click();
+  await expect(page).toHaveURL(/\/login$/);
+
+  await page.context().unroute('**/graphql');
+  await signIn(page, 'erin@example.com');
+  await expect(chatsWindow(page)).toBeVisible();
 });

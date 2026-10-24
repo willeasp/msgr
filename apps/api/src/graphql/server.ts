@@ -59,9 +59,9 @@ export interface Server {
 /**
  * Serves queries and mutations over HTTP and subscriptions over WebSocket.
  *
- * It listens at once: the app and `/healthz` answer while `ready` (the
- * database being brought up to date) is still pending, and GraphQL, over
- * HTTP and WebSocket alike, waits for it.
+ * It listens at once: the app answers while `ready` (the database being
+ * brought up to date) is still pending; GraphQL, over HTTP and WebSocket
+ * alike, and `/healthz` wait for it.
  */
 export async function startServer(
   deps: Dependencies,
@@ -80,17 +80,19 @@ export async function startServer(
       'Referrer-Policy': 'same-origin',
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
-      // Only an https address is served over https; browsers ignore it otherwise.
-      ...(config.secureCookies && {
+      ...(config.corsOrigin.startsWith('https://') && {
         'Strict-Transport-Security': 'max-age=31536000',
       }),
     });
     next();
   });
 
-  // For the host's health check and uptime monitors: answered from memory, so
-  // it never wakes the database, which sleeps when nobody's using Msgr.
-  app.get('/healthz', (_, res) => {
+  // For the host's health check and uptime monitors. Healthy once the
+  // database is up to date, so a deploy whose migration fails or hangs never
+  // takes over from the instance before it; from then on it's answered from
+  // memory, never waking the database, which sleeps when nobody's using Msgr.
+  app.get('/healthz', async (_, res) => {
+    await ready;
     res.set('Cache-Control', 'no-store').status(204).end();
   });
 
@@ -139,6 +141,8 @@ export async function startServer(
   const apollo = new ApolloServer<Context>({
     schema,
     validationRules: [oneThingPerMutation],
+    // main.ts stops the server itself, after any migration under way.
+    stopOnTerminationSignals: false,
     plugins: [
       ApolloServerPluginDrainHttpServer({ httpServer }),
       {
@@ -246,9 +250,12 @@ function serveApp(app: express.Express, dir: string) {
       fallthrough: false,
     })
   );
-  app.use(express.static(dir));
+  // The app at its own address too, compressed: not express.static's index.
+  app.use(express.static(dir, { index: false }));
   app.use((req, res, next) =>
-    req.method === 'GET' ? send(req, res, 'index.html') : next()
+    req.method === 'GET' || req.method === 'HEAD'
+      ? send(req, res, 'index.html')
+      : next()
   );
 }
 

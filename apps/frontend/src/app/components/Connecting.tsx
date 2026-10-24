@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { connectingNotice, QUIET_MS } from '../../lib/connection';
+import { QUIET_MS, WAIT_NOTICES, waitOf } from '../../lib/connection';
 import Button from '../../sacred/components/Button';
 import { useMovieTick } from '../hooks/use-movie';
 import { useOnline } from '../hooks/use-online';
+import { useLogOut } from '../hooks/use-session-change';
 import { BOMB, COMPUTER, watchAt } from './icons';
 import { DialogButtons, DialogMessage, MacDialog } from './MacDialog';
 import { MenuBar } from './MenuBar';
@@ -20,7 +21,8 @@ interface ConnectingProps {
  * What a signed-in view shows until the server says who's signed in: the
  * desktop at once, from the shell on this device, and only if that takes a
  * while, why. Asking again happens by itself (lib/connection.ts); nobody is
- * signed out for want of an answer.
+ * signed out for want of an answer. Only an error is the viewer's to act on:
+ * try again, or, should it last, sign in afresh.
  */
 export function Connecting({ failed, onRetry }: ConnectingProps) {
   const online = useOnline();
@@ -30,26 +32,33 @@ export function Connecting({ failed, onRetry }: ConnectingProps) {
     return () => clearTimeout(timer);
   }, []);
 
-  const notice = connectingNotice({ online, slow, failed });
-  const waiting = notice !== null && !failed && online;
-  const tick = useMovieTick(waiting);
+  const wait = waitOf({ online, slow, failed });
+  const tick = useMovieTick(wait === 'waking');
+  const logOut = useLogOut();
 
   return (
     <div className={styles.screen}>
       <MenuBar menus={<ThemeMenu />} />
       <main className={styles.desktop}>
-        {notice && (
+        {wait !== 'quiet' && (
           <MacDialog title="Msgr">
             <div role="status">
               <DialogMessage
-                icon={failed ? BOMB : online ? watchAt(tick) : COMPUTER}
+                icon={
+                  wait === 'failed'
+                    ? BOMB
+                    : wait === 'offline'
+                    ? COMPUTER
+                    : watchAt(tick)
+                }
               >
-                <p className={styles.title}>{notice.title}</p>
-                <Muted>{notice.detail}</Muted>
+                <p className={styles.title}>{WAIT_NOTICES[wait].title}</p>
+                <Muted>{WAIT_NOTICES[wait].detail}</Muted>
               </DialogMessage>
             </div>
-            {notice.retry && (
+            {wait === 'failed' && (
               <DialogButtons>
+                <Button onClick={() => void logOut()}>Sign In Again…</Button>
                 <Button autoFocus onClick={onRetry}>
                   Try Again
                 </Button>

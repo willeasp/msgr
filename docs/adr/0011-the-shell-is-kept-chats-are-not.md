@@ -35,8 +35,14 @@ and phones' networks still leave requests unanswered.
   after a moment why it's waiting (`Connecting`). Someone already in stays in
   while a refetch is retried.
 - **The server answers at once.** It listens before the database is ready:
-  the app and `/healthz` answer, GraphQL waits. It runs the Prisma CLI only
-  when a migration is pending, which one query tells it in milliseconds.
+  the app answers, GraphQL and `/healthz` wait, so a deploy whose migration
+  fails never looks healthy. It runs the Prisma CLI only when a migration is
+  pending (or one is half-done, which the CLI refuses), and one query tells it
+  that in milliseconds. A shutdown waits for a migration under way.
+- **The previous shell is kept for the pages still running it.** The worker
+  records which shell is active and which it replaced, rather than trusting
+  the order caches were made in, and a failed install leaves no empty one
+  behind.
 
 ## Consequences
 

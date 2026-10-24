@@ -97,12 +97,16 @@ const server = await startServer(
     storageGauge: prismaStorageGauge(db),
     storageLimit: config.value.storageLimit,
   },
-  config.value
+  config.value,
+  ready
 );
-console.log(`🚀 GraphQL (HTTP + WebSocket) ready at ${server.url}`);
+console.log(`🚀 Listening at ${server.url} (${since()})`);
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, async () => {
+    // A migration under way finishes first: one cut off half-way would leave
+    // the database refusing every later start.
+    await ready.catch(() => undefined);
     await server.stop();
     await db.$disconnect();
     process.exit(0);

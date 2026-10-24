@@ -3,9 +3,12 @@ import { readdir } from 'node:fs/promises';
 import type { PrismaClient } from './client.js';
 
 /**
- * The migrations in `dir` the database hasn't finished applying, oldest first:
- * every one, for a database never migrated. One query, so a server can tell in
- * milliseconds that it's up to date, which is nearly every time it starts.
+ * The migrations in `dir` the database hasn't finished applying, oldest first
+ * (every one, for a database never migrated), and any the database holds
+ * half-done, even one this release doesn't know. One query, so a server can
+ * tell in milliseconds that it's up to date, which is nearly every time it
+ * starts; anything else sends `migrate` to the Prisma CLI, which applies what's
+ * new and refuses a half-done migration, as it always has.
  */
 export async function pendingMigrations(
   db: PrismaClient,
@@ -18,17 +21,27 @@ export async function pendingMigrations(
   const [table] = await db.$queryRaw<{ exists: boolean }[]>`
     SELECT to_regclass('_prisma_migrations') IS NOT NULL AS "exists"`;
   if (!table?.exists) return local;
-  const applied = await db.$queryRaw<{ migration_name: string }[]>`
-    SELECT migration_name FROM _prisma_migrations
-    WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL`;
-  const done = new Set(applied.map((row) => row.migration_name));
-  return local.filter((name) => !done.has(name));
+  const rows = await db.$queryRaw<
+    { name: string; finished: boolean; rolledBack: boolean }[]
+  >`
+    SELECT migration_name AS "name",
+      finished_at IS NOT NULL AS "finished",
+      rolled_back_at IS NOT NULL AS "rolledBack"
+    FROM _prisma_migrations`;
+  const done = new Set(
+    rows.filter((row) => row.finished && !row.rolledBack).map((row) => row.name)
+  );
+  const halfDone = rows
+    .filter((row) => !row.finished && !row.rolledBack)
+    .map((row) => row.name);
+  return [
+    ...new Set([...local.filter((name) => !done.has(name)), ...halfDone]),
+  ].sort();
 }
 
 /**
  * Brings the database up to date and returns what it applied. The Prisma CLI
- * takes seconds just to start, so it runs only when something is pending; it
- * then also refuses a migration that failed half-way, as it always has.
+ * takes seconds just to start, so it runs only when something is pending.
  */
 export async function migrate(
   db: PrismaClient,

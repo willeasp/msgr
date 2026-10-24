@@ -1,6 +1,7 @@
 import { useQuery } from '@apollo/client/react';
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { sessionOf } from '../../lib/connection';
 import { shouldOffer } from '../../lib/push';
 import { useModals } from '../../sacred/components/page/ModalContext';
 import { ME } from '../data/me';
@@ -27,22 +28,24 @@ import { NotificationsDialog } from './NotificationsDialog';
  * on screen: the live feed, alerts, typing, the notifications offer and the
  * notifications' links. A view under it only draws itself, so it can't stop
  * any of them.
- *
- * Only the server saying nobody is signed in (`me: null`) is signed out. A
- * server that's asleep or out of reach is waited for, and someone already in
- * stays in while it's asked again.
+ * Who that is comes from `sessionOf` (lib/connection.ts).
  */
 export function SignedIn() {
   const { data, previousData, error, refetch } = useQuery(ME);
   const location = useLocation();
-  const answer = data ?? previousData;
+  const session = sessionOf(data ?? previousData, error !== undefined);
 
-  if (answer?.me) return <Live viewer={answer.me} isAdmin={!!answer.admin} />;
-  if (answer) {
-    // Back here after signing in.
-    return <Navigate to="/login" replace state={{ from: location }} />;
+  switch (session.kind) {
+    case 'in':
+      return <Live viewer={session.viewer} isAdmin={session.isAdmin} />;
+    case 'out':
+      // Back here after signing in.
+      return <Navigate to="/login" replace state={{ from: location }} />;
+    case 'waiting':
+      return (
+        <Connecting failed={session.failed} onRetry={() => void refetch()} />
+      );
   }
-  return <Connecting failed={!!error} onRetry={() => void refetch()} />;
 }
 
 function Live({ viewer, isAdmin }: { viewer: Viewer; isAdmin: boolean }) {

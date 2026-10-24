@@ -28,18 +28,43 @@ export function isWorthRetrying(
 /** How long a wait for the server goes unremarked before it's explained. */
 export const QUIET_MS = 1500;
 
-export interface ConnectingNotice {
-  readonly title: string;
-  readonly detail: string;
-  /** Whether asking again is up to the viewer; otherwise it happens by itself. */
-  readonly retry: boolean;
-}
+/** Whether someone is signed in, as far as the app knows yet. */
+export type Session<Viewer> =
+  | { readonly kind: 'in'; readonly viewer: Viewer; readonly isAdmin: boolean }
+  | { readonly kind: 'out' }
+  /** No answer yet; `failed` when the server answered with an error instead. */
+  | { readonly kind: 'waiting'; readonly failed: boolean };
 
 /**
- * What to say while the app waits to learn who's signed in. Nothing at first,
- * since that's usually over in a moment; then why it's taking a while.
+ * Who's signed in, from the server's latest answer to `GetMe`, or the one
+ * before it while it's asked again. Only the server saying nobody is signed in
+ * (`me: null`) is signed out: a server that's asleep, out of reach or failing
+ * is waited for, and someone already in stays in meanwhile.
  */
-export function connectingNotice({
+export function sessionOf<Viewer>(
+  answer:
+    | { readonly me?: Viewer | null; readonly admin?: object | null }
+    | undefined,
+  failed: boolean
+): Session<Viewer> {
+  if (answer?.me) {
+    return { kind: 'in', viewer: answer.me, isAdmin: !!answer.admin };
+  }
+  return answer ? { kind: 'out' } : { kind: 'waiting', failed };
+}
+
+/** Why the app is still waiting to learn who's signed in. */
+export type Wait =
+  /** Only a moment so far, which is usually all it takes: nothing's said. */
+  | 'quiet'
+  /** The device has no network; asked again by itself when it's back. */
+  | 'offline'
+  /** Past a moment (QUIET_MS): the server may be waking. */
+  | 'waking'
+  /** The server answered with an error; asking again is up to the viewer. */
+  | 'failed';
+
+export function waitOf({
   online,
   slow,
   failed,
@@ -50,25 +75,29 @@ export function connectingNotice({
   slow: boolean;
   /** Whether the server answered, but with an error rather than the viewer. */
   failed: boolean;
-}): ConnectingNotice | null {
-  if (failed) {
-    return {
-      title: 'Msgr couldn’t open',
-      detail: 'Something went wrong on its side.',
-      retry: true,
-    };
-  }
-  if (!online) {
-    return {
-      title: 'No connection',
-      detail: 'Msgr will open when you’re back online.',
-      retry: false,
-    };
-  }
-  if (!slow) return null;
-  return {
+}): Wait {
+  if (failed) return 'failed';
+  if (!online) return 'offline';
+  return slow ? 'waking' : 'quiet';
+}
+
+/** What to say about each wait, but the first. */
+export const WAIT_NOTICES: Readonly<
+  Record<
+    Exclude<Wait, 'quiet'>,
+    { readonly title: string; readonly detail: string }
+  >
+> = {
+  offline: {
+    title: 'No connection',
+    detail: 'Msgr will open when you’re back online.',
+  },
+  waking: {
     title: 'Connecting to Msgr…',
     detail: 'If it’s been asleep, this can take up to a minute.',
-    retry: false,
-  };
-}
+  },
+  failed: {
+    title: 'Msgr couldn’t open',
+    detail: 'Something went wrong on its side.',
+  },
+};

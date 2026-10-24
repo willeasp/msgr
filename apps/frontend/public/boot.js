@@ -15,7 +15,19 @@
     'theme-' +
     (dark ? 'dark' : 'light') +
     (theme.tint ? ' tint-' + theme.tint : '');
-  const paper = getComputedStyle(document.body).getPropertyValue('--paper');
+  // As #rrggbb, which every browser's bars take: see paperHex().
+  const pen = document
+    .createElement('canvas')
+    .getContext('2d', { willReadFrequently: true });
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta && paper) meta.setAttribute('content', paper.trim());
+  if (!pen || !meta) return;
+  pen.fillStyle = 'transparent';
+  pen.fillStyle = getComputedStyle(document.body).backgroundColor;
+  pen.fillRect(0, 0, 1, 1);
+  const [r, g, b, alpha] = pen.getImageData(0, 0, 1, 1).data;
+  if (alpha !== 255) return;
+  meta.setAttribute(
+    'content',
+    '#' + [r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('')
+  );
 })();

@@ -1,6 +1,6 @@
 import { ServerError, ServerParseError } from '@apollo/client/errors';
 import { describe, expect, it } from 'vitest';
-import { connectingNotice, isWorthRetrying } from './connection';
+import { isWorthRetrying, sessionOf, waitOf } from './connection';
 
 const response = (status: number) => new Response('', { status });
 const serverError = (status: number) =>
@@ -40,29 +40,61 @@ describe('isWorthRetrying', () => {
   });
 });
 
-describe('connectingNotice', () => {
-  it('says nothing for a moment, then that the server may be waking', () => {
+describe('sessionOf', () => {
+  const ada = { id: 'u1', name: 'Ada' };
+
+  it('is in only when the server names someone, and out only when it says nobody', () => {
+    expect(sessionOf({ me: ada, admin: null }, false)).toEqual({
+      kind: 'in',
+      viewer: ada,
+      isAdmin: false,
+    });
     expect(
-      connectingNotice({ online: true, slow: false, failed: false })
-    ).toBeNull();
-    expect(
-      connectingNotice({ online: true, slow: true, failed: false })
-    ).toEqual({
-      title: 'Connecting to Msgr…',
-      detail: 'If it’s been asleep, this can take up to a minute.',
-      retry: false,
+      sessionOf({ me: ada, admin: { __typename: 'Admin' } }, false)
+    ).toEqual({ kind: 'in', viewer: ada, isAdmin: true });
+    expect(sessionOf({ me: null, admin: null }, false)).toEqual({
+      kind: 'out',
     });
   });
 
-  it('says at once when the device has no network, and waits for it', () => {
-    expect(
-      connectingNotice({ online: false, slow: false, failed: false })
-    ).toMatchObject({ title: 'No connection', retry: false });
+  it('waits for an answer, however long, and never signs anyone out for want of one', () => {
+    expect(sessionOf(undefined, false)).toEqual({
+      kind: 'waiting',
+      failed: false,
+    });
+    expect(sessionOf(undefined, true)).toEqual({
+      kind: 'waiting',
+      failed: true,
+    });
   });
 
-  it('offers to try again when the server answered with an error', () => {
-    expect(
-      connectingNotice({ online: true, slow: false, failed: true })
-    ).toMatchObject({ title: 'Msgr couldn’t open', retry: true });
+  it("keeps someone in while they're asked again, even if that fails", () => {
+    expect(sessionOf({ me: ada, admin: null }, true)).toMatchObject({
+      kind: 'in',
+    });
+  });
+});
+
+describe('waitOf', () => {
+  it('says nothing for a moment, then that the server may be waking', () => {
+    expect(waitOf({ online: true, slow: false, failed: false })).toBe('quiet');
+    expect(waitOf({ online: true, slow: true, failed: false })).toBe('waking');
+  });
+
+  it('says at once when the device has no network, however long it waits', () => {
+    expect(waitOf({ online: false, slow: false, failed: false })).toBe(
+      'offline'
+    );
+    expect(waitOf({ online: false, slow: true, failed: false })).toBe(
+      'offline'
+    );
+  });
+
+  it('says at once when the server answered with an error, online or not', () => {
+    for (const online of [true, false]) {
+      for (const slow of [true, false]) {
+        expect(waitOf({ online, slow, failed: true })).toBe('failed');
+      }
+    }
   });
 });
