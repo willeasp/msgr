@@ -1,4 +1,4 @@
-import type { Repositories } from '../application/ports.js';
+import type { MessageMedia, Repositories } from '../application/ports.js';
 import {
   ChatId,
   isParticipant,
@@ -10,6 +10,7 @@ import {
 } from '../domain/chat.js';
 import type { Invite, InviteCode } from '../domain/invite.js';
 import {
+  mediaPartOf,
   MessageBody,
   MessageId,
   type Message,
@@ -51,7 +52,7 @@ export function createInMemoryRepositories(): {
   };
   const messages: Message[] = [];
   // Each message's picture, movie or sound bytes, kept apart as in Postgres.
-  const media = new Map<MessageId, Uint8Array<ArrayBuffer>>();
+  const media = new Map<MessageId, MessageMedia>();
   // Each reader's marks: how far they had read a chat, and when.
   const marks: { messageId: MessageId; readerId: UserId; at: Date }[] = [];
   const messageById = (id: MessageId) =>
@@ -199,25 +200,29 @@ export function createInMemoryRepositories(): {
       findByIds: async (ids) =>
         messages.filter((message) => ids.includes(message.id)),
 
-      findPages: async (chatIds, { limit, offset, before, after }) =>
+      findPages: async (chatIds, page) =>
         distinct(chatIds).flatMap((chatId) => {
           const history = messages
             .filter((message) => message.chatId === chatId)
             .sort((a, b) => (isBefore(a, b) ? 1 : -1));
-          const cursor = before ?? after;
-          if (cursor === null) {
-            return history.slice(offset, offset + limit).reverse();
+          if (page.kind === 'newest') {
+            return history
+              .slice(page.offset, page.offset + page.limit)
+              .reverse();
           }
-          const at = history.findIndex((message) => message.id === cursor);
+          const at = history.findIndex((message) => message.id === page.cursor);
           if (at === -1) return [];
-          const window = before ? history.slice(at + 1) : history.slice(0, at);
-          return window.slice(0, limit).reverse();
+          const window =
+            page.kind === 'before'
+              ? history.slice(at + 1)
+              : history.slice(0, at);
+          return window.slice(0, page.limit).reverse();
         }),
 
       findMedia: async (ids) =>
         distinct(ids).flatMap((messageId) => {
-          const bytes = media.get(messageId);
-          return bytes ? [{ messageId, bytes }] : [];
+          const kept = media.get(messageId);
+          return kept ? [kept] : [];
         }),
 
       append: async (input) => {
@@ -225,9 +230,12 @@ export function createInMemoryRepositories(): {
         if (!record) throw new Error(`Unknown chat ${input.chatId}`);
         requireUser(input.senderId);
         const message = keep(MessageId(nextId()), input);
+        const part = mediaPartOf(input);
         const bytes =
           input.picture?.deflated ?? input.movie?.coded ?? input.sound?.coded;
-        if (bytes) media.set(message.id, bytes);
+        if (part && bytes) {
+          media.set(message.id, { messageId: message.id, part, bytes });
+        }
         messages.push(message);
         record.activeAt = input.createdAt;
         return message;

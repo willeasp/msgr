@@ -326,6 +326,8 @@ describe('server', () => {
     expect(picture.headers.get('cache-control')).toBe(
       'private, max-age=31536000, immutable'
     );
+    // Kept by the browser for this session alone: whoever signs in next asks again.
+    expect(picture.headers.get('vary')).toMatch(/cookie/i);
     expect(new Uint8Array(await picture.arrayBuffer())).toEqual(
       examplePicture(13, 7).deflated
     );
@@ -338,6 +340,12 @@ describe('server', () => {
       [`/media/${sent.value.id}/movie`, cookie],
       [`/media/${sent.value.id}/anything`, cookie],
       ['/media/missing/picture', cookie],
+      // Each has one address, and an id the database can't hold names nothing.
+      [`/MEDIA/${sent.value.id}/picture`, cookie],
+      [`/media/${sent.value.id}/picture/`, cookie],
+      [`/media/${sent.value.id}`, cookie],
+      ['/media/a%00b/picture', cookie],
+      [`/avatars/${ada.id}%00/v1`, cookie],
     ] as const) {
       const response = await fetchAs(path, as);
       expect(response.status).toBe(404);
@@ -456,6 +464,48 @@ describe("a defect's own words", () => {
       expect(refused.errors[0]?.message).toBe(
         'A query may not read messages inside messages.'
       );
+    } finally {
+      logged.mockRestore();
+      await server.stop();
+    }
+  });
+
+  it('stay on the server when media is asked for, too', async () => {
+    const app = createTestApp();
+    const ada = await app.fixtures.user({ name: 'Ada' });
+    const chat = await app.fixtures.groupChat('Pictures', [ada]);
+    const sent = await app.services().messages.send(ada, {
+      chatId: chat.id,
+      picture: pictureInput(13, 7),
+    });
+    if (!sent.ok) throw new Error('not sent');
+    app.deps.repositories.messages.findMedia = () =>
+      Promise.reject(
+        new Error("Can't reach database server at db.secret:5432")
+      );
+    const logged = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const server = await startServer(app.deps, {
+      port: 0,
+      corsOrigin: APP_ORIGIN,
+      jwtSecret: TEST_JWT_SECRET,
+      sessionTtlSeconds: 60,
+      secureCookies: false,
+      staticDir: null,
+      push: null,
+      admins: [],
+      storageLimit: null,
+    });
+    try {
+      const response = await fetch(
+        server.url.replace(/\/graphql$/, `/media/${sent.value.id}/picture`),
+        { headers: { cookie: `token=${await app.deps.tokens.issue(ada.id)}` } }
+      );
+      expect(response.status).toBe(500);
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      expect(await response.text()).toBe('');
+      expect(String(logged.mock.calls[0]?.[0])).toContain('db.secret');
     } finally {
       logged.mockRestore();
       await server.stop();

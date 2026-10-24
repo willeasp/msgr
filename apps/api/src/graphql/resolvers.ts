@@ -2,7 +2,6 @@ import { toBase64 } from '@msgr/media';
 import { loadExisting } from '../application/loaders.js';
 import { counterpart } from '../domain/chat.js';
 import type { Message } from '../domain/message.js';
-import { Page } from '../domain/page.js';
 import type { ChatAdded } from '../domain/chat.js';
 import type { Typing } from '../domain/typing.js';
 import type { User } from '../domain/user.js';
@@ -14,7 +13,7 @@ import type {
 } from './__generated__/resolvers.js';
 import { requireViewer, startSession } from './context.js';
 import { unwrap } from './errors.js';
-import { mediaBytes, mediaUrl } from './media.js';
+import { mediaBytes, mediaUrl, servedAvatar, servedParts } from './media.js';
 import { DateTime } from './scalars.js';
 
 /*
@@ -179,8 +178,8 @@ export const resolvers: Resolvers = {
       Promise.all(
         chat.participantIds.map((id) => loadExisting(loaders.user, id))
       ),
-    messages: (chat, page, { loaders }) =>
-      loaders.messages(unwrap(Page.parse(page))).load(chat.id),
+    messages: async (chat, page, ctx) =>
+      unwrap(await ctx.services.messages.history(chat, page)),
   },
 
   ChannelListing: {
@@ -192,38 +191,32 @@ export const resolvers: Resolvers = {
   },
 
   User: {
-    avatar: ({ id, avatar }) =>
-      avatar && {
-        width: avatar.width,
-        height: avatar.height,
-        source: { avatarOf: id, avatar },
-      },
+    avatar: servedAvatar,
   },
 
   Picture: {
-    url: ({ source }) => mediaUrl(source, 'picture'),
+    url: ({ source }) => mediaUrl(source),
     bits: async ({ source }, _, { loaders }) =>
       toBase64(await mediaBytes(source, loaders)),
   },
 
   Movie: {
-    url: ({ source }) => mediaUrl(source, 'movie'),
+    url: ({ source }) => mediaUrl(source),
     bits: async ({ source }, _, { loaders }) =>
       toBase64(await mediaBytes(source, loaders)),
   },
 
   Sound: {
-    url: ({ source }) => mediaUrl(source, 'sound'),
+    url: ({ source }) => mediaUrl(source),
     bits: async ({ source }, _, { loaders }) =>
       toBase64(await mediaBytes(source, loaders)),
   },
 
   Message: {
     // Each part's size, and where its bytes are: never the bytes themselves.
-    picture: ({ id, picture }) =>
-      picture && { ...picture, source: { message: id } },
-    movie: ({ id, movie }) => movie && { ...movie, source: { message: id } },
-    sound: ({ id, sound }) => sound && { ...sound, source: { message: id } },
+    picture: (message) => servedParts(message).picture,
+    movie: (message) => servedParts(message).movie,
+    sound: (message) => servedParts(message).sound,
     sender: (message, _, { loaders }) =>
       loadExisting(loaders.user, message.senderId),
     chat: (message, _, { loaders }) =>

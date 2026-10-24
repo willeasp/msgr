@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ChatId, type ChannelName, type Chat, type ChatAdded } from './chat.js';
-import type { Movie } from './movie.js';
-import type { Sound } from './sound.js';
-import type { Picture } from './picture.js';
+import type { MovieSize } from './movie.js';
+import type { SoundLength } from './sound.js';
+import type { PictureSize } from './picture.js';
 import { invalidInput } from './errors.js';
 import { MessageId, type Message, type MessageContent } from './message.js';
 import {
@@ -115,7 +115,7 @@ describe('messageNotification', () => {
   });
 
   it('says a picture was sent, unless it came with text', () => {
-    const picture = {} as Picture;
+    const picture: PictureSize = { width: 8, height: 8 };
     const alone: Message = {
       ...text('x'),
       content: null,
@@ -136,7 +136,7 @@ describe('messageNotification', () => {
   });
 
   it('says a movie was sent, unless it came with text', () => {
-    const movie = {} as Movie;
+    const movie: MovieSize = { width: 8, height: 8, frames: 2 };
     const alone: Message = {
       ...text('x'),
       content: null,
@@ -155,7 +155,7 @@ describe('messageNotification', () => {
   });
 
   it('says a sound was sent, unless it came with text', () => {
-    const sound = {} as Sound;
+    const sound: SoundLength = { frames: 50 };
     const alone: Message = {
       ...text('x'),
       content: null,

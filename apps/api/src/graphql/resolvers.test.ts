@@ -631,6 +631,37 @@ describe('messages', () => {
     expect(earlier.data).toEqual({ chat: { messages: [{ content: 'two' }] } });
   });
 
+  it("answers a chat's page from another chat's message, or from none, as Query.messages does", async () => {
+    const { app, ada, team, direct } = await world();
+    const elsewhere = await app.services().messages.send(ada, {
+      chatId: direct.id,
+      content: 'elsewhere',
+    });
+    if (!elsewhere.ok) throw new Error('not sent');
+    const page = (cursor: string) =>
+      Promise.all([
+        execute(
+          app,
+          'query ($id: ID!, $after: ID) { chat(id: $id) { messages(after: $after) { id } } }',
+          { as: ada, variables: { id: team.id, after: cursor } }
+        ),
+        execute(
+          app,
+          'query ($id: ID!, $after: ID) { messages(chatId: $id, after: $after) { id } }',
+          { as: ada, variables: { id: team.id, after: cursor } }
+        ),
+      ]);
+
+    // Not an empty page, which reads as no news: start again from the newest.
+    for (const result of await page(elsewhere.value.id)) {
+      expect(codeOf(result)).toBe('NOT_FOUND');
+    }
+    for (const result of await page('')) {
+      expect(codeOf(result)).toBe('BAD_USER_INPUT');
+      expect(result.errors?.[0]?.extensions['field']).toBe('after');
+    }
+  });
+
   it('rejects a bad picture, or a message with nothing in it, as bad input', async () => {
     const { app, ada, team } = await world();
 

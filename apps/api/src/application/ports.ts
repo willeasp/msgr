@@ -10,7 +10,12 @@ import type {
 import type { Invite, InviteCode } from '../domain/invite.js';
 import type { LinkPreview } from '../domain/link-preview.js';
 import type { Url } from '../domain/link.js';
-import type { Message, MessageId, NewMessage } from '../domain/message.js';
+import type {
+  MediaPart,
+  Message,
+  MessageId,
+  NewMessage,
+} from '../domain/message.js';
 import type { Page } from '../domain/page.js';
 import type { Notification, PushSubscription } from '../domain/push.js';
 import type { Read } from '../domain/read.js';
@@ -70,6 +75,8 @@ export interface ChatRepository {
 /** The bytes of a kept message's picture, movie or sound. */
 export interface MessageMedia {
   readonly messageId: MessageId;
+  /** Which part of the message the bytes are. */
+  readonly part: MediaPart;
   readonly bytes: Uint8Array<ArrayBuffer>;
 }
 

@@ -93,7 +93,9 @@ export type NewMessage = Omit<Sent, 'id'> & MessageBody;
 export type MediaPart = 'picture' | 'movie' | 'sound';
 
 /** Which part of the message has bytes of its own; null for text alone. */
-export const mediaPartOf = (message: KeptBody): MediaPart | null =>
+export const mediaPartOf = (
+  message: Body<object, object, object>
+): MediaPart | null =>
   message.picture
     ? 'picture'
     : message.movie

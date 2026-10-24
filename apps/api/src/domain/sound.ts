@@ -11,9 +11,13 @@ import type { Brand } from './brand.js';
 import { invalidInput, type InvalidInput } from './errors.js';
 import { err, ok, type Result } from './result.js';
 
-/** What's known of a kept sound without its bytes, which are fetched on their own. */
+/**
+ * What's known of a kept sound without its bytes, which are fetched on their
+ * own: never the bytes too, so a sound can't pass for one.
+ */
 export interface SoundLength {
   readonly frames: number;
+  readonly coded?: never;
 }
 
 /**
@@ -23,7 +27,7 @@ export interface SoundLength {
  * checked against each other once, here.
  */
 export type Sound = Brand<
-  SoundLength & { readonly coded: Uint8Array<ArrayBuffer> },
+  Omit<SoundLength, 'coded'> & { readonly coded: Uint8Array<ArrayBuffer> },
   'Sound'
 >;
 

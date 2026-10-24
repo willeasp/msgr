@@ -55,7 +55,7 @@ export function repositoryContract(
 
   /** The newest `limit` of a history, `offset` back. */
   const newest = (limit: number, offset = 0) =>
-    ({ limit, offset, before: null, after: null } as const);
+    ({ limit, kind: 'newest', offset } as const);
 
   const send = (chat: Chat, sender: User, content: string, createdAt: string) =>
     repositories.messages.append({
@@ -467,6 +467,7 @@ export function repositoryContract(
       ).toEqual([
         {
           messageId: captioned.id,
+          part: 'picture',
           bytes: examplePicture(9, 320, 319).deflated,
         },
       ]);
@@ -510,8 +511,16 @@ export function repositoryContract(
         )
       ).toEqual(
         sortByMessage([
-          { messageId: alone.id, bytes: exampleMovie(320, 180, 48).coded },
-          { messageId: captioned.id, bytes: exampleMovie(9, 320, 1).coded },
+          {
+            messageId: alone.id,
+            part: 'movie',
+            bytes: exampleMovie(320, 180, 48).coded,
+          },
+          {
+            messageId: captioned.id,
+            part: 'movie',
+            bytes: exampleMovie(9, 320, 1).coded,
+          },
         ])
       );
     });
@@ -557,8 +566,12 @@ export function repositoryContract(
         )
       ).toEqual(
         sortByMessage([
-          { messageId: alone.id, bytes: exampleSound(60).coded },
-          { messageId: captioned.id, bytes: exampleSound(0.02, 220).coded },
+          { messageId: alone.id, part: 'sound', bytes: exampleSound(60).coded },
+          {
+            messageId: captioned.id,
+            part: 'sound',
+            bytes: exampleSound(0.02, 220).coded,
+          },
         ])
       );
     });
@@ -654,17 +667,14 @@ export function repositoryContract(
         Message,
         Message
       ];
-      const page = (cursor: { before: MessageId } | { after: MessageId }) =>
-        repositories.messages.findPages([chat.id], {
-          ...newest(2),
-          ...cursor,
-        });
+      const page = (kind: 'before' | 'after', cursor: MessageId) =>
+        repositories.messages.findPages([chat.id], { limit: 2, kind, cursor });
 
-      expect(await page({ before: fourth.id })).toEqual(sent.slice(1, 3));
-      expect(await page({ before: first.id })).toEqual([]);
+      expect(await page('before', fourth.id)).toEqual(sent.slice(1, 3));
+      expect(await page('before', first.id)).toEqual([]);
       // Forward, the newest two after it: a gap means start again.
-      expect(await page({ after: third.id })).toEqual(sent.slice(4, 6));
-      expect(await page({ after: sixth.id })).toEqual([]);
+      expect(await page('after', third.id)).toEqual(sent.slice(4, 6));
+      expect(await page('after', sixth.id)).toEqual([]);
     });
 
     it("finds nothing from a cursor that isn't one of the chat's messages", async () => {
@@ -682,11 +692,12 @@ export function repositoryContract(
       await send(ours, ada, 'late', '2030-01-01T00:02:00Z');
 
       for (const cursor of [elsewhere.id, MessageId('missing')]) {
-        for (const side of ['before', 'after'] as const) {
+        for (const kind of ['before', 'after'] as const) {
           expect(
             await repositories.messages.findPages([ours.id], {
-              ...newest(5),
-              [side]: cursor,
+              limit: 5,
+              kind,
+              cursor,
             })
           ).toEqual([]);
         }
