@@ -60,8 +60,9 @@ test('messages sent while the socket was frozen show once the page does, in the 
   await page.getByRole('button', { name: 'Join' }).click();
   const chat = chatWindow(page, 'Frank Moss');
   await expect(chat.getByRole('textbox', { name: 'Message' })).toBeVisible();
-  // To the chat list and back, so it's kept, as it would be by now.
-  await chat.getByRole('button', { name: 'Close Frank Moss' }).click();
+  // To the chat list and back (a phone's close box is Back, ADR 0013), so
+  // it's kept, as it would be by now.
+  await chat.getByRole('button', { name: 'Back' }).click();
   await chatsWindow(page).getByText('Frank Moss', { exact: true }).click();
   await expect(chat.getByRole('textbox', { name: 'Message' })).toBeVisible();
 
@@ -87,7 +88,7 @@ test('messages sent while the socket was frozen show once the page does, in the 
   expect(sockets.length).toBeGreaterThan(1);
 
   // And the chat list, which wasn't on screen to hear it, says so too.
-  await chat.getByRole('button', { name: 'Close Frank Moss' }).click();
+  await chat.getByRole('button', { name: 'Back' }).click();
   await expect(
     chatsWindow(page).getByText('Sent while you took a photo')
   ).toBeVisible();
