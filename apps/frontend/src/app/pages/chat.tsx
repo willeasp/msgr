@@ -6,14 +6,16 @@ import SidebarLayout from '../../sacred/components/SidebarLayout';
 import { useModals } from '../../sacred/components/page/ModalContext';
 import { AppNavigation } from '../components/AppNavigation';
 import { ChatSidebar } from '../components/chat/ChatSidebar';
-import { AddPeopleDialog } from '../components/chat/AddPeopleDialog';
+import {
+  AddPeopleDialog,
+  GetInfoDialog,
+  InviteDialog,
+  JoinChannelDialog,
+  NewChatModal,
+} from '../components/dialogs';
 import { ChatWindow } from '../components/chat/ChatWindow';
 import { GET_CHAT_DATA, GET_CHATS } from '../data/chats';
-import { InviteDialog } from '../components/InviteDialog';
-import { JoinChannelDialog } from '../components/chat/JoinChannelDialog';
 import { EmptyChatState } from '../components/chat/EmptyChatState';
-import { GetInfoDialog } from '../components/chat/GetInfoDialog';
-import { NewChatModal } from '../components/chat/NewChatModal';
 import { useMediaQuery } from '../hooks/use-media-query';
 import { useSignedIn } from '../hooks/use-signed-in';
 import styles from './chat.module.css';

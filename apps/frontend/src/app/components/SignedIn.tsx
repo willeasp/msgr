@@ -20,8 +20,11 @@ import { SignedInContext, type Viewer } from '../hooks/use-signed-in';
 import { useTypists } from '../hooks/use-typing';
 import { useWatching } from '../hooks/use-watching';
 import { Connecting } from './Connecting';
-import { NotificationsBlockedDialog } from './NotificationsBlockedDialog';
-import { NotificationsDialog } from './NotificationsDialog';
+import {
+  NotificationsBlockedDialog,
+  NotificationsDialog,
+  prefetchDialogs,
+} from './dialogs';
 
 /**
  * The layout of every signed-in route: it sends anyone signed out to /login,
@@ -56,6 +59,13 @@ function Live({ viewer, isAdmin }: { viewer: Viewer; isAdmin: boolean }) {
   useWatching(chatOnScreen ?? undefined);
   useOpenChatFromNotifications();
   useMediaRetry();
+  // The dialogs, while nothing else is going on: they're first opened from here.
+  useEffect(() => {
+    const idle = window.requestIdleCallback ?? ((then) => setTimeout(then, 1));
+    const cancel = window.cancelIdleCallback ?? clearTimeout;
+    const id = idle(prefetchDialogs);
+    return () => cancel(id);
+  }, []);
   const install = useInstallPrompt();
   const notifications = useNotifications();
 

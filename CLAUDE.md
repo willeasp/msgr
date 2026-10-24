@@ -15,6 +15,8 @@ npm run db:migrate          # after any change to apps/api/prisma/schema.prisma
 npm run invite              # print a single-use sign-up link (the first account starts here)
 npm run e2e                 # build, then Playwright against the production build (needs the test Postgres below)
 npm run screenshots         # the same, remaking the README's pictures in docs/screenshots
+npm run measure             # the same, printing what using a chat costs: renders, main-thread time, layouts, memory
+node apps/frontend/scripts/bundle.mjs   # after a build: what a first visit downloads (`--check` holds it to its budget, as CI does)
 npx nx test @msgr/api -- src/domain   # one folder / file
 ```
 
@@ -133,7 +135,7 @@ A folder of one kind of thing is fine; a folder named for a topic (`auth/`, `uti
 - **Get Info and reads.** A click or tap on a message opens `GetInfoDialog` (not on a link, nor after dragging over its words); the bubble inverts while it's pressed, by `[data-pressable]` in `skin.css`. A chat open on a visible page is read up to its newest message (`useReading`, the same visibility rule as `useWatching`). Get Info polls while it's open; reads aren't live.
 - **Notifications come by Web Push**, open or not ([ADR 0006](docs/adr/0006-web-push-for-notifications.md)). `useNotifications` turns them on and off, and re-registers the browser for whoever is signed in on every visit. `useWatching` tells the server which chat is on screen, so that chat doesn't notify. The page never shows a notification itself.
 - **Session changes** (sign in, sign up, log out) go through `useSessionChange`, which clears Apollo's cache before navigating. Everything cached, down to `me: null`, belongs to the previous viewer; without the reset, signing in after being redirected to `/login` bounces straight back there.
-- **Dialogs** go through Sacred's modal stack: `useModals().open(Component, props)`.
+- **Dialogs** go through Sacred's modal stack: `useModals().open(Component, props)`, with the component from `app/components/dialogs.tsx`, which loads each the first time it opens (and every one once the signed-in page is idle). Pages other than the desktop are lazy routes (`app.tsx`). A dialog or page imported directly lands in the first load, which CI holds to its budget (`scripts/bundle.mjs`). `useModalStack` is for what shows the stack; `useModals`' actions never change.
 - **Logic out of components.** Anything decidable without the DOM goes in `lib/*.ts` with a test (`shouldAlert`, `parseCommand`, `withReceivedMessage`, `identicon`); components wire it up.
 - **Styling.** CSS Modules plus the skin's tokens: `--ink`, `--paper`, `--line` (one text line), `--dither`, `--font-family-chrome` (Chicago, for the system's words), `--font-family-mono` (Departure Mono, for people's). Inversion is the only highlight. Vendored Sacred components are restyled only from `skin.css`, by their stable `srcl-<Component>__<class>` names.
 

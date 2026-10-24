@@ -117,3 +117,13 @@ test('a server that answers with an error can be left for the login page', async
   await signIn(page, 'erin@example.com');
   await expect(chatsWindow(page)).toBeVisible();
 });
+
+test('a dialog opens with no network, though it loads only when needed', async ({
+  page,
+}) => {
+  await signedInWithShell(page);
+  await page.context().setOffline(true);
+
+  await chooseMenu(page, 'File', 'Profile…');
+  await expect(page.getByRole('dialog', { name: 'Profile' })).toBeVisible();
+});

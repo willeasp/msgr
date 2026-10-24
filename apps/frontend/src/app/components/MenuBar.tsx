@@ -4,7 +4,7 @@ import Navigation from '../../sacred/components/Navigation';
 import RowSpaceBetween from '../../sacred/components/RowSpaceBetween';
 import { useModals } from '../../sacred/components/page/ModalContext';
 import { useClock } from '../hooks/use-clock';
-import { AboutDialog } from './AboutDialog';
+import { AboutDialog } from './dialogs';
 import { MARK } from './icons';
 import { PixelIcon } from './PixelIcon';
 import styles from './MenuBar.module.css';

@@ -53,12 +53,24 @@ const config = {
     /*
      * JSX with Fast Refresh in development, and the React Compiler, which
      * memoizes components and hooks so a change re-renders only what reads
-     * it. Vendored Sacred keeps upstream's code as it is.
+     * it; vendored Sacred keeps upstream's code as it is. Before it, each
+     * gql() becomes an import of its own document, so operations load with
+     * the screens that use them rather than in a map of them all.
      */
-    import('@vitejs/plugin-react').then(({ default: react }) =>
+    Promise.all([
+      import('@vitejs/plugin-react'),
+      import('@graphql-codegen/client-preset'),
+    ]).then(([{ default: react }, { babelOptimizerPlugin }]) =>
       react({
         babel: {
           plugins: [
+            [
+              babelOptimizerPlugin,
+              {
+                artifactDirectory: `${__dirname}/src/lib/__generated__`,
+                gqlTagName: 'gql',
+              },
+            ],
             [
               'babel-plugin-react-compiler',
               { sources: (file: string) => !file.includes('/src/sacred/') },

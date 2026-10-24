@@ -15,7 +15,7 @@ import {
 import { Timeline } from './Timeline';
 import styles from './TrimDialog.module.css';
 
-interface TrimDialogProps {
+export interface TrimDialogProps {
   /** The window's: "Movie for Ada". */
   title: string;
   /** A video picked, pasted or dropped; streamed, never read whole. */

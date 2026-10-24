@@ -20,7 +20,7 @@ import { readSound } from '../../browser/sound-file';
 import { Timeline } from './Timeline';
 import styles from './SoundDialog.module.css';
 
-interface SoundDialogProps {
+export interface SoundDialogProps {
   /** The window's: "Sound for Ada". */
   title: string;
   /** A file picked, pasted or dropped; without one, record or choose one. */

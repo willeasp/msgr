@@ -4,11 +4,13 @@ import { useHotkeys } from '../../sacred/modules/hotkeys';
 import { useLogOut } from '../hooks/use-session-change';
 import { useRestartToUpdate } from '../hooks/use-service-worker';
 import { useSignedIn } from '../hooks/use-signed-in';
-import { JoinChannelDialog } from './chat/JoinChannelDialog';
-import { NewChatModal } from './chat/NewChatModal';
-import { InviteDialog } from './InviteDialog';
+import {
+  InviteDialog,
+  JoinChannelDialog,
+  NewChatModal,
+  ProfileDialog,
+} from './dialogs';
 import { Menu, MenuBar } from './MenuBar';
-import { ProfileDialog } from './ProfileDialog';
 import { ThemeMenu } from './ThemeMenu';
 import { PixelText } from './PixelText';
 

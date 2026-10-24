@@ -16,7 +16,7 @@ import { pictures } from '../data/media';
 import { ME } from '../data/me';
 import { useInks } from '../hooks/use-inks';
 import { usePicture } from '../hooks/use-picture';
-import { PaintDialog } from './chat/PaintDialog';
+import { PaintDialog } from './dialogs';
 import { firstPicture } from '../../lib/files';
 import { pictureFromFile } from '../browser/picture-file';
 import { DialogButtons, MacDialog } from './MacDialog';
