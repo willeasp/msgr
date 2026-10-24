@@ -1,5 +1,6 @@
 import * as React from 'react';
 import * as Utilities from '../common/utilities';
+import { following, useFollowSelection, type Selection } from '../common/selection';
 
 import styles from './Input.module.css';
 
@@ -9,18 +10,12 @@ type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   isBlink?: boolean;
 };
 
-// Where the browser's selection was, in which text: see TextArea. Some
-// inputs (email) have none to read; their caret is drawn at the end.
-interface Selection {
-  start: number;
-  end: number;
-  text: string;
-}
-
 function Input({ caretChars, isBlink = true, label, placeholder, onChange, type, id, defaultValue, ...rest }: InputProps) {
   const generatedId = React.useId();
   const inputId = id || generatedId;
 
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
+  const displayedRef = React.useRef<HTMLDivElement | null>(null);
   const [typed, setTyped] = React.useState<string>(defaultValue?.toString() || '');
   const [isFocused, setIsFocused] = React.useState<boolean>(false);
   const [selection, setSelection] = React.useState<Selection>({ start: typed.length, end: typed.length, text: typed });
@@ -28,17 +23,16 @@ function Input({ caretChars, isBlink = true, label, placeholder, onChange, type,
   const lastFocusDirectionRef = React.useRef<'up' | 'down' | null>(null);
 
   const text = rest.value !== undefined ? rest.value.toString() : typed;
-  const at = selection.text === text ? selection : { start: text.length, end: text.length };
+  // A text someone else set has its caret at the end; so does one whose
+  // input has no selection to read (email, which msgr doesn't use for that).
+  const at = selection.text === text ? selection : { start: text.length, end: text.length, text };
+  if (at !== selection) setSelection(at);
 
-  const follow = (inputEl: HTMLInputElement) => {
-    const start = inputEl.selectionStart ?? inputEl.value.length;
-    const next = { start, end: inputEl.selectionEnd ?? start, text: inputEl.value };
-    setSelection((now) => (now.start === next.start && now.end === next.end && now.text === next.text ? now : next));
-  };
+  useFollowSelection(inputRef, setSelection);
 
   const onHandleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTyped(e.target.value);
-    follow(e.target);
+    setSelection(following(e.target));
     if (onChange) {
       onChange(e);
     }
@@ -52,7 +46,7 @@ function Input({ caretChars, isBlink = true, label, placeholder, onChange, type,
       const caret = lastFocusDirectionRef.current === 'down' ? inputEl.value.length : 0;
       inputEl.setSelectionRange(caret, caret);
     }
-    follow(inputEl);
+    setSelection(following(inputEl));
   };
 
   const onHandleBlur = () => {
@@ -73,17 +67,17 @@ function Input({ caretChars, isBlink = true, label, placeholder, onChange, type,
     }
   };
 
+  // A text longer than the field scrolls the input; the copy scrolls with it.
+  const onHandleScroll = (e: React.UIEvent<HTMLInputElement>) => {
+    if (displayedRef.current) displayedRef.current.scrollLeft = e.currentTarget.scrollLeft;
+  };
+
   const isPlaceholderVisible = !text && placeholder;
-  // A selection shows as the browser's own, inverted by the skin; the
-  // insertion point is drawn only when nothing is selected.
-  const isCollapsed = at.start === at.end;
   const containerClasses = Utilities.classNames(styles.root, isFocused && styles.focused);
 
   const maskText = (t: string) => (type === 'password' ? '•'.repeat(t.length) : t);
 
-  const beforeCaretText = isPlaceholderVisible ? placeholder ?? '' : maskText(isCollapsed ? text.substring(0, at.start) : text);
-  const afterCaretText = isPlaceholderVisible || !isCollapsed ? '' : maskText(text.substring(at.start));
-
+  // Every glyph shows from the copy, as in TextArea.
   return (
     <div className={containerClasses}>
       {label && (
@@ -92,12 +86,22 @@ function Input({ caretChars, isBlink = true, label, placeholder, onChange, type,
         </label>
       )}
       <div className={styles.inputContainer}>
-        <div className={Utilities.classNames(styles.displayed, isPlaceholderVisible && styles.placeholder)}>
-          {beforeCaretText}
-          {!isPlaceholderVisible && isCollapsed && <span className={Utilities.classNames(styles.block, isBlink && styles.blink)}>{caretChars || ''}</span>}
-          {afterCaretText}
+        <div ref={displayedRef} className={Utilities.classNames(styles.displayed, isPlaceholderVisible && styles.placeholder)}>
+          {isPlaceholderVisible ? (
+            placeholder
+          ) : (
+            <>
+              {maskText(text.substring(0, at.start))}
+              {at.start === at.end ? (
+                <span className={Utilities.classNames(styles.block, isBlink && styles.blink)}>{caretChars || ''}</span>
+              ) : (
+                <span className={styles.selection}>{maskText(text.substring(at.start, at.end))}</span>
+              )}
+              {maskText(text.substring(at.end))}
+            </>
+          )}
         </div>
-        <input id={inputId} className={styles.hidden} value={text} aria-placeholder={placeholder} type={type} onFocus={onHandleFocus} onBlur={onHandleBlur} onChange={onHandleChange} onSelect={(e) => follow(e.currentTarget)} onKeyDown={onHandleKeyDown} {...rest} />
+        <input id={inputId} ref={inputRef} className={styles.hidden} value={text} aria-placeholder={placeholder} type={type} onFocus={onHandleFocus} onBlur={onHandleBlur} onChange={onHandleChange} onSelect={(e) => setSelection(following(e.currentTarget))} onScroll={onHandleScroll} onKeyDown={onHandleKeyDown} {...rest} />
       </div>
     </div>
   );

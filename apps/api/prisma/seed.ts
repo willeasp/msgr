@@ -14,6 +14,9 @@ const people = {
   // In no chat. The e2e's admin (ADMIN_EMAILS), so the admin page's specs
   // have logins to spare under the throttle.
   erin: { email: 'erin@example.com', name: 'Erin Ellis' },
+  // In no chat either: the e2e's every other account is at the throttle's
+  // ten logins a run, so a spec that needs someone of its own signs in here.
+  frank: { email: 'frank@example.com', name: 'Frank Moss' },
 };
 type Person = keyof typeof people;
 

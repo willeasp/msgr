@@ -40,3 +40,19 @@ export async function anotherPerson(browser: Browser): Promise<Page> {
   const context = await browser.newContext();
   return context.newPage();
 }
+
+/** Joins the channel `name`, starting it if need be, as whoever `page` is: its chat's id. */
+export async function joinChannel(page: Page, name: string): Promise<string> {
+  const response = await page.request.post('/graphql', {
+    data: {
+      query: 'mutation ($name: String!) { joinChannel(name: $name) { id } }',
+      variables: { name },
+    },
+  });
+  const body = (await response.json()) as {
+    data?: { joinChannel: { id: string } };
+    errors?: unknown[];
+  };
+  if (!body.data) throw new Error(JSON.stringify(body.errors ?? body));
+  return body.data.joinChannel.id;
+}

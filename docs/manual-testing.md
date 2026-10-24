@@ -104,7 +104,9 @@ keyboard, notifications, layout) is checked here.
       field, so check it edits like any other. Put the cursor mid-text and type
       a few letters; they stay where you typed. Select a word (double-click, or
       long press on a phone, dragging the handles) and type over it; the
-      selection shows inverted, with no block cursor. Select all and delete.
+      selection shows inverted, with no block cursor. Select all and delete,
+      by keys and by the browser's Edit menu. With Windows High Contrast (or
+      Chrome's forced colours emulation), the text shows once, not twice.
       On a phone, dictate a sentence and take an autocorrect suggestion; the
       drawn text follows. The same goes for the login form's fields.
 - [ ] **Live:** Alice's message appears instantly in Test User's chat, which

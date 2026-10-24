@@ -2,21 +2,31 @@ import styles from './TextArea.module.css';
 
 import * as React from 'react';
 import * as Utilities from '../common/utilities';
+import { following, useFollowSelection, type Selection } from '../common/selection';
 
 type TextAreaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
   isBlink?: boolean;
 };
 
-// Where the browser's selection was, in which text. The browser owns the
-// caret: the drawn copy only follows it, and a text someone else set (a
-// parent's value) has its caret at the end, where the browser puts it.
-interface Selection {
-  start: number;
-  end: number;
-  text: string;
-}
+// The block is held to the characters either side, in a span that doesn't
+// wrap, so the copy never breaks a line at the caret where the field's text
+// doesn't. Not to a space or a dash, which the field may break after: held,
+// one would join the words around it into one too long for a line, which
+// then breaks anywhere. So the copy can be taller than the field's text,
+// never shorter.
+const graphemes = typeof Intl.Segmenter === 'function' ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
+const segments = (text: string) => (graphemes ? Array.from(graphemes.segment(text), ({ segment }) => segment) : Array.from(text));
+const breaksBeside = /[\s\-\u00AD\u2010-\u2014]/;
+// A whole character (an emoji and its joiners, a letter and its accents),
+// or none, never part of one.
+const held = (character: string | undefined) => (character && !breaksBeside.test(character) ? character : '');
+const lastOf = (text: string) => held(segments(text.slice(-32)).at(-1));
+const firstOf = (text: string) => held(segments(text.slice(0, 32))[0]);
+// Gives a last empty line (after a newline) the height the field gives it.
+const LAST_LINE = '\u200B';
 
 function TextArea({ isBlink, placeholder, onChange, defaultValue, ...rest }: TextAreaProps) {
+  const fieldRef = React.useRef<HTMLTextAreaElement | null>(null);
   const measurementRef = React.useRef<HTMLDivElement | null>(null);
 
   const [typed, setTyped] = React.useState<string>(defaultValue?.toString() || '');
@@ -24,16 +34,16 @@ function TextArea({ isBlink, placeholder, onChange, defaultValue, ...rest }: Tex
   const [selection, setSelection] = React.useState<Selection>({ start: 0, end: 0, text: typed });
 
   const text = rest.value !== undefined ? rest.value.toString() : typed;
-  const at = selection.text === text ? selection : { start: text.length, end: text.length };
+  // A text someone else set (a parent's value) has its caret at the end,
+  // where the browser puts it.
+  const at = selection.text === text ? selection : { start: text.length, end: text.length, text };
+  if (at !== selection) setSelection(at);
 
-  const follow = (textarea: HTMLTextAreaElement) => {
-    const next = { start: textarea.selectionStart, end: textarea.selectionEnd, text: textarea.value };
-    setSelection((now) => (now.start === next.start && now.end === next.end && now.text === next.text ? now : next));
-  };
+  useFollowSelection(fieldRef, setSelection);
 
   const onHandleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setTyped(e.target.value);
-    follow(e.target);
+    setSelection(following(e.target));
     if (onChange) {
       onChange(e);
     }
@@ -41,7 +51,7 @@ function TextArea({ isBlink, placeholder, onChange, defaultValue, ...rest }: Tex
 
   const onHandleFocus = (e: React.FocusEvent<HTMLTextAreaElement>) => {
     setIsFocused(true);
-    follow(e.currentTarget);
+    setSelection(following(e.currentTarget));
   };
 
   const onHandleBlur = () => {
@@ -56,7 +66,7 @@ function TextArea({ isBlink, placeholder, onChange, defaultValue, ...rest }: Tex
     const lineHeightStr = window.getComputedStyle(measurementEl).lineHeight;
     const lineHeight = lineHeightStr.endsWith('px') ? parseFloat(lineHeightStr) : 20;
     const countLines = (content: string) => {
-      measurementEl.textContent = content || ' ';
+      measurementEl.textContent = content + LAST_LINE;
       return Math.round(measurementEl.offsetHeight / lineHeight);
     };
     const total = countLines(text || placeholder || '');
@@ -75,26 +85,48 @@ function TextArea({ isBlink, placeholder, onChange, defaultValue, ...rest }: Tex
   };
 
   const isPlaceholderVisible = !text && placeholder;
-  // A selection shows as the browser's own, inverted by the skin; the
-  // insertion point is drawn only when nothing is selected.
-  const isCollapsed = at.start === at.end;
+  const before = text.substring(0, at.start);
+  const after = text.substring(at.end);
+  const left = lastOf(before);
+  const right = firstOf(after);
 
   const containerClasses = Utilities.classNames(styles.root, isFocused && styles.focused);
 
-  // The textarea lies over this copy and takes its height, so the copy must
-  // be at least as tall as the textarea's text: an empty last line included.
+  // The textarea lies over this copy and takes its height. Every glyph shows
+  // from the copy: the field's own text and selection are transparent, and
+  // the copy draws the selection, inverted, or the block where nothing is.
   return (
     <div className={containerClasses}>
       <div className={Utilities.classNames(styles.displayed, isPlaceholderVisible && styles.placeholder)}>
-        {isPlaceholderVisible ? placeholder : isCollapsed ? text.substring(0, at.start) : text}
-        {!isPlaceholderVisible && isCollapsed && <span className={Utilities.classNames(styles.block, isBlink && styles.blink)}></span>}
-        {!isPlaceholderVisible && isCollapsed && text.substring(at.start)}
-        {text.endsWith('\n') && '​'}
+        {isPlaceholderVisible ? (
+          placeholder
+        ) : (
+          <>
+            {at.start === at.end ? (
+              <>
+                {before.slice(0, before.length - left.length)}
+                <span className={styles.caret}>
+                  {left}
+                  <span className={Utilities.classNames(styles.block, isBlink && styles.blink)}></span>
+                  {right}
+                </span>
+                {after.slice(right.length)}
+              </>
+            ) : (
+              <>
+                {before}
+                <span className={styles.selection}>{text.substring(at.start, at.end)}</span>
+                {after}
+              </>
+            )}
+            {text.endsWith('\n') && LAST_LINE}
+          </>
+        )}
       </div>
 
       <div ref={measurementRef} className={styles.hidden}></div>
 
-      <textarea className={styles.hiddenElement} value={text} aria-placeholder={placeholder} onFocus={onHandleFocus} onBlur={onHandleBlur} onKeyDown={onHandleKeyDown} onChange={onHandleChange} onSelect={(e) => follow(e.currentTarget)} {...rest} />
+      <textarea className={styles.hiddenElement} ref={fieldRef} value={text} aria-placeholder={placeholder} onFocus={onHandleFocus} onBlur={onHandleBlur} onKeyDown={onHandleKeyDown} onChange={onHandleChange} onSelect={(e) => setSelection(following(e.currentTarget))} {...rest} />
     </div>
   );
 }

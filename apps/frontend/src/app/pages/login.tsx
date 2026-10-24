@@ -74,7 +74,13 @@ const LoginPage: React.FC = () => {
             )}
             <Input
               label="Email"
-              type="email"
+              // Text, not email, whose caret Sacred's Input can't read;
+              // the keyboard, the autofill and the server still know it.
+              type="text"
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               name="email"
               autoComplete="email"
               autoFocus

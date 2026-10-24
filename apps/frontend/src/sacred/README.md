@@ -23,16 +23,23 @@ Kept small so upstream diffs stay readable:
 - `DropdownMenuTrigger` returns focus to its trigger only if nothing else took
   it, so a menu item that opens a dialog leaves the dialog's field focused.
 - `TextArea` and `Input` draw a copy of the text, with a block for the
-  insertion point, over a transparent real field. Upstream's copies set the
-  field's caret from effects, which jumped it to the end when typing in the
-  middle and collapsed every selection in a `TextArea`, and measured layout on
-  every key. Here the browser owns the caret and the selection, and the copy
-  only follows them: a selection is left whole, drawn by the skin's
-  `::selection`, with no block over it. Nothing reads layout while typing:
+  insertion point, over a transparent real field. Upstream's set the field's
+  caret (`TextArea` from effects, `Input` on focus), which jumped it to the
+  end when typing in the middle and collapsed every selection in a
+  `TextArea`, followed the caret only on keys and clicks, and measured layout
+  on every key. Here the browser owns the caret and the selection, and the
+  copy follows every `selectionchange` (`common/selection.ts`), however made:
+  a menu's Select All, a phone's handles, an input method. The copy draws
+  every glyph, the selection inverted with no block over it; the field's own
+  `::selection` is transparent (`skin.css`, which also keeps the field's text
+  transparent in forced colours). Nothing reads layout while typing:
   `TextArea` counts lines only when ArrowUp or ArrowDown asks, and its field
-  takes the copy's height from CSS (the copy keeps an empty last line for
-  it). `TextArea`'s `autoPlay` is gone. `components/fields.test.ts` holds
-  them to it.
+  takes the copy's height from CSS. So that the copy is never shorter than the
+  field's text, it keeps an empty last line, and the block is held in a span
+  that doesn't wrap to the characters either side, except a space or a dash
+  the field may break after. `Input`'s copy scrolls with its field.
+  `TextArea`'s `autoPlay` is gone. `components/fields.test.ts` and
+  `apps/e2e/tests/fields.spec.ts` hold them to it.
 - `page/ModalContext.tsx` keeps the actions (`useModals`) and the stack
   (`useModalStack`) in contexts of their own, the actions made once, so
   opening a dialog re-renders only what shows the stack.
@@ -70,6 +77,9 @@ name real classes.
   parentheses (see `identicon` in `src/lib/pixels.ts`).
 - `TextArea` grows with its text by CSS: its `<textarea>` lies over the drawn
   copy and takes the copy's height, so `rows` changes nothing.
+- `Input` draws its insertion point where the field's selection says, which
+  an `email` input doesn't: use `type="text"` with `inputMode="email"`, as
+  the login and sign-up pages do, or its block stays at the end.
 - A handler you pass (`onKeyDown`, `onSelect`, `onFocus`…) replaces the field's
   own, which `...rest` overrides: `MessageInput`'s `onKeyDown` takes the place
   of `TextArea`'s ArrowUp and ArrowDown.

@@ -45,6 +45,15 @@
   animation: blink 1s step-start 0s infinite;
 }
 
+.caret {
+  white-space: pre;
+}
+
+.selection {
+  background: var(--theme-text);
+  color: var(--theme-background);
+}
+
 .block {
   display: inline-block;
   min-width: 1ch;

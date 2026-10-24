@@ -317,8 +317,8 @@ a:focus {
   }
 }
 
-/* TextArea measures lines in an invisible copy; pin it to the top so it never
-   makes a scrolling field taller than the text. */
+/* TextArea measures lines in an invisible box when an arrow key asks; pin it
+   to the top so it never makes a scrolling field taller than the text. */
 :root .srcl-TextArea__hidden {
   top: 0;
   left: 0;
@@ -330,6 +330,27 @@ a:focus {
 :root .srcl-TextArea__focused .srcl-TextArea__block {
   background: var(--ink);
   color: var(--paper);
+}
+
+/* The drawn copy shows every glyph (sacred/README.md): the real field's own
+   selection is transparent, and the copy inverts what's selected. */
+:root .srcl-Input__hidden::selection,
+:root .srcl-TextArea__hiddenElement::selection {
+  background: transparent;
+  color: transparent;
+}
+
+:root .srcl-Input__selection,
+:root .srcl-TextArea__selection {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* Like a Mac, only the field you're typing in shows its selection. */
+:root .srcl-Input__root:not(.srcl-Input__focused) .srcl-Input__selection,
+:root .srcl-TextArea__root:not(.srcl-TextArea__focused) .srcl-TextArea__selection {
+  background: transparent;
+  color: inherit;
 }
 
 /* Like a Mac, only the field you're typing in shows the insertion point. */
@@ -370,6 +391,27 @@ a:focus {
   :root .srcl-Input__placeholder::before,
   :root .srcl-TextArea__placeholder::before {
     animation: none;
+  }
+}
+
+/* Forced colours (Windows High Contrast) would draw the real field's text
+   over the copy: keep it transparent, and draw the insertion point and the
+   selection in the system's colours. */
+@media (forced-colors: active) {
+  :root .srcl-Input__hidden,
+  :root .srcl-TextArea__hiddenElement {
+    forced-color-adjust: none;
+  }
+
+  :root .srcl-Input__block,
+  :root .srcl-TextArea__block,
+  :root .srcl-Input__selection,
+  :root .srcl-TextArea__selection,
+  :root .srcl-Input__focused .srcl-Input__placeholder::before,
+  :root .srcl-TextArea__focused .srcl-TextArea__placeholder::before {
+    forced-color-adjust: none;
+    background: CanvasText;
+    color: Canvas;
   }
 }
 
