@@ -138,6 +138,17 @@ test('what using a chat costs', async ({ page, browser }) => {
   const cost = await metrics(page);
   const chat = chatWindow(page, CHAT);
 
+  // Opening the app again, from the shell on the device, to the desktop.
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+  const started = Date.now();
+  results['reload'] = {
+    ...(await cost.during(async () => {
+      await page.reload();
+      await expect(chatsWindow(page).getByText(CHAT)).toBeVisible();
+    })),
+    wallMs: Date.now() - started,
+  };
+
   // Opening the chat: its history, its movies starting to loop.
   results['openChat'] = await cost.during(async () => {
     await chatsWindow(page).getByText(CHAT, { exact: true }).click();
