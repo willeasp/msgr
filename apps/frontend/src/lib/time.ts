@@ -39,7 +39,8 @@ export function formatDay(
   const day = (when: Date) =>
     new Date(when.getFullYear(), when.getMonth(), when.getDate()).getTime();
   const daysAgo = Math.round((day(now) - day(d)) / 86400000);
-  if (daysAgo === 0) return 'Today';
+  // Ahead of `now` too: the server's clock ahead of the device's.
+  if (daysAgo <= 0) return 'Today';
   if (daysAgo === 1) return 'Yesterday';
   const sameYear = d.getFullYear() === now.getFullYear();
   return d.toLocaleDateString(locale, {

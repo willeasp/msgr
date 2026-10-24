@@ -2,7 +2,7 @@ import { ApolloClient, ApolloLink, HttpLink } from '@apollo/client';
 import { RetryLink } from '@apollo/client/link/retry';
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { createClient } from 'graphql-ws';
-import { createCache } from '../../lib/cache';
+import { createCache, mayHaveMissed } from '../../lib/cache';
 import {
   AWAY_MS,
   isWorthRetrying,
@@ -100,8 +100,11 @@ export function createApolloClient(): ApolloClient {
 
   // Events may have been missed: ask again for what's on screen, and for the
   // chat list even when it isn't (a phone showing a chat), since it's read
-  // from the cache when it comes back. Media that failed meanwhile too.
+  // from the cache when it comes back. Media that failed meanwhile too. Each
+  // history held is whole only up to now, until its next newest page joins
+  // it: what arrives before that may follow a gap.
   function catchUp() {
+    mayHaveMissed(client.cache);
     const active = [...client.getObservableQueries('active')];
     void client.refetchQueries({ include: 'active' });
     // By name: what Apollo watches is its own copy of the document.

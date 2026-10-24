@@ -16,6 +16,12 @@
   overflow-anchor: none;
   /* Room either side for the bubbles' 2-pixel drop shadow. */
   padding: var(--line) 1ch;
+
+  /* Focusable, so the keyboard can page through it and reach earlier pages. */
+  &:focus-visible {
+    outline: 1px dotted var(--ink);
+    outline-offset: -3px;
+  }
 }
 
 .empty {
@@ -43,16 +49,19 @@
   }
 }
 
-/* Where earlier messages are asked for, and the watch while they come. */
+/* Where earlier messages are asked for: the watch while they come, and
+   Try Again if they couldn't. */
 .earlier {
   display: flex;
+  flex-wrap: wrap;
   gap: 1ch;
   align-items: center;
   justify-content: center;
-  height: var(--line);
+  min-height: var(--line);
   margin-bottom: calc(var(--line) / 2);
   font-family: var(--font-family-chrome);
 }
+
 
 /* What arrived while the viewer read further up: inverted, over the foot. */
 .newer {
@@ -74,6 +83,20 @@
   white-space: nowrap;
   transform: translateX(-50%);
   cursor: pointer;
+
+  &:focus-visible {
+    outline: 1px dotted var(--ink);
+    outline-offset: 2px;
+  }
+
+  /* On a phone, a thumb's target around it (ADR 0013), drawn as small. */
+  @media (max-width: 760px) {
+    &::before {
+      position: absolute;
+      inset: -16px 0 -8px;
+      content: '';
+    }
+  }
 }
 
 @media (forced-colors: active) {

@@ -72,9 +72,10 @@ mutation every few seconds while there's text, and the server passes it to the
 chat's other participants through another in-process `PubSub`, storing nothing.
 
 Reads are stored. While a chat is open on a visible page, the page calls
-`markRead` with its newest message; the server keeps one `ReadMark` per
-advance, and a message was first read at the earliest mark on it or after it
-in its chat (never counting its sender). Get Info on a message reads them
+`markRead` with the newest message its history has shown at the end (scrolled
+further up, what arrives waits below, unread); the server keeps one
+`ReadMark` per advance, and a message was first read at the earliest mark on
+it or after it in its chat (never counting its sender). Get Info on a message reads them
 through `Message.readBy`. What's unread is counted from a `ReadPoint` per
 person and chat, the furthest they've read, which `markRead` moves only
 forward and joining a channel sets just before its newest message:
@@ -104,8 +105,9 @@ cache writes; `app/hooks/` holds the live feed, alerts and the clock.
 
 Each event re-renders only what shows it. The React Compiler memoizes every
 component and hook (a test fails if one stops compiling); the live feed's
-events go to the cache without re-rendering `SignedIn`; only `Ago` reads the
-clock; a message's bubble is drawn again only when its own props change; and
+events go to the cache without re-rendering `SignedIn`; only what tells the
+time by it reads the clock (`Ago`, the menu bar, a history's day names); a
+message's bubble is drawn again only when its own props change; and
 movies step by painting, never by rendering. Dialogs and the pages other than
 the desktop load the first time they're needed. `npm run measure` reports
 what each of these costs on the production build, and CI holds the render

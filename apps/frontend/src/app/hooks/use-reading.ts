@@ -12,17 +12,19 @@ const MARK_READ = gql(`
 `);
 
 /**
- * Tells the server the viewer has read a chat up to its newest message,
- * whenever that's on a visible page: on opening it, as each message
- * arrives, on coming back to it, and once the network is back after a try
- * that failed. Get Info shows the senders. And the chat list counts none of
- * it unread while it's read: cleared at once, and again whenever a list the
+ * Tells the server the viewer has read a chat up to `readTo` whenever it's
+ * on a visible page: its newest message while the history is `atNewest` (on
+ * opening it, as each message arrives, on coming back to it), else the
+ * newest they saw before scrolling up; and once the network is back after a
+ * try that failed. Get Info shows the senders. At its newest, the chat list
+ * counts none of it unread: cleared at once, and again whenever a list the
  * server counted before this read lands after it (a watch on the cache, not
  * a query, so it fetches nothing).
  */
 export function useReading(
   chatId: string,
-  newestMessageId: string | undefined
+  readTo: string | undefined,
+  atNewest: boolean
 ) {
   const visible = usePageVisible();
   const online = useOnline();
@@ -31,7 +33,7 @@ export function useReading(
   const marked = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || !atNewest) return;
     return client.cache.watch({
       query: GET_CHATS,
       optimistic: true,
@@ -45,15 +47,15 @@ export function useReading(
         if (counted) queueMicrotask(() => recordRead(client.cache, chatId));
       },
     });
-  }, [visible, chatId, client]);
+  }, [visible, atNewest, chatId, client]);
 
   useEffect(() => {
-    if (!visible || !online || !newestMessageId) return;
-    if (marked.current === newestMessageId) return;
-    marked.current = newestMessageId;
-    markRead({ variables: { messageId: newestMessageId } }).catch(() => {
+    if (!visible || !online || !readTo) return;
+    if (marked.current === readTo) return;
+    marked.current = readTo;
+    markRead({ variables: { messageId: readTo } }).catch(() => {
       // Tried again with the next message, on coming back, or once online.
       marked.current = null;
     });
-  }, [visible, online, newestMessageId, markRead]);
+  }, [visible, online, readTo, markRead]);
 }

@@ -74,6 +74,15 @@ export async function graphql<T>(
   return body.data;
 }
 
+/** Signs `request` in by the API: one login against the throttle, as any. */
+export async function signInAs(request: APIRequestContext, email: string) {
+  await graphql(
+    request,
+    'mutation ($email: String!, $password: String!) { login(email: $email, password: $password) { user { id } } }',
+    { email, password: SEEDED_PASSWORD }
+  );
+}
+
 /**
  * Someone new, signed up by the API with an invite from whoever `inviter`
  * is: another person for a spec that signing up spares the login throttle.

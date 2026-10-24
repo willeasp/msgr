@@ -9,9 +9,10 @@ import {
   anotherPerson,
   chatsWindow,
   chatWindow,
+  graphql,
   joinChannel,
-  SEEDED_PASSWORD,
   signIn,
+  signInAs,
 } from '../tests/support';
 import { finger, hold, keyboard, pretendKeyboard } from './touch';
 
@@ -19,9 +20,8 @@ import { finger, hold, keyboard, pretendKeyboard } from './touch';
  * On a phone (ADR 0013), on a Pixel's screen and an iPhone's: a chat's title
  * bar has Back and Info, the Chats window's has New…, the composer sits on
  * the keyboard, and a finger held on a message opens Get Info. Each phone is
- * someone of its own, in no chat at the start and each the other's someone
- * else, signed in once for all its tests, so logins stay few under the
- * throttle.
+ * someone of its own, the other's someone else, signed in once for all its
+ * tests, so logins stay few under the throttle.
  */
 
 const PEOPLE = {
@@ -43,18 +43,7 @@ const test = base.extend<object, { session: Cookies }>({
       const request = await playwright.request.newContext({
         baseURL: worker.project.use.baseURL,
       });
-      const response = await request.post('/graphql', {
-        data: {
-          query:
-            'mutation ($email: String!, $password: String!) { login(email: $email, password: $password) { user { id } } }',
-          variables: {
-            email: PEOPLE[worker.project.name as Phone].email,
-            password: SEEDED_PASSWORD,
-          },
-        },
-      });
-      const body = (await response.json()) as { errors?: unknown[] };
-      if (body.errors) throw new Error(JSON.stringify(body.errors));
+      await signInAs(request, PEOPLE[worker.project.name as Phone].email);
       const { cookies } = await request.storageState();
       await request.dispose();
       await use(cookies);
@@ -67,14 +56,6 @@ const test = base.extend<object, { session: Cookies }>({
   },
 });
 
-async function graphql(page: Page, query: string, variables = {}) {
-  const response = await page.request.post('/graphql', {
-    data: { query, variables },
-  });
-  const body = (await response.json()) as { errors?: unknown[] };
-  if (body.errors) throw new Error(JSON.stringify(body.errors));
-}
-
 /** Opens a channel of its own, with `lines` messages in it. */
 async function openChannel(page: Page, lines: string[] = []) {
   await page.goto('/');
@@ -82,7 +63,7 @@ async function openChannel(page: Page, lines: string[] = []) {
   const chatId = await joinChannel(page, name);
   for (const content of lines) {
     await graphql(
-      page,
+      page.request,
       'mutation ($input: SendMessageInput!) { sendMessage(input: $input) { id } }',
       { input: { chatId, content } }
     );

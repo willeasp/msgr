@@ -104,6 +104,8 @@ interface MessageInputProps {
   onAttachFile: (file: File) => void;
   /** Takes off this attachment, once sent or removed. */
   onDetach: (attachment: Attachment) => void;
+  /** A message is going: the history shows its newest. */
+  onSend: () => void;
 }
 
 /** The attached picture, small, above the field: click it to paint on it. */
@@ -170,6 +172,7 @@ export function MessageInput({
   onSound,
   onAttachFile,
   onDetach,
+  onSend,
 }: MessageInputProps) {
   const pictureRef = useRef<HTMLInputElement>(null);
   const movieRef = useRef<HTMLInputElement>(null);
@@ -210,6 +213,7 @@ export function MessageInput({
       return;
     }
 
+    onSend();
     const sent = attachment;
     // A movie goes with what's drawn over it drawn into every frame.
     const movie =

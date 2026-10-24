@@ -91,7 +91,9 @@ export const MessageBubble = memo(function MessageBubble({
           </span>
         )}
         {firstLink(content) && <LinkPreviewCard messageId={message.id} />}
-        <div className={styles.line}>
+        {/* What the history keeps in place while the viewer reads it
+            (MessageList): the words, whatever comes and goes above them. */}
+        <div className={styles.line} data-message>
           <div
             className={styles.pick}
             data-pressable={onGetInfo ? true : undefined}

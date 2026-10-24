@@ -39,22 +39,3 @@ const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
   a.getMonth() === b.getMonth() &&
   a.getDate() === b.getDate();
-
-/**
- * How many messages from others came after `seenId`, the newest the viewer
- * saw at the end of the history: what's waiting below if they scrolled up.
- */
-export function arrivedSince(
-  messages: readonly {
-    readonly id: string;
-    readonly sender: { readonly id: string };
-  }[],
-  seenId: string | undefined,
-  viewerId: string | undefined
-): number {
-  const seenAt = messages.findIndex(({ id }) => id === seenId);
-  if (seenAt === -1) return 0;
-  return messages
-    .slice(seenAt + 1)
-    .filter(({ sender }) => sender.id !== viewerId).length;
-}

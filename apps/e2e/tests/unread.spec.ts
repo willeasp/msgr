@@ -6,8 +6,8 @@ import {
   feedListening,
   graphql,
   joinChannel,
-  SEEDED_PASSWORD,
   signIn,
+  signInAs,
 } from './support';
 
 /** "2 unread", not "12 unread". */
@@ -49,11 +49,7 @@ test('an unread chat counts what it holds, on the list and the app’s badge, un
   const frank = await playwright.request.newContext({
     baseURL: test.info().project.use.baseURL,
   });
-  await graphql(
-    frank,
-    'mutation ($email: String!, $password: String!) { login(email: $email, password: $password) { user { id } } }',
-    { email: 'frank@example.com', password: SEEDED_PASSWORD }
-  );
+  await signInAs(frank, 'frank@example.com');
   await graphql(
     frank,
     'mutation ($name: String!) { joinChannel(name: $name) { id } }',

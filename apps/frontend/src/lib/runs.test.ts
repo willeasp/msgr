@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arrivedSince, placeMessages, RUN_GAP_MS } from './runs';
+import { placeMessages, RUN_GAP_MS } from './runs';
 
 // Local times, so the days are the device's whatever its time zone.
 const at = (day: number, hour: number, minute: number, second = 0) =>
@@ -32,6 +32,16 @@ describe('placeMessages', () => {
     expect(RUN_GAP_MS).toBe(5 * 60_000);
   });
 
+  it('keeps a message exactly five minutes after the last in the run', () => {
+    expect(
+      shape([
+        message('a', 'ada', at(21, 9, 0)),
+        message('b', 'ada', at(21, 9, 5)),
+        message('c', 'ada', at(21, 9, 10, 1)),
+      ])
+    ).toEqual(['a day run', 'b  ', 'c  run']);
+  });
+
   it('starts a run with each change of sender', () => {
     expect(
       shape([
@@ -52,24 +62,14 @@ describe('placeMessages', () => {
       ])
     ).toEqual(['a day run', 'b day run', 'c  ', 'd day run']);
   });
-});
 
-describe('arrivedSince', () => {
-  const history = [
-    message('a', 'ada', at(21, 9, 0)),
-    message('b', 'grace', at(21, 9, 1)),
-    message('c', 'me', at(21, 9, 2)),
-    message('d', 'ada', at(21, 9, 3)),
-  ];
-
-  it('counts what others sent after the newest seen', () => {
-    expect(arrivedSince(history, 'a', 'me')).toBe(2);
-    expect(arrivedSince(history, 'c', 'me')).toBe(1);
-    expect(arrivedSince(history, 'd', 'me')).toBe(0);
-  });
-
-  it('counts nothing before anything was seen, or once it has paged away', () => {
-    expect(arrivedSince(history, undefined, 'me')).toBe(0);
-    expect(arrivedSince(history, 'gone', 'me')).toBe(0);
+  it('tells the same date in another month or year from the same day', () => {
+    expect(
+      shape([
+        message('a', 'ada', new Date(2026, 8, 21, 9, 0).toISOString()),
+        message('b', 'ada', new Date(2026, 9, 21, 9, 0).toISOString()),
+        message('c', 'ada', new Date(2027, 9, 21, 9, 0).toISOString()),
+      ])
+    ).toEqual(['a day run', 'b day run', 'c day run']);
   });
 });

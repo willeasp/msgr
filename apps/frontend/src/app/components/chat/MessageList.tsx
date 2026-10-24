@@ -1,12 +1,28 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  Fragment,
+  memo,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useQuery } from '@apollo/client/react';
-import { arrivedSince, placeMessages } from '../../../lib/runs';
+import type { GetChatMessagesQuery } from '../../../lib/__generated__/graphql';
+import {
+  arrivedSince,
+  firstFrom,
+  hasEarlier,
+  HISTORY_PAGE,
+} from '../../../lib/history';
+import { placeMessages } from '../../../lib/runs';
 import { formatDay } from '../../../lib/time';
 import type { KeptMovie } from '../../../lib/movie-wire';
 import type { KeptPicture } from '../../../lib/picture-wire';
-import { GET_CHAT_MESSAGES, HISTORY_PAGE } from '../../data/chats';
+import Button from '../../../sacred/components/Button';
+import { GET_CHAT_MESSAGES } from '../../data/chats';
 import { useClock } from '../../hooks/use-clock';
 import { useReading } from '../../hooks/use-reading';
+import { useAwayFromNewest } from '../../hooks/use-signed-in';
 import { DOWN } from '../icons';
 import { LoadingState } from '../LoadingState';
 import { Muted } from '../Muted';
@@ -15,166 +31,35 @@ import { Wristwatch } from '../Wristwatch';
 import { MessageBubble } from './MessageBubble';
 import styles from './MessageList.module.css';
 
+type Message = GetChatMessagesQuery['messages'][number];
+
 interface MessageListProps {
   chatId: string;
   currentUserId: string | undefined;
   /** Name each run's sender: in groups and channels, not direct chats. */
   showNames: boolean;
+  /** How many messages the viewer has sent from this window: each takes the history to its newest. */
+  sends: number;
   onDrawOnIt?: (picture: KeptPicture) => void;
   onDrawOnMovie?: (movie: KeptMovie) => void;
   /** Opens Get Info on a message: a click on it, or a finger held on it. */
   onGetInfo?: (messageId: string) => void;
 }
 
-/** Within this of the end is at it: opening on the newest leaves the padding below it out of view. */
-const NEAR_END = 32;
-
-const isAtEnd = (element: HTMLElement) =>
-  element.scrollHeight - element.scrollTop - element.clientHeight < NEAR_END;
-
 /**
- * A chat's history, newest at the bottom, each day headed by its name and
- * each run of one sender's messages showing their face, name and time once
- * (lib/runs.ts). It opens at the end and stays there as messages arrive,
- * pictures load and the window resizes. Scrolled up to read, it stays put
- * and offers what arrived instead, unless it's the viewer's own. Reaching
- * the top asks for the page before, and keeps the place.
+ * A chat's history, newest at the bottom: loading, empty, or the messages.
+ * The page's feed appends live ones; opening the chat also refreshes it,
+ * catching anything sent while this tab was offline or asleep.
  */
-export function MessageList({
-  chatId,
-  currentUserId,
-  showNames,
-  onDrawOnIt,
-  onDrawOnMovie,
-  onGetInfo,
-}: MessageListProps) {
-  // The page's feed appends live messages; opening the chat also refreshes
-  // it, catching anything sent while this tab was offline or asleep.
-  const {
-    data,
-    loading: messagesLoading,
-    fetchMore,
-  } = useQuery(GET_CHAT_MESSAGES, {
-    variables: { chatId },
+export function MessageList(props: MessageListProps) {
+  const { chatId } = props;
+  const { data, loading, fetchMore } = useQuery(GET_CHAT_MESSAGES, {
+    variables: { chatId, limit: HISTORY_PAGE },
     fetchPolicy: 'cache-and-network',
   });
   const messages = data?.messages ?? [];
-  const newestId = messages.at(-1)?.id;
-  const oldestId = messages[0]?.id;
-  const newestIsMine = messages.at(-1)?.sender.id === currentUserId;
 
-  // Whatever's on a visible screen has been read.
-  useReading(chatId, newestId);
-
-  const log = useRef<HTMLDivElement>(null);
-  const content = useRef<HTMLDivElement>(null);
-  const top = useRef<HTMLDivElement>(null);
-  // Whether the viewer was at the end when they last scrolled, which the
-  // history keeps to as it grows; and the newest they saw there.
-  const [atEnd, setAtEnd] = useState(true);
-  const wasAtEnd = useRef(true);
-  const [seen, setSeen] = useState<string>();
-  // What's laid out, and where the viewer was before a page of earlier
-  // messages arrived above.
-  const laidOut = useRef<{ newest?: string; oldest?: string }>({});
-  const before = useRef<{ height: number; top: number } | null>(null);
-  const [earlier, setEarlier] = useState<'idle' | 'loading' | 'failed'>(
-    'idle'
-  );
-  // The chat's first message, once a page said nothing came before it: a
-  // fact about that message, so it holds should the history start again.
-  const [first, setFirst] = useState<string>();
-  const hasMessages = messages.length > 0;
-  const hasEarlier = messages.length >= HISTORY_PAGE && first !== oldestId;
-
-  useEffect(() => {
-    const element = log.current;
-    if (!element) return;
-    const scrolled = () => {
-      const end = isAtEnd(element);
-      wasAtEnd.current = end;
-      setAtEnd(end);
-      if (end) setSeen(laidOut.current.newest);
-      // Back up to it after failing: try again.
-      setEarlier((state) => (state === 'failed' ? 'idle' : state));
-    };
-    // At the end, it stays there while it or what's in it resizes: a
-    // picture loading, a phone's keyboard coming up under it.
-    const pin = new ResizeObserver(() => {
-      if (wasAtEnd.current) element.scrollTop = element.scrollHeight;
-    });
-    element.addEventListener('scroll', scrolled, { passive: true });
-    pin.observe(element);
-    if (content.current) pin.observe(content.current);
-    return () => {
-      element.removeEventListener('scroll', scrolled);
-      pin.disconnect();
-    };
-  }, [hasMessages]);
-
-  useLayoutEffect(() => {
-    const element = log.current;
-    if (!element || !newestId) return;
-    const was = laidOut.current;
-    laidOut.current = { newest: newestId, oldest: oldestId };
-    // Opening: at the newest.
-    if (was.newest === undefined) {
-      element.scrollTop = element.scrollHeight;
-      setSeen(newestId);
-      return;
-    }
-    // Earlier ones above: what was in view stays where it was.
-    if (oldestId !== was.oldest && before.current) {
-      element.scrollTop =
-        before.current.top + element.scrollHeight - before.current.height;
-      before.current = null;
-    }
-    // Something new: followed at the end, or when it's the viewer's own.
-    if (newestId !== was.newest && (wasAtEnd.current || newestIsMine)) {
-      wasAtEnd.current = true;
-      setAtEnd(true);
-      setSeen(newestId);
-      element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' });
-    }
-  }, [newestId, oldestId, newestIsMine]);
-
-  const canLoadEarlier = earlier === 'idle' && hasEarlier;
-  useEffect(() => {
-    const element = log.current;
-    const sentinel = top.current;
-    if (!element || !sentinel || !canLoadEarlier || !oldestId) return;
-    const watch = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry?.isIntersecting || laidOut.current.newest === undefined) {
-          return;
-        }
-        watch.disconnect();
-        before.current = {
-          height: element.scrollHeight,
-          top: element.scrollTop,
-        };
-        setEarlier('loading');
-        fetchMore({ variables: { chatId, before: oldestId } }).then(
-          (result) => {
-            const page = result.data?.messages ?? [];
-            if (page.length === 0) before.current = null;
-            if (page.length < HISTORY_PAGE) setFirst(page[0]?.id ?? oldestId);
-            setEarlier('idle');
-          },
-          () => {
-            // Asked again once the viewer scrolls back up to it.
-            before.current = null;
-            setEarlier('failed');
-          }
-        );
-      },
-      { root: element }
-    );
-    watch.observe(sentinel);
-    return () => watch.disconnect();
-  }, [canLoadEarlier, oldestId, chatId, fetchMore]);
-
-  if (messagesLoading && !data) {
+  if (loading && !data) {
     return (
       <div className={styles.root}>
         <LoadingState label="Loading messages" />
@@ -192,13 +77,245 @@ export function MessageList({
     );
   }
 
-  const newer = atEnd ? 0 : arrivedSince(messages, seen, currentUserId);
+  return (
+    <History
+      {...props}
+      messages={messages}
+      loadEarlier={(before) =>
+        fetchMore({ variables: { chatId, before, limit: HISTORY_PAGE } }).then(
+          ({ data }) => {
+            // An error isn't an empty page, which would end the history.
+            if (!data) throw new Error('No page of earlier messages');
+            return data.messages;
+          }
+        )
+      }
+    />
+  );
+}
+
+/** Within this of the end is at it: opening on the newest leaves the padding below it out of view. */
+const NEAR_END = 32;
+
+const isAtEnd = (element: HTMLElement) =>
+  element.scrollHeight - element.scrollTop - element.clientHeight < NEAR_END;
+
+/** A message the viewer reads by, and how far below the history's top it is. */
+interface Anchor {
+  readonly node: Element;
+  readonly top: number;
+}
+
+const topIn = (element: HTMLElement, node: Element) =>
+  node.getBoundingClientRect().top - element.getBoundingClientRect().top;
+
+/** The first message at least partly in view: what the viewer reads by. */
+function readingBy(element: HTMLElement, content: HTMLElement): Anchor | null {
+  const viewTop = element.getBoundingClientRect().top;
+  const items = content.querySelectorAll('[data-message]');
+  let low = 0;
+  let high = items.length - 1;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    const item = items[middle];
+    if (item && item.getBoundingClientRect().bottom > viewTop) high = middle;
+    else low = middle + 1;
+  }
+  const node = items[low];
+  return node
+    ? { node, top: node.getBoundingClientRect().top - viewTop }
+    : null;
+}
+
+/**
+ * Where the viewer is in a history: at its newest, which it keeps to as the
+ * history grows, or reading further up, by a message it keeps in place
+ * whatever grows or arrives above or below it. The browser's own scroll
+ * anchoring is off (Safari has none), so it's the same everywhere. It
+ * follows the scrolling, which renders nothing, and says when the viewer
+ * leaves the end (with the newest then) and comes back to it (null).
+ */
+function placeIn(away: (newestSeen: string | null) => void) {
+  let log: HTMLElement | null = null;
+  let atEnd = true;
+  let anchor: Anchor | null = null;
+  let newest: string | undefined;
+
+  const toNewest = () => {
+    if (!log) return;
+    atEnd = true;
+    anchor = null;
+    away(null);
+    log.scrollTop = log.scrollHeight;
+  };
+  // At the end, still there; away from it, the message read by where it
+  // was; gone (the history started again, events missed), as if opened.
+  const keep = () => {
+    if (!log) return;
+    if (atEnd) {
+      log.scrollTop = log.scrollHeight;
+      return;
+    }
+    if (!anchor) return;
+    if (!anchor.node.isConnected) return toNewest();
+    const moved = topIn(log, anchor.node) - anchor.top;
+    if (moved !== 0) log.scrollTop += moved;
+  };
+
+  return {
+    /** Follows this history's scrolling and resizing, until the cleanup it returns. */
+    watch(element: HTMLElement, content: HTMLElement) {
+      log = element;
+      const scrolled = () => {
+        atEnd = isAtEnd(element);
+        anchor = atEnd ? null : readingBy(element, content);
+        away(atEnd ? null : newest ?? null);
+      };
+      // A picture loading, a link's card, a page above, a phone's keyboard.
+      const resized = new ResizeObserver(keep);
+      element.addEventListener('scroll', scrolled, { passive: true });
+      resized.observe(element);
+      resized.observe(content);
+      return () => {
+        element.removeEventListener('scroll', scrolled);
+        resized.disconnect();
+        log = null;
+      };
+    },
+    toNewest,
+    /** The history laid out anew, `newestId` its newest. */
+    laidOut(newestId: string | undefined) {
+      newest = newestId;
+      keep();
+    },
+  };
+}
+
+/**
+ * The messages, each day headed by its name and each run of one sender's
+ * showing their face, name and time once (lib/runs.ts). It opens at the
+ * newest and stays there as messages arrive, pictures load and the window
+ * resizes. Scrolled up to read, it keeps the viewer's place (`placeIn`), and
+ * what arrives waits below, unread, with a button to it; a send from this
+ * window goes to it. Reaching the top asks for the page before.
+ */
+function History({
+  chatId,
+  currentUserId,
+  showNames,
+  sends,
+  messages,
+  loadEarlier,
+  onDrawOnIt,
+  onDrawOnMovie,
+  onGetInfo,
+}: MessageListProps & {
+  messages: readonly Message[];
+  loadEarlier: (before: string) => Promise<readonly Message[]>;
+}) {
+  const newest = messages[messages.length - 1];
+  const newestId = newest?.id;
+  const oldestId = messages[0]?.id;
+
+  const log = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const top = useRef<HTMLDivElement>(null);
+  // Away from the end: the newest message when the viewer left it.
+  const [away, setAway] = useState<string | null>(null);
+  const [place] = useState(() =>
+    placeIn((seen) => setAway((was) => (seen === null ? null : was ?? seen)))
+  );
+  const [earlier, setEarlier] = useState<'idle' | 'loading' | 'failed'>('idle');
+  // The chat's first message, once a page said nothing came before it: a
+  // fact about that message, so it holds should the history start again.
+  const [first, setFirst] = useState<string>();
+  const more = hasEarlier(messages, first);
+  // What it opened with and what arrives since are read out as they come;
+  // earlier pages, above them, aren't.
+  const [openedFrom] = useState(oldestId);
+
+  // Read up to what the viewer has seen: away from the end, what arrives
+  // waits below, unread, and counts in the chat list.
+  useAwayFromNewest(chatId, away !== null);
+  useReading(chatId, away ?? newestId, away === null);
+
+  // Before the two below, which scroll it.
+  useLayoutEffect(() => {
+    if (!log.current || !content.current) return;
+    return place.watch(log.current, content.current);
+  }, [place]);
+
+  // Opening, and each send from this window: at the newest.
+  useLayoutEffect(() => place.toNewest(), [sends, place]);
+
+  // Something new, a page earlier, the row asking for it: shown at the end;
+  // away from it, the place kept, before anything can see it move.
+  useLayoutEffect(
+    () => place.laidOut(newestId),
+    [newestId, oldestId, more, earlier, place]
+  );
+
+  const canAsk = earlier === 'idle' && more;
+  useEffect(() => {
+    const element = log.current;
+    const sentinel = top.current;
+    if (!element || !sentinel || !canAsk || !oldestId) return;
+    const watch = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        watch.disconnect();
+        setEarlier('loading');
+        loadEarlier(oldestId).then(
+          (page) => {
+            const found = firstFrom(page, oldestId);
+            if (found) setFirst(found);
+            setEarlier('idle');
+          },
+          () => setEarlier('failed')
+        );
+      },
+      { root: element }
+    );
+    watch.observe(sentinel);
+    return () => watch.disconnect();
+  }, [canAsk, oldestId, loadEarlier]);
+
+  const newer = away === null ? 0 : arrivedSince(messages, away, currentUserId);
+  const placed = placeMessages(messages).map(
+    ({ message, startsDay, startsRun }) => (
+      <Fragment key={message.id}>
+        {startsDay && <DayLine date={message.createdAt} />}
+        <MessageBubble
+          message={message}
+          isCurrentUser={message.sender.id === currentUserId}
+          showMeta={startsRun}
+          showName={showNames}
+          onDrawOnIt={onDrawOnIt}
+          onDrawOnMovie={onDrawOnMovie}
+          onGetInfo={onGetInfo}
+        />
+      </Fragment>
+    )
+  );
+  const silent = Math.max(
+    0,
+    messages.findIndex(({ id }) => id === openedFrom)
+  );
 
   return (
     <div className={styles.frame}>
-      <div ref={log} className={styles.root} role="log" aria-label="Messages">
+      {/* The log reads out only what arrives, in the polite part below: the
+          pages of earlier messages above it come silently. */}
+      <div
+        ref={log}
+        className={styles.root}
+        role="log"
+        aria-label="Messages"
+        aria-live="off"
+        tabIndex={0}
+      >
         <div ref={content}>
-          {hasEarlier && (
+          {more && (
             <div ref={top} className={styles.earlier}>
               {earlier === 'loading' && (
                 <>
@@ -206,34 +323,28 @@ export function MessageList({
                   <span>Loading earlier messages…</span>
                 </>
               )}
+              {earlier === 'failed' && (
+                <>
+                  <span>Couldn’t load earlier messages.</span>
+                  <Button onClick={() => setEarlier('idle')}>Try Again</Button>
+                </>
+              )}
             </div>
           )}
-          {placeMessages(messages).map(({ message, startsDay, startsRun }) => (
-            <Fragment key={message.id}>
-              {startsDay && <DayLine date={message.createdAt} />}
-              <MessageBubble
-                message={message}
-                isCurrentUser={message.sender.id === currentUserId}
-                showMeta={startsRun}
-                showName={showNames}
-                onDrawOnIt={onDrawOnIt}
-                onDrawOnMovie={onDrawOnMovie}
-                onGetInfo={onGetInfo}
-              />
-            </Fragment>
-          ))}
+          <div>{placed.slice(0, silent)}</div>
+          <div aria-live="polite" aria-relevant="additions">
+            {placed.slice(silent)}
+          </div>
         </div>
       </div>
       {newer > 0 && (
         <button
           type="button"
           className={styles.newer}
-          onClick={() =>
-            log.current?.scrollTo({
-              top: log.current.scrollHeight,
-              behavior: 'smooth',
-            })
-          }
+          onClick={() => {
+            place.toNewest();
+            log.current?.focus({ preventScroll: true });
+          }}
         >
           {newer === 1 ? '1 New Message' : `${newer} New Messages`}
           <PixelIcon bitmap={DOWN} scale={1} />
@@ -244,11 +355,11 @@ export function MessageList({
 }
 
 /** A day's name on a ruled line, above its first message; "Today" turns "Yesterday" at midnight. */
-function DayLine({ date }: { date: string }) {
+const DayLine = memo(function DayLine({ date }: { date: string }) {
   const now = useClock();
   return (
     <h3 className={styles.day}>
       <span>{formatDay(date, now)}</span>
     </h3>
   );
-}
+});

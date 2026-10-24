@@ -1,6 +1,6 @@
 import { gql } from '@apollo/client';
 import { describe, expect, it } from 'vitest';
-import { createCache } from './cache';
+import { createCache, mayHaveMissed } from './cache';
 
 const CHAT = gql`
   query Chat {
@@ -284,6 +284,129 @@ describe('a chat’s history in the cache', () => {
       data: page('5', '6'),
     });
     expect(ids(cache)).toEqual(['5', '6', '7', '8']);
+  });
+
+  it('sorts by when each was sent, whatever its id', () => {
+    const cache = createCache();
+    const at = (id: string, minute: number) => ({
+      __typename: 'Message',
+      id,
+      createdAt: `2026-10-21T09:0${minute}:00.000Z`,
+    });
+    cache.writeQuery({
+      query: HISTORY,
+      variables: { chatId: 'a' },
+      data: { messages: [at('z', 1), at('y', 3)] },
+    });
+    cache.writeQuery({
+      query: HISTORY,
+      variables: { chatId: 'a', before: 'z' },
+      data: { messages: [at('x', 0)] },
+    });
+    cache.writeQuery({
+      query: HISTORY,
+      variables: { chatId: 'a' },
+      data: { messages: [at('y', 3), at('w', 4)] },
+    });
+
+    expect(ids(cache)).toEqual(['x', 'z', 'y', 'w']);
+  });
+
+  describe('once events may have been missed (the socket down, the page away)', () => {
+    /** What `recordMessage` does with a message the feed or a send brings. */
+    const arrives = (
+      cache: ReturnType<typeof createCache>,
+      ...added: string[]
+    ) =>
+      cache.updateQuery<{ messages: unknown[] }>(
+        { query: HISTORY, variables: { chatId: 'a' } },
+        (existing) =>
+          existing && {
+            messages: [...existing.messages, ...page(...added).messages],
+          }
+      );
+
+    it('takes a newest page that reaches back to what it held, and what arrived since', () => {
+      const cache = createCache();
+      cache.writeQuery({
+        query: HISTORY,
+        variables: { chatId: 'a' },
+        data: page('3', '4'),
+      });
+      mayHaveMissed(cache);
+      arrives(cache, '6');
+      cache.writeQuery({
+        query: HISTORY,
+        variables: { chatId: 'a' },
+        data: page('4', '5', '6'),
+      });
+
+      expect(ids(cache)).toEqual(['3', '4', '5', '6']);
+    });
+
+    it('starts again from a newest page that doesn’t reach back to what it held, though a message arrived on the end since', () => {
+      // Held 3 and 4; 5 and 6 sent while the socket was down; 7 heard live
+      // once it was back, onto the end. 4 then 7 would look like neighbours.
+      const cache = createCache();
+      cache.writeQuery({
+        query: HISTORY,
+        variables: { chatId: 'a' },
+        data: page('3', '4'),
+      });
+      mayHaveMissed(cache);
+      arrives(cache, '7');
+      expect(ids(cache)).toEqual(['3', '4', '7']);
+
+      cache.writeQuery({
+        query: HISTORY,
+        variables: { chatId: 'a' },
+        data: page('6', '7'),
+      });
+
+      expect(ids(cache)).toEqual(['6', '7']);
+    });
+
+    it('trusts the history again once a newest page has joined it', () => {
+      const cache = createCache();
+      cache.writeQuery({
+        query: HISTORY,
+        variables: { chatId: 'a' },
+        data: page('3', '4'),
+      });
+      mayHaveMissed(cache);
+      cache.writeQuery({
+        query: HISTORY,
+        variables: { chatId: 'a' },
+        data: page('4', '5'),
+      });
+      arrives(cache, '6');
+      cache.writeQuery({
+        query: HISTORY,
+        variables: { chatId: 'a' },
+        data: page('5', '6'),
+      });
+
+      expect(ids(cache)).toEqual(['3', '4', '5', '6']);
+    });
+
+    it('counts from the first time they were missed, if twice before a page', () => {
+      const cache = createCache();
+      cache.writeQuery({
+        query: HISTORY,
+        variables: { chatId: 'a' },
+        data: page('3', '4'),
+      });
+      mayHaveMissed(cache);
+      arrives(cache, '6');
+      mayHaveMissed(cache);
+      cache.writeQuery({
+        query: HISTORY,
+        variables: { chatId: 'a' },
+        data: page('5', '6'),
+      });
+
+      expect(ids(cache)).toEqual(['5', '6']);
+    });
   });
 
   it('keeps each chat’s history apart', () => {

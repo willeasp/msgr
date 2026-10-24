@@ -80,12 +80,12 @@ _Avoid_: Audio, voice message, voice note, clip
 When a chat last received a message. A viewer's chats are listed most recently active first. Opening a chat, or joining or leaving a channel, is not activity.
 
 **Read**:
-That a participant other than its sender has read a message, and when they first did. Having a chat open on a visible page reads it up to its newest message, and reading a message reads every one before it too. Get Info on a message shows its reads, and who has yet to.
+That a participant other than its sender has read a message, and when they first did. Having a chat open on a visible page reads it up to the newest message its history has shown at the end; scrolled further up, what arrives waits below, unread, until they come back down to it. Reading a message reads every one before it too. Get Info on a message shows its reads, and who has yet to.
 _Avoid_: Seen, read receipt (in code)
 
 **Unread**:
 How many messages others sent to a chat after the last one the viewer read or sent there: sending a message reads everything before it, and joining a chat starts you just before its newest. Counted up to 100. The chat list shows each chat's, and the app's badge shows them all together.
-_Avoid_: New, badge count (in code)
+_Avoid_: New (that's the history's button, New messages), badge count (in code)
 
 **Get Info**:
 A message's details, as Finder shows a file's: what it holds and how big, where and when it was sent, by whom, and its reads.
@@ -95,7 +95,15 @@ The live notice that a participant is writing a message to a chat, told to its o
 _Avoid_: Composing, presence
 
 **Page**:
-A window into a chat's history, returned oldest first: its newest messages, those just before a given one, or the newest of those after one.
+A window into a chat's history, returned oldest first: its newest messages, those just before a given one, or the newest of those after one. A history fetches the page before as the viewer reaches its top, 50 at a time.
+
+**Run**:
+Messages from one sender, each sent within five minutes of the one before, on one day: the history shows the sender's face and name, and the time, once, with the first.
+_Avoid_: Group (that's a kind of chat), thread, cluster
+
+**New messages**:
+What arrived in an open chat while the viewer read further up its history: a count on a button below, which takes them down to it. They're unread too, but the count is only for that window and only from others.
+_Avoid_: Unread (that's the chat list's count)
 
 **Feed**:
 The live stream of every message posted to any chat the viewer participates in, including the viewer's own messages.
