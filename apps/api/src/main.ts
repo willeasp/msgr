@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { parseConfig } from './config.js';
 import { startServer } from './graphql/server.js';
 import { createPubSubMessageEvents } from './infrastructure/message-events.js';
@@ -14,6 +15,7 @@ import {
   noPushSender,
 } from './infrastructure/push-sender.js';
 import { PrismaClient } from './infrastructure/prisma/client.js';
+import { migrate } from './infrastructure/prisma/migrations.js';
 import { prismaRepositories } from './infrastructure/prisma/repositories.js';
 import { prismaStorageGauge } from './infrastructure/prisma/storage-gauge.js';
 import { createMemoryThrottle } from './infrastructure/throttle.js';
@@ -39,7 +41,31 @@ if (!push) {
   );
 }
 
+/** Milliseconds since the process started, to see where a wake's time goes. */
+const since = () => `${Math.round(performance.now())} ms`;
+const prisma = (path: string) =>
+  fileURLToPath(new URL(`../prisma/${path}`, import.meta.url));
+
 const db = new PrismaClient();
+// Brings the database up to date while the server already answers: the app
+// and /healthz at once, GraphQL as soon as this is done.
+const ready = migrate(db, {
+  dir: prisma('migrations'),
+  schema: prisma('schema.prisma'),
+});
+ready.then(
+  (applied) =>
+    console.log(
+      applied.length > 0
+        ? `Applied ${applied.join(', ')} (${since()})`
+        : `Database up to date (${since()})`
+    ),
+  (error: unknown) => {
+    console.error('Could not bring the database up to date:', error);
+    process.exit(1);
+  }
+);
+
 const clock = () => new Date();
 const server = await startServer(
   {
@@ -71,12 +97,16 @@ const server = await startServer(
     storageGauge: prismaStorageGauge(db),
     storageLimit: config.value.storageLimit,
   },
-  config.value
+  config.value,
+  ready
 );
-console.log(`🚀 GraphQL (HTTP + WebSocket) ready at ${server.url}`);
+console.log(`🚀 Listening at ${server.url} (${since()})`);
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, async () => {
+    // A migration under way finishes first: one cut off half-way would leave
+    // the database refusing every later start.
+    await ready.catch(() => undefined);
     await server.stop();
     await db.$disconnect();
     process.exit(0);

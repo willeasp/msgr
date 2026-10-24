@@ -1,10 +1,10 @@
 import DataLoader from 'dataloader';
 import type { Chat, ChatId } from '../domain/chat.js';
 import type { Message, MessageId } from '../domain/message.js';
-import type { Page } from '../domain/page.js';
+import { Page } from '../domain/page.js';
 import { firstReadFirst, type Read } from '../domain/read.js';
 import type { User, UserId } from '../domain/user.js';
-import type { Repositories } from './ports.js';
+import type { MessageMedia, Repositories } from './ports.js';
 
 /**
  * Request-scoped batched reads. Every keyed lookup made while resolving one
@@ -17,7 +17,7 @@ export interface Loaders {
   /** Each message's reads, whoever read it first first. */
   readonly reads: DataLoader<MessageId, Read[]>;
   /** A message's picture, movie or sound bytes; null for text alone. */
-  readonly media: DataLoader<MessageId, Uint8Array<ArrayBuffer> | null>;
+  readonly media: DataLoader<MessageId, MessageMedia | null>;
   messages(page: Page): DataLoader<ChatId, Message[]>;
 }
 
@@ -54,7 +54,7 @@ export function createLoaders(
         const found = new Map(
           (await messages.findMedia(messageIds)).map((media) => [
             media.messageId,
-            media.bytes,
+            media,
           ])
         );
         return messageIds.map((id) => found.get(id) ?? null);
@@ -62,7 +62,7 @@ export function createLoaders(
       { cache }
     ),
     messages(page) {
-      const key = [page.limit, page.offset, page.before, page.after].join(':');
+      const key = Page.key(page);
       let loader = pages.get(key);
       if (!loader) {
         loader = new DataLoader(

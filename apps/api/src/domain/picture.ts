@@ -20,10 +20,14 @@ export interface PictureCodec {
   deflate(bytes: Uint8Array): Uint8Array<ArrayBuffer>;
 }
 
-/** What's known of a kept picture without its bytes, which are fetched on their own. */
+/**
+ * What's known of a kept picture without its bytes, which are fetched on
+ * their own: never the bytes too, so a picture can't pass for one.
+ */
 export interface PictureSize {
   readonly width: number;
   readonly height: number;
+  readonly deflated?: never;
 }
 
 /**
@@ -32,7 +36,11 @@ export interface PictureSize {
  * height and bytes were checked against each other once, here.
  */
 export type Picture = Brand<
-  PictureSize & { readonly deflated: Uint8Array<ArrayBuffer> },
+  {
+    readonly width: number;
+    readonly height: number;
+    readonly deflated: Uint8Array<ArrayBuffer>;
+  },
   'Picture'
 >;
 

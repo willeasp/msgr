@@ -1,6 +1,7 @@
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { brotliCompressSync, gzipSync } from 'node:zlib';
 import { createClient, type Client } from 'graphql-ws';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
@@ -21,7 +22,7 @@ import {
   fakeHash,
   TEST_JWT_SECRET,
 } from '../testing/harness.js';
-import { startServer, type Server } from './server.js';
+import { MAX_SUBSCRIPTIONS, startServer, type Server } from './server.js';
 
 const LOGIN = `mutation { login(email: "ada@example.com", password: "secret") { token } }`;
 const APP_ORIGIN = 'http://localhost:4200';
@@ -34,13 +35,33 @@ const socketWith = (headers: Record<string, string>) =>
     }
   };
 
-/** A built frontend: an index page and one asset. */
+const SCRIPT = 'console.log("msgr")';
+
+/** A built frontend: an index page, a file, and a hashed asset compressed ahead of time. */
 function builtApp() {
   const dir = mkdtempSync(join(tmpdir(), 'msgr-app-'));
   writeFileSync(join(dir, 'index.html'), '<title>Msgr</title>');
-  writeFileSync(join(dir, 'app.js'), 'console.log("msgr")');
+  writeFileSync(join(dir, 'app.js'), SCRIPT);
+  mkdirSync(join(dir, 'assets'));
+  const asset = join(dir, 'assets', 'index-abc123.js');
+  writeFileSync(asset, SCRIPT);
+  writeFileSync(`${asset}.br`, brotliCompressSync(SCRIPT));
+  writeFileSync(`${asset}.gz`, gzipSync(SCRIPT));
   return dir;
 }
+
+/** What `startServer` needs to know, for a server of a test's own. */
+const testConfig = {
+  port: 0,
+  corsOrigin: 'http://localhost:4200',
+  jwtSecret: TEST_JWT_SECRET,
+  sessionTtlSeconds: 60,
+  secureCookies: false,
+  staticDir: null,
+  push: null,
+  admins: [],
+  storageLimit: null,
+};
 
 describe('server', () => {
   const events = createPubSubMessageEvents();
@@ -77,15 +98,9 @@ describe('server', () => {
       passwordHash: fakeHash('secret'),
     });
     server = await startServer(app.deps, {
-      port: 0,
+      ...testConfig,
       corsOrigin: APP_ORIGIN,
-      jwtSecret: TEST_JWT_SECRET,
-      sessionTtlSeconds: 60,
-      secureCookies: false,
       staticDir: builtApp(),
-      push: null,
-      admins: [],
-      storageLimit: null,
     });
   });
 
@@ -107,6 +122,8 @@ describe('server', () => {
     expect(logout.headers.get('set-cookie')).toMatch(
       /^token=; Path=\/; Expires=Thu, 01 Jan 1970/
     );
+    // Media kept by the browser goes too.
+    expect(logout.headers.get('clear-site-data')).toBe('"cache"');
   });
 
   it('takes the largest movie a message can carry, noise in every frame', async () => {
@@ -226,6 +243,57 @@ describe('server', () => {
     }
   });
 
+  it(`lets a socket hold ${MAX_SUBSCRIPTIONS} subscriptions, and no more`, async () => {
+    const { data } = (await (await post(LOGIN)).json()) as {
+      data: { login: { token: string } };
+    };
+    const client = createClient({
+      url: server.url.replace(/^http/, 'ws'),
+      webSocketImpl: WebSocket,
+      connectionParams: { token: data.login.token },
+    });
+    const refused: unknown[] = [];
+    const stops: (() => void)[] = [];
+    const subscribe = () =>
+      new Promise<void>((settled) => {
+        stops.push(
+          client.subscribe(
+            { query: 'subscription { typing { chatId } }' },
+            {
+              next: () => undefined,
+              error: (error) => {
+                refused.push(error);
+                settled();
+              },
+              complete: settled,
+            }
+          )
+        );
+        // Held, unless refused at once.
+        setTimeout(settled, 50);
+      });
+
+    try {
+      for (let i = 0; i < MAX_SUBSCRIPTIONS; i++) await subscribe();
+      expect(refused).toEqual([]);
+      await subscribe();
+      expect(refused).toEqual([
+        [
+          expect.objectContaining({
+            message: `A connection may hold at most ${MAX_SUBSCRIPTIONS} subscriptions.`,
+          }),
+        ],
+      ]);
+      // One let go makes room again.
+      stops[0]?.();
+      await new Promise((wait) => setTimeout(wait, 50));
+      await subscribe();
+      expect(refused).toHaveLength(1);
+    } finally {
+      await client.dispose();
+    }
+  });
+
   it('authenticates subscriptions with the token from login', async () => {
     const { data } = (await (await post(LOGIN)).json()) as {
       data: { login: { token: string } };
@@ -326,6 +394,8 @@ describe('server', () => {
     expect(picture.headers.get('cache-control')).toBe(
       'private, max-age=31536000, immutable'
     );
+    // Kept by the browser for this session alone: whoever signs in next asks again.
+    expect(picture.headers.get('vary')).toMatch(/cookie/i);
     expect(new Uint8Array(await picture.arrayBuffer())).toEqual(
       examplePicture(13, 7).deflated
     );
@@ -338,6 +408,12 @@ describe('server', () => {
       [`/media/${sent.value.id}/movie`, cookie],
       [`/media/${sent.value.id}/anything`, cookie],
       ['/media/missing/picture', cookie],
+      // Each has one address, and an id the database can't hold names nothing.
+      [`/MEDIA/${sent.value.id}/picture`, cookie],
+      [`/media/${sent.value.id}/picture/`, cookie],
+      [`/media/${sent.value.id}`, cookie],
+      ['/media/a%00b/picture', cookie],
+      [`/avatars/${ada.id}%00/v1`, cookie],
     ] as const) {
       const response = await fetchAs(path, as);
       expect(response.status).toBe(404);
@@ -401,6 +477,198 @@ describe('server', () => {
       data: { __typename: 'Query' },
     });
   });
+
+  it('sends what the build compressed, and keeps hashed assets for a year', async () => {
+    const site = server.url.replace(/\/graphql$/, '');
+    const asset = (encoding: string) =>
+      fetch(`${site}/assets/index-abc123.js`, {
+        headers: { 'accept-encoding': encoding },
+      });
+
+    // fetch decompresses as it reads, so the body is the script either way.
+    for (const [accepted, sent] of [
+      ['gzip, deflate, br, zstd', 'br'],
+      ['gzip', 'gzip'],
+      ['identity', null],
+    ] as const) {
+      const response = await asset(accepted);
+      expect(response.headers.get('content-encoding')).toBe(sent);
+      expect(response.headers.get('content-type')).toMatch(/javascript/);
+      expect(response.headers.get('vary')).toBe('Accept-Encoding');
+      expect(response.headers.get('cache-control')).toBe(
+        'public, max-age=31536000, immutable'
+      );
+      expect(await response.text()).toBe(SCRIPT);
+    }
+
+    // A missing asset is missing, not the app in its place.
+    expect((await fetch(`${site}/assets/index-gone.js`)).status).toBe(404);
+    // The app itself is asked about again each time.
+    expect((await fetch(site)).headers.get('cache-control')).toBe(
+      'public, max-age=0'
+    );
+  });
+
+  it('says nothing about itself, and keeps other windows out', async () => {
+    const page = await fetch(server.url.replace(/\/graphql$/, ''));
+    expect(page.headers.get('x-powered-by')).toBeNull();
+    expect(page.headers.get('cross-origin-opener-policy')).toBe('same-origin');
+    // Only for an https address, which this isn't.
+    expect(page.headers.get('strict-transport-security')).toBeNull();
+  });
+});
+
+describe('a server that is starting', () => {
+  /** The database being brought up to date, finished by the test. */
+  const gate = () => {
+    let open = () => undefined as void;
+    const ready = new Promise<void>((done) => (open = done));
+    return { ready, open };
+  };
+  /** Whether a request has been answered within a moment, without waiting longer. */
+  const answeredSoon = async (request: Promise<Response>) =>
+    Promise.race([
+      request.then(() => true),
+      new Promise<false>((done) => setTimeout(() => done(false), 100)),
+    ]);
+
+  it('serves the app at once, and GraphQL and its health once the database is ready', async () => {
+    const { ready, open } = gate();
+    const starting = await startServer(
+      createTestApp().deps,
+      { ...testConfig, staticDir: builtApp() },
+      ready
+    );
+    const site = starting.url.replace(/\/graphql$/, '');
+    try {
+      expect((await fetch(`${site}/some-chat`)).status).toBe(200);
+
+      // A host switches traffic to a new instance once its health check
+      // passes: one whose migration is running, or about to fail, isn't ready.
+      const health = fetch(`${site}/healthz`);
+      const query = fetch(starting.url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ query: '{ __typename }' }),
+      });
+      const media = fetch(`${site}/media/m1/picture`);
+      expect(await answeredSoon(health)).toBe(false);
+      expect(await answeredSoon(query)).toBe(false);
+      expect(await answeredSoon(media)).toBe(false);
+
+      open();
+      expect((await media).status).toBe(404);
+      expect((await health).status).toBe(204);
+      expect((await health).headers.get('cache-control')).toBe('no-store');
+      expect(await (await query).json()).toEqual({
+        data: { __typename: 'Query' },
+      });
+    } finally {
+      await starting.stop();
+    }
+  });
+
+  it('holds a socket until the database is ready', async () => {
+    const { ready, open } = gate();
+    const starting = await startServer(createTestApp().deps, testConfig, ready);
+    let acknowledged = false;
+    const client = createClient({
+      url: starting.url.replace(/^http/, 'ws'),
+      webSocketImpl: WebSocket,
+      lazy: false,
+      retryAttempts: 0,
+      on: { connected: () => (acknowledged = true) },
+    });
+    try {
+      await new Promise((wait) => setTimeout(wait, 100));
+      expect(acknowledged).toBe(false);
+      open();
+      await new Promise((wait) => setTimeout(wait, 100));
+      expect(acknowledged).toBe(true);
+    } finally {
+      await client.dispose();
+      await starting.stop();
+    }
+  });
+});
+
+describe('the built app, compressed', () => {
+  const PAGE = `<!doctype html><title>Msgr</title>${' '.repeat(2048)}`;
+  /** A build as vite.config.ts leaves it: index.html compressed too. */
+  const compressedApp = () => {
+    const dir = mkdtempSync(join(tmpdir(), 'msgr-app-'));
+    for (const [file, text] of [
+      ['index.html', PAGE],
+      ['assets/index-abc123.js', SCRIPT],
+    ] as const) {
+      mkdirSync(join(dir, file, '..'), { recursive: true });
+      writeFileSync(join(dir, file), text);
+      writeFileSync(join(dir, `${file}.br`), brotliCompressSync(text));
+      writeFileSync(join(dir, `${file}.gz`), gzipSync(text));
+    }
+    return dir;
+  };
+  let server: Server;
+  let site: string;
+  beforeAll(async () => {
+    server = await startServer(createTestApp().deps, {
+      ...testConfig,
+      staticDir: compressedApp(),
+    });
+    site = server.url.replace(/\/graphql$/, '');
+  });
+  afterAll(() => server.stop());
+
+  it('is sent compressed at its own address, as at any other route', async () => {
+    for (const path of ['/', '/index.html', '/some-chat']) {
+      const response = await fetch(`${site}${path}`, {
+        headers: { 'accept-encoding': 'br' },
+      });
+      expect(await response.text()).toBe(PAGE);
+      expect([path, response.headers.get('content-encoding')]).toEqual([
+        path,
+        'br',
+      ]);
+    }
+  });
+
+  it('honours a refusal of brotli, and answers HEAD without a body', async () => {
+    const asset = `${site}/assets/index-abc123.js`;
+    const refused = await fetch(asset, {
+      headers: { 'accept-encoding': 'br;q=0, gzip' },
+    });
+    expect(refused.headers.get('content-encoding')).toBe('gzip');
+    expect(await refused.text()).toBe(SCRIPT);
+
+    for (const path of ['/assets/index-abc123.js', '/some-chat']) {
+      const head = await fetch(`${site}${path}`, {
+        method: 'HEAD',
+        headers: { 'accept-encoding': 'br' },
+      });
+      expect([path, head.status, head.headers.get('content-encoding')]).toEqual(
+        [path, 200, 'br']
+      );
+      expect(await head.text()).toBe('');
+    }
+  });
+
+  it('sends HSTS only for an https address', async () => {
+    expect(
+      (await fetch(site)).headers.get('strict-transport-security')
+    ).toBeNull();
+    const secure = await startServer(createTestApp().deps, {
+      ...testConfig,
+      corsOrigin: 'https://msgr.example',
+    });
+    try {
+      const page = await fetch(secure.url.replace(/\/graphql$/, '/healthz'));
+      expect(page.headers.get('strict-transport-security')).toBe(
+        'max-age=31536000'
+      );
+    } finally {
+      await secure.stop();
+    }
+  });
 });
 
 describe("a defect's own words", () => {
@@ -456,6 +724,48 @@ describe("a defect's own words", () => {
       expect(refused.errors[0]?.message).toBe(
         'A query may not read messages inside messages.'
       );
+    } finally {
+      logged.mockRestore();
+      await server.stop();
+    }
+  });
+
+  it('stay on the server when media is asked for, too', async () => {
+    const app = createTestApp();
+    const ada = await app.fixtures.user({ name: 'Ada' });
+    const chat = await app.fixtures.groupChat('Pictures', [ada]);
+    const sent = await app.services().messages.send(ada, {
+      chatId: chat.id,
+      picture: pictureInput(13, 7),
+    });
+    if (!sent.ok) throw new Error('not sent');
+    app.deps.repositories.messages.findMedia = () =>
+      Promise.reject(
+        new Error("Can't reach database server at db.secret:5432")
+      );
+    const logged = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const server = await startServer(app.deps, {
+      port: 0,
+      corsOrigin: APP_ORIGIN,
+      jwtSecret: TEST_JWT_SECRET,
+      sessionTtlSeconds: 60,
+      secureCookies: false,
+      staticDir: null,
+      push: null,
+      admins: [],
+      storageLimit: null,
+    });
+    try {
+      const response = await fetch(
+        server.url.replace(/\/graphql$/, `/media/${sent.value.id}/picture`),
+        { headers: { cookie: `token=${await app.deps.tokens.issue(ada.id)}` } }
+      );
+      expect(response.status).toBe(500);
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      expect(await response.text()).toBe('');
+      expect(String(logged.mock.calls[0]?.[0])).toContain('db.secret');
     } finally {
       logged.mockRestore();
       await server.stop();

@@ -35,6 +35,15 @@ keyboard, notifications, layout) is checked here.
 - [ ] _Optional:_ with macOS's Reduce Motion on, dialogs open without the zoom
       and the cursor stops blinking.
 
+- [ ] **Home Screen (iPhone or Android):** add Msgr to the Home Screen and open
+      it. The menu bar sits below the status bar, which takes the theme's paper
+      (white, black or a tint), and the desktop runs under the home indicator.
+- [ ] **Offline:** open Msgr once, turn on Airplane Mode and open it again. The
+      desktop appears at once with "No connection"; you're not sent to the login
+      page. Turn Airplane Mode off and your chats appear.
+- [ ] **Updates:** with Msgr open, deploy a new version and come back to it.
+      Special → Restart to Update appears and loads the new version.
+
 ## 2. Signing in and out
 
 - [ ] **Return signs in**, just like the Sign In button. Check it both after
@@ -240,7 +249,10 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:55432/postgres CORS_ORIGIN
       up. The database starts empty, so this is your first account.
 - [ ] **Headers:** `curl -I http://localhost:8080` shows
       `Content-Security-Policy`, `X-Frame-Options: DENY` and
-      `X-Content-Type-Options: nosniff`.
+      `X-Content-Type-Options: nosniff`, and no `X-Powered-By`.
+- [ ] **Compression:** `curl -sI -H 'Accept-Encoding: br' http://localhost:8080/`
+      shows `Content-Encoding: br`.
+- [ ] **Health:** `curl -i http://localhost:8080/healthz` answers 204.
 - [ ] **Cleanup:** `docker rm -f msgr-pg` when you're done.
 
 Invites expiring after 7 days, and codes being stored only as hashes, aren't

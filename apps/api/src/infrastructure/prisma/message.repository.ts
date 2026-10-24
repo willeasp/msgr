@@ -45,20 +45,21 @@ export function prismaMessageRepository(db: PrismaClient): MessageRepository {
       return rows.map(toMessage);
     },
 
-    async findPages(chatIds, { limit, offset, before, after }) {
+    async findPages(chatIds, page) {
       if (chatIds.length === 0) return [];
       // A cursor counts only within the same chat: from any other, or none,
       // it finds nothing.
-      const from = (id: MessageId, side: '<' | '>') => Prisma.sql`
-        AND ("createdAt", "id") ${Prisma.raw(side)} (
-          SELECT "createdAt", "id" FROM "Message"
-          WHERE "id" = ${id} AND "chatId" = chat.id
-        )`;
-      const window = before
-        ? from(before, '<')
-        : after
-        ? from(after, '>')
-        : Prisma.empty;
+      const window =
+        page.kind === 'newest'
+          ? Prisma.empty
+          : Prisma.sql`
+            AND ("createdAt", "id") ${Prisma.raw(
+              page.kind === 'before' ? '<' : '>'
+            )} (
+              SELECT "createdAt", "id" FROM "Message"
+              WHERE "id" = ${page.cursor} AND "chatId" = chat.id
+            )`;
+      const offset = page.kind === 'newest' ? page.offset : 0;
       // Each chat's newest first, straight down its (chatId, createdAt, id)
       // index and no further than the page: a long history costs nothing.
       const rows = await db.$queryRaw<MessageRow[]>`
@@ -69,7 +70,7 @@ export function prismaMessageRepository(db: PrismaClient): MessageRepository {
           SELECT ${COLUMNS} FROM "Message"
           WHERE "chatId" = chat.id ${window}
           ORDER BY "createdAt" DESC, "id" DESC
-          LIMIT ${limit} OFFSET ${offset}
+          LIMIT ${page.limit} OFFSET ${offset}
         ) AS page
         ORDER BY page."chatId", page."createdAt", page."id"`;
       return rows.map(toMessage);
@@ -81,9 +82,15 @@ export function prismaMessageRepository(db: PrismaClient): MessageRepository {
         select: { id: true, picture: true, movie: true, sound: true },
       });
       return rows.flatMap(({ id, picture, movie, sound }) => {
-        const bytes = picture ?? movie ?? sound;
-        return bytes
-          ? [{ messageId: MessageId(id), bytes: new Uint8Array(bytes) }]
+        const [part, bytes] = picture
+          ? (['picture', picture] as const)
+          : movie
+          ? (['movie', movie] as const)
+          : sound
+          ? (['sound', sound] as const)
+          : [null, null];
+        return part
+          ? [{ messageId: MessageId(id), part, bytes: new Uint8Array(bytes) }]
           : [];
       });
     },

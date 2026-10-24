@@ -256,6 +256,10 @@ export const WATCH: readonly Bitmap[] = MINUTE_HAND.map(([dx, dy, reach]) => {
   return rows.map((row) => row.join(''));
 });
 
+/** The watch at a tick of the movies' clock: its hand goes round in two seconds. */
+export const watchAt = (tick: number): Bitmap =>
+  WATCH[Math.floor(tick / 2) % WATCH.length] ?? [];
+
 /** Get Info's documents, all 16×16: a page of text. */
 export const TEXT_DOCUMENT: Bitmap = [
   '..########......',

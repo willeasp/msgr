@@ -1,0 +1,18 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* The desktop at once; a dialog in its middle only if the wait goes on. */
+.desktop {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  padding: var(--line) 1ch calc(var(--line) * 2);
+  background: var(--dither);
+}
+
+.title {
+  font-family: var(--font-family-chrome);
+}

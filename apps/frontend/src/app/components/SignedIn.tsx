@@ -1,6 +1,7 @@
 import { useQuery } from '@apollo/client/react';
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { sessionOf } from '../../lib/connection';
 import { shouldOffer } from '../../lib/push';
 import { useModals } from '../../sacred/components/page/ModalContext';
 import { ME } from '../data/me';
@@ -17,7 +18,7 @@ import { useOpenChatFromNotifications } from '../hooks/use-service-worker';
 import { SignedInContext, type Viewer } from '../hooks/use-signed-in';
 import { useTypists } from '../hooks/use-typing';
 import { useWatching } from '../hooks/use-watching';
-import { LoadingState } from './LoadingState';
+import { Connecting } from './Connecting';
 import { NotificationsBlockedDialog } from './NotificationsBlockedDialog';
 import { NotificationsDialog } from './NotificationsDialog';
 
@@ -27,17 +28,24 @@ import { NotificationsDialog } from './NotificationsDialog';
  * on screen: the live feed, alerts, typing, the notifications offer and the
  * notifications' links. A view under it only draws itself, so it can't stop
  * any of them.
+ * Who that is comes from `sessionOf` (lib/connection.ts).
  */
 export function SignedIn() {
-  const { data, loading, error } = useQuery(ME);
+  const { data, previousData, error, refetch } = useQuery(ME);
   const location = useLocation();
+  const session = sessionOf(data ?? previousData, error !== undefined);
 
-  if (loading) return <LoadingState label="Connecting" fill />;
-  if (error || !data?.me) {
-    // Back here after signing in.
-    return <Navigate to="/login" replace state={{ from: location }} />;
+  switch (session.kind) {
+    case 'in':
+      return <Live viewer={session.viewer} isAdmin={session.isAdmin} />;
+    case 'out':
+      // Back here after signing in.
+      return <Navigate to="/login" replace state={{ from: location }} />;
+    case 'waiting':
+      return (
+        <Connecting failed={session.failed} onRetry={() => void refetch()} />
+      );
   }
-  return <Live viewer={data.me} isAdmin={!!data.admin} />;
 }
 
 function Live({ viewer, isAdmin }: { viewer: Viewer; isAdmin: boolean }) {

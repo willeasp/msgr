@@ -30,7 +30,9 @@ Each page query also ranked a chat's whole history to keep a few messages.
   you can't see answers 404, exactly like a missing one. A message never
   changes, and a changed avatar has a new address, so the answer is
   `Cache-Control: private, max-age=31536000, immutable`: the browser keeps
-  it, and nobody between may.
+  it, and nobody between may. It keeps it for that session alone (`Vary:
+Cookie`), so whoever signs in next on the device is asked for their own,
+  and logging out clears what it kept (`Clear-Site-Data: "cache"`).
 - **The address is opaque.** The server writes it; the app only follows it.
 - `bits` stays, deprecated, for a release, as ADR 11 asks of any change an
   older shell may still use. It resolves through the same loader.
@@ -38,8 +40,15 @@ Each page query also ranked a chat's whole history to keep a few messages.
   its `(chatId, createdAt, id)` index (`LATERAL … LIMIT`), and pages take a
   cursor: `before` a message for earlier ones, `after` one to catch up. A
   cursor that isn't one of the chat's messages finds nothing, and
-  `Query.messages` answers it as not found, so a client starts again rather
-  than take an empty page for no news. `offset` is deprecated.
+  `Query.messages` and `Chat.messages` answer it as not found, so a client
+  starts again rather than take an empty page for no news. `offset` is
+  deprecated. A `Page` is newest-with-an-offset or a cursor, never both.
+- **A query asks for bounded work** (`graphql/bounded-queries.ts`): aliases
+  could otherwise ask for the same movie's `bits`, or a page of history, a
+  hundred times in one request. At most 10 fields deep, 200 fields, 8 `bits`
+  and one history, never one inside another; a subscription, run again for
+  every event, reads no more than `messages(limit: 1)`, and a socket holds at
+  most 20.
 
 ## Consequences
 
