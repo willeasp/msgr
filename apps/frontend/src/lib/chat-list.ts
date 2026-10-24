@@ -18,10 +18,11 @@ export interface Receiver {
  * The chat list after a message arrives: its chat moves to the top with the
  * message as its preview, joining the list if this is the chat's first message
  * the viewer has seen. This matches the server's most-recently-active order.
- * A message older than the chat's preview, arriving late, changes nothing,
- * and so does one already there. It's unread, as the server counts it
- * (`Chat.unreadCount`), unless the viewer is reading the chat or sent it,
- * which reads everything before it.
+ * A message older than the chat's preview, arriving late, leaves the preview
+ * be, and one already there changes nothing. It's unread, as the server
+ * counts it (`Chat.unreadCount`), unless the viewer is reading the chat or
+ * sent it, which reads everything before it; arriving late, only if what
+ * came after it is unread.
  */
 export function withReceivedMessage(
   chats: readonly ChatRow[],
@@ -31,9 +32,15 @@ export function withReceivedMessage(
   const known = chats.find((row) => row.id === chat.id);
   const preview = known?.messages[0];
   if (preview?.id === id) return chats;
-  if (preview && Date.parse(preview.createdAt) > Date.parse(createdAt))
-    return chats;
   const read = reading || sender.id === viewerId;
+  if (preview && Date.parse(preview.createdAt) > Date.parse(createdAt)) {
+    // Late: the preview stays. Unread too if what came after it is.
+    return !read && known.unreadCount > 0
+      ? chats.map((row) =>
+          row === known ? { ...row, unreadCount: row.unreadCount + 1 } : row
+        )
+      : chats;
+  }
   return [
     {
       ...chat,

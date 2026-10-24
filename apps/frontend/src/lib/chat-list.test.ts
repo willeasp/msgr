@@ -114,6 +114,21 @@ describe('withReceivedMessage', () => {
     expect(withReceivedMessage(chats, late, away)).toBe(chats);
   });
 
+  it('counts a late message unread only if what came after it is', () => {
+    const late = { ...received('b', 'stale'), createdAt: '2025-12-31' };
+    const unread = [row('a', 'x'), row('b', 'y', 2)];
+
+    const next = withReceivedMessage(unread, late, away);
+    expect(next.map(({ id, unreadCount }) => [id, unreadCount])).toEqual([
+      ['a', 0],
+      ['b', 3],
+    ]);
+    expect(next[1]?.messages).toEqual(unread[1]?.messages);
+    expect(
+      withReceivedMessage(unread, late, { viewerId: 'me', reading: true })
+    ).toBe(unread);
+  });
+
   it("counts someone else's message as unread, on top of those before", () => {
     const next = withReceivedMessage(
       [row('a', 'x', 2), row('b', 'y')],

@@ -57,7 +57,7 @@ export function recordingPushSender(gone: readonly string[] = []) {
   const sent: {
     endpoint: string;
     notification: Notification;
-    unread: number;
+    unread: number | null;
   }[] = [];
   const sender: PushSender = {
     send: async ({ endpoint }, { notification, unread }) => {

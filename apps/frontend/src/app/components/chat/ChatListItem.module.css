@@ -62,6 +62,13 @@
   color: var(--ink);
 }
 
+/* Forced colours take the background: an outline keeps it a count. */
+@media (forced-colors: active) {
+  .unread {
+    border: 1px solid CanvasText;
+  }
+}
+
 .hidden {
   position: absolute;
   width: 1px;

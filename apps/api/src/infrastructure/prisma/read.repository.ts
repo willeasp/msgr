@@ -1,28 +1,52 @@
 import type { ReadRepository } from '../../application/ports.js';
 import { ChatId } from '../../domain/chat.js';
 import { MessageId } from '../../domain/message.js';
-import type { Read, Unread, UnreadTotal } from '../../domain/read.js';
+import {
+  UNREAD_LIMIT,
+  type Read,
+  type Unread,
+  type UnreadTotal,
+} from '../../domain/read.js';
 import { UserId } from '../../domain/user.js';
 import { Prisma, type PrismaClient } from './client.js';
 
 export function prismaReadRepository(db: PrismaClient): ReadRepository {
   return {
     async markRead(message, readerId, at) {
-      // Their point in the chat moves only forward: unchanged, they had
-      // already read this far, and there's nothing to mark.
-      const moved = await db.$executeRaw`
+      // Their place in the chat moves only forward, and a mark is kept only
+      // when it does: had they read this far already, nothing changes. One
+      // statement, so the place and the marks never disagree.
+      await db.$executeRaw`
+        WITH moved AS (
+          INSERT INTO "ReadPoint" ("userId", "chatId", "messageId")
+          VALUES (${readerId}, ${message.chatId}, ${message.id})
+          ON CONFLICT ("userId", "chatId") DO UPDATE
+            SET "messageId" = EXCLUDED."messageId"
+            WHERE ${position(Prisma.sql`EXCLUDED."messageId"`)}
+              > ${position(Prisma.sql`"ReadPoint"."messageId"`)}
+          RETURNING "messageId"
+        )
+        INSERT INTO "ReadMark" ("userId", "messageId", "readAt")
+        SELECT ${readerId}, moved."messageId",
+          ${at.toISOString()}::timestamptz AT TIME ZONE 'UTC'
+        FROM moved
+        ON CONFLICT DO NOTHING`;
+    },
+
+    async startReading(chatId, readerIds) {
+      if (readerIds.length === 0) return;
+      await db.$executeRaw`
         INSERT INTO "ReadPoint" ("userId", "chatId", "messageId")
-        VALUES (${readerId}, ${message.chatId}, ${message.id})
-        ON CONFLICT ("userId", "chatId") DO UPDATE
-          SET "messageId" = EXCLUDED."messageId"
-          WHERE ${position(Prisma.sql`EXCLUDED."messageId"`)}
-            > ${position(Prisma.sql`"ReadPoint"."messageId"`)}`;
-      if (moved === 0) return;
-      // Two at once leave two marks, which say the same.
-      await db.readMark.createMany({
-        data: [{ userId: readerId, messageId: message.id, readAt: at }],
-        skipDuplicates: true,
-      });
+        SELECT reader.id, ${chatId}, before_newest."id"
+        FROM (
+          SELECT DISTINCT unnest(ARRAY[${Prisma.join(readerIds)}]::text[]) AS id
+        ) AS reader
+        CROSS JOIN (
+          SELECT "id" FROM "Message" WHERE "chatId" = ${chatId}
+          ORDER BY "createdAt" DESC, "id" DESC
+          LIMIT 1 OFFSET 1
+        ) AS before_newest
+        ON CONFLICT ("userId", "chatId") DO NOTHING`;
     },
 
     async findByMessageIds(ids) {
@@ -89,9 +113,9 @@ const position = (messageId: Prisma.Sql) => Prisma.sql`
 /**
  * Joins `unread.count`: how many messages others sent in `chat` after the
  * later of the last one `reader` read (their ReadPoint) and the last they
- * sent (the end of their run in the sender index). The count walks the
- * chat's (chatId, createdAt, id) index from there, so it costs only what's
- * unread.
+ * sent (the end of their run in the sender index), up to UNREAD_LIMIT. The
+ * count walks the chat's (chatId, createdAt, id) index from there, so it
+ * costs no more than what it counts.
  */
 const unreadOf = (chat: Prisma.Sql, reader: Prisma.Sql) => Prisma.sql`
   LEFT JOIN "ReadPoint" AS point
@@ -111,8 +135,12 @@ const unreadOf = (chat: Prisma.Sql, reader: Prisma.Sql) => Prisma.sql`
     LIMIT 1
   ) AS seen
   CROSS JOIN LATERAL (
-    SELECT COUNT(*)::int AS count FROM "Message" m
-    WHERE m."chatId" = ${chat} AND m."senderId" <> ${reader}
-      AND (m."createdAt", m."id")
-        > (COALESCE(seen."createdAt", '-infinity'), COALESCE(seen."id", ''))
+    -- All of it is someone else's: their own last is at or before seen.
+    SELECT COUNT(*)::int AS count FROM (
+      SELECT 1 FROM "Message" m
+      WHERE m."chatId" = ${chat}
+        AND (m."createdAt", m."id")
+          > (COALESCE(seen."createdAt", '-infinity'), COALESCE(seen."id", ''))
+      LIMIT ${UNREAD_LIMIT}
+    ) AS counted
   ) AS unread`;

@@ -17,7 +17,7 @@ import {
   type NewMessage,
 } from '../domain/message.js';
 import type { PushSubscription } from '../domain/push.js';
-import type { Read } from '../domain/read.js';
+import { UNREAD_LIMIT, type Read } from '../domain/read.js';
 import { err, ok } from '../domain/result.js';
 import {
   Email,
@@ -63,25 +63,28 @@ export function createInMemoryRepositories(): {
       const seen = messageById(mark.messageId);
       return seen?.chatId === message.chatId && !isBefore(seen, message);
     });
+  // Each reader's place in each chat: the furthest message they've read.
+  const places = new Map<string, Message>();
+  const placeKey = (readerId: UserId, chatId: ChatId) =>
+    `${readerId} ${chatId}`;
   /** What others sent in a chat after the last message `readerId` read or sent there. */
   const unreadIn = (chatId: ChatId, readerId: UserId) => {
     const inChat = messages.filter((message) => message.chatId === chatId);
-    const seen = inChat.filter(
-      (message) =>
-        message.senderId === readerId ||
-        marks.some(
-          (mark) => mark.readerId === readerId && mark.messageId === message.id
-        )
-    );
-    const point = seen.reduce<Message | undefined>(
+    const seen = [
+      places.get(placeKey(readerId, chatId)),
+      ...inChat.filter((message) => message.senderId === readerId),
+    ].reduce<Message | undefined>(
       (latest, message) =>
-        !latest || isBefore(latest, message) ? message : latest,
+        !latest || (message && isBefore(latest, message)) ? message : latest,
       undefined
     );
-    return inChat.filter(
-      (message) =>
-        message.senderId !== readerId && (!point || isBefore(point, message))
-    ).length;
+    return Math.min(
+      UNREAD_LIMIT,
+      inChat.filter(
+        (message) =>
+          message.senderId !== readerId && (!seen || isBefore(seen, message))
+      ).length
+    );
   };
   const pushSubscriptions = new Map<
     string,
@@ -268,10 +271,23 @@ export function createInMemoryRepositories(): {
         if (!messageById(message.id)) {
           throw new Error(`Unknown message ${message.id}`);
         }
-        const already = marksFrom(message).some(
-          (mark) => mark.readerId === readerId
-        );
-        if (!already) marks.push({ messageId: message.id, readerId, at });
+        // Only forward, and a mark only when it moves.
+        const key = placeKey(readerId, message.chatId);
+        const place = places.get(key);
+        if (place && !isBefore(place, message)) return;
+        places.set(key, message);
+        marks.push({ messageId: message.id, readerId, at });
+      },
+
+      startReading: async (chatId, readerIds) => {
+        const [, beforeNewest] = messages
+          .filter((message) => message.chatId === chatId)
+          .sort((a, b) => (isBefore(a, b) ? 1 : -1));
+        if (!beforeNewest) return;
+        for (const readerId of distinct(readerIds)) {
+          const key = placeKey(readerId, chatId);
+          if (!places.has(key)) places.set(key, beforeNewest);
+        }
       },
 
       findByMessageIds: async (ids) =>

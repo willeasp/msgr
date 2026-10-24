@@ -80,7 +80,8 @@ export interface Notification {
 /** A notification for one person, with how many messages they have yet to read: their app's badge. */
 export interface Push {
   readonly notification: Notification;
-  readonly unread: number;
+  /** Null when it couldn't be counted: the badge stays as it was. */
+  readonly unread: number | null;
 }
 
 // Push payloads stop at about 4 KB, and a notification shows a few lines anyway.

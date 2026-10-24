@@ -14,7 +14,7 @@ import {
   type MessageContent,
 } from '../domain/message.js';
 import type { PushSubscription } from '../domain/push.js';
-import type { Read, UnreadTotal } from '../domain/read.js';
+import { UNREAD_LIMIT, type Read, type UnreadTotal } from '../domain/read.js';
 import { exampleMovie } from './movies.js';
 import { exampleSound } from './sounds.js';
 import { exampleAvatar, examplePicture } from './pictures.js';
@@ -870,6 +870,128 @@ export function repositoryContract(
       expect(
         await repositories.reads.countUnread(grace.id, [direct.id])
       ).toEqual([{ chatId: direct.id, count: 1 }]);
+    });
+
+    it('counts from their own last message when they read less far', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const direct = await repositories.chats.saveDirect(pairOf(ada, grace));
+      const first = await send(direct, ada, 'one', '2030-01-01T00:01:00Z');
+      await send(direct, ada, 'two', '2030-01-01T00:02:00Z');
+      await repositories.reads.markRead(first, grace.id, at(1));
+      await send(direct, grace, 'reply', '2030-01-01T00:03:00Z');
+      await send(direct, ada, 'three', '2030-01-01T00:04:00Z');
+
+      expect(
+        await repositories.reads.countUnread(grace.id, [direct.id])
+      ).toEqual([{ chatId: direct.id, count: 1 }]);
+    });
+
+    it('orders their own last message among others at the same moment by id', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const direct = await repositories.chats.saveDirect(pairOf(ada, grace));
+      const moment = '2030-01-01T00:01:00Z';
+      const sent = sortById([
+        await send(direct, ada, 'a', moment),
+        await send(direct, grace, 'b', moment),
+        await send(direct, ada, 'c', moment),
+        await send(direct, ada, 'd', moment),
+      ]);
+      const own = sent.findIndex((message) => message.senderId === grace.id);
+
+      expect(
+        await repositories.reads.countUnread(grace.id, [direct.id])
+      ).toEqual(
+        own === sent.length - 1
+          ? []
+          : [{ chatId: direct.id, count: sent.length - 1 - own }]
+      );
+    });
+
+    it(`counts no further than ${UNREAD_LIMIT}`, async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const direct = await repositories.chats.saveDirect(pairOf(ada, grace));
+      for (let i = 0; i < UNREAD_LIMIT + 5; i++) {
+        const second = String(i % 60).padStart(2, '0');
+        const minute = String(Math.floor(i / 60)).padStart(2, '0');
+        await send(direct, ada, `${i}`, `2030-01-01T00:${minute}:${second}Z`);
+      }
+
+      expect(
+        await repositories.reads.countUnread(grace.id, [direct.id])
+      ).toEqual([{ chatId: direct.id, count: UNREAD_LIMIT }]);
+      expect(await repositories.reads.countAllUnread([grace.id])).toEqual([
+        { readerId: grace.id, total: UNREAD_LIMIT },
+      ]);
+    });
+
+    it('starts a newcomer just before the newest message, and keeps anyone’s place', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const linus = await fixtures.user({ name: 'Linus' });
+      const team = await fixtures.groupChat('Team', [ada, grace, linus]);
+      const first = await send(team, ada, 'one', '2030-01-01T00:01:00Z');
+      await send(team, ada, 'two', '2030-01-01T00:02:00Z');
+      const newest = await send(team, ada, 'three', '2030-01-01T00:03:00Z');
+      await repositories.reads.markRead(first, linus.id, at(1));
+      const unread = async (reader: User) =>
+        (await repositories.reads.countUnread(reader.id, [team.id]))[0]
+          ?.count ?? 0;
+
+      await repositories.reads.startReading(team.id, [
+        grace.id,
+        linus.id,
+        grace.id,
+      ]);
+
+      expect(await unread(grace)).toBe(1);
+      expect(await unread(linus)).toBe(2);
+      // Nothing was marked read by starting.
+      expect(await repositories.reads.findByMessageIds([first.id])).toEqual([
+        { messageId: first.id, readerId: linus.id, at: at(1) },
+      ]);
+      // Reading the newest counts, as any read does.
+      await repositories.reads.markRead(newest, grace.id, at(2));
+      expect(await unread(grace)).toBe(0);
+      expect(
+        await repositories.reads.findByMessageIds([newest.id])
+      ).toContainEqual({ messageId: newest.id, readerId: grace.id, at: at(2) });
+    });
+
+    it('starts no one in a chat with one message or none', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const team = await fixtures.groupChat('Team', [ada, grace]);
+      await repositories.reads.startReading(team.id, [grace.id]);
+      await repositories.reads.startReading(team.id, []);
+      await send(team, ada, 'one', '2030-01-01T00:01:00Z');
+      await repositories.reads.startReading(team.id, [grace.id]);
+
+      expect(await repositories.reads.countUnread(grace.id, [team.id])).toEqual(
+        [{ chatId: team.id, count: 1 }]
+      );
+    });
+
+    it('sums only the chats a reader is still in', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const books = await repositories.chats.joinChannel(
+        'books' as ChannelName,
+        ada.id
+      );
+      await repositories.chats.joinChannel('books' as ChannelName, grace.id);
+      const first = await send(books, ada, 'one', '2030-01-01T00:01:00Z');
+      await send(books, ada, 'two', '2030-01-01T00:02:00Z');
+      await repositories.reads.markRead(first, grace.id, at(1));
+      expect(await repositories.reads.countAllUnread([grace.id])).toEqual([
+        { readerId: grace.id, total: 1 },
+      ]);
+
+      await repositories.chats.leaveChannel(books.id, grace.id);
+
+      expect(await repositories.reads.countAllUnread([grace.id])).toEqual([]);
     });
 
     it('sums every chat each reader is in, and no one else’s', async () => {

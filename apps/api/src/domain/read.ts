@@ -19,12 +19,22 @@ export const firstReadFirst = (a: Read, b: Read): number =>
 
 /**
  * How many messages others sent in a chat after the last one someone read or
- * sent there: sending a message reads everything before it.
+ * sent there: sending a message reads everything before it. Joining starts
+ * a newcomer just before the newest, so what came before isn't theirs to
+ * catch up on.
+ * Counted up to `UNREAD_LIMIT`.
  */
 export interface Unread {
   readonly chatId: ChatId;
   readonly count: number;
 }
+
+/**
+ * Unread is counted no further than this in a chat: the list says "99+"
+ * past 99, and counting a channel someone never opens to its first message
+ * would cost as much as it has.
+ */
+export const UNREAD_LIMIT = 100;
 
 /** Someone's unread messages summed over every chat they're in: their app's badge. */
 export interface UnreadTotal {

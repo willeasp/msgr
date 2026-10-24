@@ -140,6 +140,26 @@ describe('notifying about a message', () => {
     quiet.mockRestore();
   });
 
+  it('still notifies when the unread count fails, leaving the badge be', async () => {
+    const quiet = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const { deps, push, notifier, ada, chat, message } = await team();
+    vi.spyOn(deps.repositories.reads, 'countAllUnread').mockRejectedValue(
+      new Error('database asleep')
+    );
+
+    await notifier.message(message(ada, 'hi'), chat, ada);
+
+    expect(names(push.sent)).toEqual([
+      'grace-laptop',
+      'grace-phone',
+      'linus-phone',
+    ]);
+    expect(push.sent.map(({ unread }) => unread)).toEqual([null, null, null]);
+    quiet.mockRestore();
+  });
+
   it('never fails when it cannot even look anyone up', async () => {
     const quiet = vi
       .spyOn(console, 'error')

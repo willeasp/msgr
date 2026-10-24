@@ -108,8 +108,16 @@ export interface ReadRepository {
    */
   findByMessageIds(ids: readonly MessageId[]): Promise<Read[]>;
   /**
+   * Starts each reader just before the chat's newest message, as joining it
+   * does: what came before isn't theirs to catch up on, and the newest waits
+   * for them, unread. Someone who already has a place keeps it, and nothing
+   * is marked read.
+   */
+  startReading(chatId: ChatId, readerIds: readonly UserId[]): Promise<void>;
+  /**
    * For each chat, how many messages others sent there after the last one
-   * `readerId` read or sent. Chats with none, and unknown chats, are left out.
+   * `readerId` read or sent, up to `UNREAD_LIMIT`. Chats with none, and
+   * unknown chats, are left out.
    */
   countUnread(readerId: UserId, chatIds: readonly ChatId[]): Promise<Unread[]>;
   /**

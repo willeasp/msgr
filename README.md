@@ -25,7 +25,7 @@
 - **Invite-only.** Nobody can sign up without a link from someone already in. **File → Invite a Friend…** makes one; it works once and lasts a week. Whoever signs up with it lands in a chat with you, and you get told they joined.
 - **Direct chats, groups and `#channels`.** Start a chat with anyone from **File → New Chat…** or <kbd>Ctrl</kbd>&nbsp;<kbd>K</kbd>. Make a channel with **File → New Channel…** and bring people in with **Add People…**, or join one from **File → Join Channel…** or by typing `/join #name` in the message box.
 - **Live.** Messages arrive the moment they're sent, and the chat list reorders itself.
-- **Unread at a glance.** A chat with messages you haven't read shows how many, and the app's icon on your Home Screen or Dock shows them all, even while it's closed.
+- **Unread at a glance.** A chat with messages you haven't read shows how many, and the installed app's icon on your Home Screen or Dock shows them all; with notifications on, even while it's closed.
 - **The wristwatch while someone types.** While someone writes to you, the chat window's title bar shows the classic Macintosh watch, its hand going round, and "Ana is typing…". It goes the moment their message arrives.
 - **Get Info on any message.** Click a message, or hold a finger on it: what it is and how big, where and when it was sent, and who has read it and when. A chat counts as read while it's open on your screen.
 - **Pixel emoji.** Every emoji is redrawn as black-and-white pixel art in the theme's ink, and a message of just emoji shows them big.

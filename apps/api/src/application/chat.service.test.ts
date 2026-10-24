@@ -193,6 +193,31 @@ describe('adding people to a channel', () => {
     });
   });
 
+  it('starts newcomers at the newest message, joined or added, and keeps a member’s place', async () => {
+    const { deps, services, ada, grace, linus } = await threePeople();
+    const books = expectOk(await services().chats.joinChannel(ada, 'books'));
+    for (const content of ['one', 'two', 'three']) {
+      expectOk(
+        await services().messages.send(ada, { chatId: books.id, content })
+      );
+    }
+    const unread = async (reader: typeof ada) =>
+      (await deps.repositories.reads.countUnread(reader.id, [books.id]))[0]
+        ?.count ?? 0;
+
+    expectOk(await services().chats.addToChannel(ada, books.id, [grace.id]));
+    expectOk(await services().chats.joinChannel(linus, 'books'));
+    expect(await unread(grace)).toBe(1);
+    expect(await unread(linus)).toBe(1);
+
+    // Joining again, already there, keeps the place.
+    expectOk(
+      await services().messages.send(ada, { chatId: books.id, content: 'four' })
+    );
+    expectOk(await services().chats.joinChannel(linus, 'books'));
+    expect(await unread(linus)).toBe(2);
+  });
+
   it("pushes the news to each newcomer's browsers", async () => {
     const push = recordingPushSender();
     const { deps, services, ada, grace } = await threePeople({

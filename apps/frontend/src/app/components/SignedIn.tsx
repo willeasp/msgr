@@ -31,9 +31,9 @@ import {
 /**
  * The layout of every signed-in route: it sends anyone signed out to /login,
  * and holds what must last as long as someone is signed in, whatever view is
- * on screen: the live feed, alerts, typing, the notifications offer and the
- * notifications' links. A view under it only draws itself, so it can't stop
- * any of them.
+ * on screen: the live feed, alerts, typing, the app's badge, the
+ * notifications offer and the notifications' links. A view under it only
+ * draws itself, so it can't stop any of them.
  * Who that is comes from `sessionOf` (lib/connection.ts).
  */
 export function SignedIn() {

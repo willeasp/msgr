@@ -16,8 +16,9 @@ export interface ArrivedMessage {
 
 /**
  * Gets the viewer's attention while Msgr is open, for messages they aren't
- * looking at: a beep, and an unread count in the tab. Notifications come by
- * push (`useNotifications`), open or not.
+ * looking at: a beep, and, while the tab is hidden, a count in its title of
+ * what arrived meanwhile. Notifications come by push (`useNotifications`),
+ * open or not; what's unread is the chat list's (`Chat.unreadCount`).
  */
 export function useAlerts(viewerId: string | undefined, openChatId?: string) {
   const [prefs, setPrefs] = useState(() =>
