@@ -1,4 +1,5 @@
 import nx from '@nx/eslint-plugin';
+import reactHooks from 'eslint-plugin-react-hooks';
 import baseConfig from '../../eslint.config.mjs';
 
 /*
@@ -103,12 +104,18 @@ export default [
     rules: {},
   },
   {
-    // Vendored Sacred Computer components keep upstream's loose typing so they stay diffable.
+    // Vendored Sacred Computer components keep upstream's loose typing so they
+    // stay diffable, and the React Compiler leaves them as they are
+    // (vite.config.ts), so its rules don't apply.
     files: ['src/sacred/**/*.ts', 'src/sacred/**/*.tsx'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
-      'react-hooks/exhaustive-deps': 'off',
+      ...Object.fromEntries(
+        Object.keys(reactHooks.configs.recommended.rules)
+          .filter((rule) => rule !== 'react-hooks/rules-of-hooks')
+          .map((rule) => [rule, 'off'])
+      ),
     },
   },
   {

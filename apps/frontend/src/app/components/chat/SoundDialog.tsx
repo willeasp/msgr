@@ -49,6 +49,15 @@ type Stage =
 const BARS = 240;
 
 /** Why recording failed, in words for the person. */
+/** A sound file's samples, at least a tenth of a second of them, or why not. */
+async function samplesOf(from: Blob): Promise<Float32Array> {
+  const read = await readSound(from);
+  if (read.length < SOUND_RATE / 10) {
+    throw new Error('That’s too short to keep. Try something longer.');
+  }
+  return read;
+}
+
 function recordingProblem(error: unknown): string {
   if (!canRecord()) {
     return 'This browser can’t record. Choose a file instead.';
@@ -93,27 +102,35 @@ export function SoundDialog({ title, file, onDone }: SoundDialogProps) {
     [samples]
   );
 
-  const open = useCallback(async (from: Blob) => {
-    setStage({ kind: 'reading' });
-    setProblem(null);
-    try {
-      const read = await readSound(from);
-      if (read.length < SOUND_RATE / 10) {
-        throw new Error('That’s too short to keep. Try something longer.');
-      }
-      setPart(firstPart(read.length / SOUND_RATE, LONGEST_SOUND));
-      setStage({ kind: 'ready', samples: read });
-    } catch (error) {
-      setProblem(
-        error instanceof Error ? error.message : 'That couldn’t be read.'
-      );
-      setStage({ kind: 'start' });
-    }
-  }, []);
+  // Reads `from` into the dialog; the stage already says it's reading.
+  const read = useCallback(
+    (from: Blob) =>
+      samplesOf(from).then(
+        (samples) => {
+          setPart(firstPart(samples.length / SOUND_RATE, LONGEST_SOUND));
+          setStage({ kind: 'ready', samples });
+        },
+        (error: unknown) => {
+          setProblem(
+            error instanceof Error ? error.message : 'That couldn’t be read.'
+          );
+          setStage({ kind: 'start' });
+        }
+      ),
+    []
+  );
+  const open = useCallback(
+    (from: Blob) => {
+      setStage({ kind: 'reading' });
+      setProblem(null);
+      void read(from);
+    },
+    [read]
+  );
 
   useEffect(() => {
-    if (file) void open(file);
-  }, [file, open]);
+    if (file) void read(file);
+  }, [file, read]);
 
   // The recording held, if any, is cancelled when it's let go: the dialog
   // closing, or a stage after it. Cancelling one that's over does nothing.
@@ -173,18 +190,16 @@ export function SoundDialog({ title, file, onDone }: SoundDialogProps) {
     setSquashing(true);
     // Lets "Squashing…" show: a minute takes a moment on a phone.
     await new Promise((resolve) => setTimeout(resolve, 20));
-    try {
-      const codes = squash(samples, part);
-      if (isSilent(codes)) {
-        setProblem('That part comes out silent: nothing in it is loud enough.');
-        return null;
-      }
-      setProblem(null);
-      setMade({ part, codes });
-      return codes;
-    } finally {
-      setSquashing(false);
+    const codes = await Promise.resolve()
+      .then(() => squash(samples, part))
+      .finally(() => setSquashing(false));
+    if (isSilent(codes)) {
+      setProblem('That part comes out silent: nothing in it is loud enough.');
+      return null;
     }
+    setProblem(null);
+    setMade({ part, codes });
+    return codes;
   };
 
   const play = async () => {

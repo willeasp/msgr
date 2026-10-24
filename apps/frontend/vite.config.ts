@@ -47,11 +47,26 @@ const config = {
       },
     },
   },
-  // Plain objects, so the file stays a synchronous plain object: a plugin's
-  // modules are imported inside its hooks. If you need plugin-react features
-  // (fast refresh, automatic runtime), load the plugin dynamically when running
-  // Vite (outside of project-graph checks).
+  // A plugin package is imported where Vite awaits it, never at the top, so
+  // the file stays a synchronous plain object for Nx's project graph.
   plugins: [
+    /*
+     * JSX with Fast Refresh in development, and the React Compiler, which
+     * memoizes components and hooks so a change re-renders only what reads
+     * it. Vendored Sacred keeps upstream's code as it is.
+     */
+    import('@vitejs/plugin-react').then(({ default: react }) =>
+      react({
+        babel: {
+          plugins: [
+            [
+              'babel-plugin-react-compiler',
+              { sources: (file: string) => !file.includes('/src/sacred/') },
+            ],
+          ],
+        },
+      })
+    ),
     {
       /*
        * The app's shell: writes this build's version and every file it made

@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  type CSSProperties,
-  type RefObject,
-} from 'react';
+import { useEffect, useRef, type CSSProperties, type RefObject } from 'react';
 import type { Bits } from '@msgr/media';
 import { inkRuns } from '../../lib/paint';
 import { THEME_CHANGED } from '../browser/theme';
@@ -26,7 +20,7 @@ export function useBitmapCanvas(
   const own = useRef<HTMLCanvasElement>(null);
   const ref = canvas ?? own;
 
-  const repaint = useCallback(() => {
+  const repaint = () => {
     const canvas = ref.current;
     const context = canvas?.getContext('2d');
     if (!canvas || !context) return;
@@ -37,7 +31,7 @@ export function useBitmapCanvas(
     for (const [x, y, length] of inkRuns(bits)) {
       context.fillRect(x, y, length, 1);
     }
-  }, [bits, ref]);
+  };
 
   useEffect(() => {
     repaint();

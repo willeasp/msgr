@@ -37,9 +37,14 @@ function subscribe(listener: () => void) {
   };
 }
 
+function current(): ThemeInks {
+  if (!inks) inks = read();
+  return inks;
+}
+
 /**
  * The theme's colours, for what is drawn as an image rather than styled by
  * CSS (faces), so a tint reaches it too. Re-read whenever the theme changes.
  */
 export const useInks = (): ThemeInks =>
-  useSyncExternalStore(subscribe, () => (inks ??= read()));
+  useSyncExternalStore(subscribe, current);

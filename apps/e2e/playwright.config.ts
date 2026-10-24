@@ -17,6 +17,8 @@ export default defineConfig({
     { name: 'e2e', testDir: './tests' },
     // The README's pictures, remade with `npm run screenshots`.
     { name: 'screenshots', testDir: './screenshots' },
+    // What the app costs to use, printed by `npm run measure`.
+    { name: 'measure', testDir: './measure' },
   ],
   // One server and one database, shared: run the tests one at a time.
   workers: 1,

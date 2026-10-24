@@ -218,8 +218,7 @@ export function MessageInput({
           ? drawnOver(sent.movie, sent.drawing)
           : sent.movie
         : null;
-    setPreparing(true);
-    try {
+    const send = async () => {
       await typing.said();
       const { data } = await sendMessage({
         variables: {
@@ -244,11 +243,12 @@ export function MessageInput({
       });
       if (data) typing.sent();
       if (sent && data) onDetach(sent);
-    } catch {
+    };
+    setPreparing(true);
+    await send()
       // Shown from `sendError`; the message and its attachment stay to retry.
-    } finally {
-      setPreparing(false);
-    }
+      .catch(() => undefined)
+      .finally(() => setPreparing(false));
   };
 
   // Enter sends; Shift+Enter (or an IME composition) adds a line.
