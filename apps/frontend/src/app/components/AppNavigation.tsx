@@ -1,10 +1,8 @@
-import { useMutation } from '@apollo/client/react';
 import { useNavigate } from 'react-router-dom';
-import { gql } from '../../lib/__generated__';
 import { useModals } from '../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../sacred/modules/hotkeys';
-import { useSessionChange } from '../hooks/use-session-change';
-import { useForgetBrowser } from '../hooks/use-notifications';
+import { useLogOut } from '../hooks/use-session-change';
+import { useRestartToUpdate } from '../hooks/use-service-worker';
 import { useSignedIn } from '../hooks/use-signed-in';
 import { JoinChannelDialog } from './chat/JoinChannelDialog';
 import { NewChatModal } from './chat/NewChatModal';
@@ -13,12 +11,6 @@ import { Menu, MenuBar } from './MenuBar';
 import { ProfileDialog } from './ProfileDialog';
 import { ThemeMenu } from './ThemeMenu';
 import { PixelText } from './PixelText';
-
-const LOGOUT_MUTATION = gql(`
-  mutation Logout {
-    logout
-  }
-`);
 
 /** What the view on screen adds to the File menu; everything else is the same everywhere. */
 interface AppNavigationProps {
@@ -39,11 +31,8 @@ export function AppNavigation({
   const { viewer, isAdmin, alertSound, notifications, install } = useSignedIn();
   const { open } = useModals();
   const navigate = useNavigate();
-  const changeSession = useSessionChange();
-  const [logout] = useMutation(LOGOUT_MUTATION, {
-    onCompleted: () => changeSession('/login'),
-  });
-  const forgetBrowser = useForgetBrowser();
+  const logOut = useLogOut();
+  const restartToUpdate = useRestartToUpdate();
 
   const newChat = () => open(NewChatModal, {});
   useHotkeys('ctrl+k', newChat, {
@@ -82,15 +71,7 @@ export function AppNavigation({
                 ? [{ label: 'Leave Channel', onClick: onLeaveChannel }]
                 : []),
               { label: 'Profile…', onClick: () => open(ProfileDialog, {}) },
-              {
-                label: 'Log Out',
-                // While still signed in, so the server lets go of this browser
-                // too; a failure there never keeps anyone signed in.
-                onClick: () =>
-                  void forgetBrowser()
-                    .catch(() => undefined)
-                    .then(() => logout()),
-              },
+              { label: 'Log Out', onClick: () => void logOut() },
             ]}
           />
           <ThemeMenu />
@@ -108,6 +89,9 @@ export function AppNavigation({
                 : []),
               ...(isAdmin
                 ? [{ label: 'Storage…', onClick: () => navigate('/admin') }]
+                : []),
+              ...(restartToUpdate
+                ? [{ label: 'Restart to Update', onClick: restartToUpdate }]
                 : []),
             ]}
           />

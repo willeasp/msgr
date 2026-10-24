@@ -1,3 +1,7 @@
+import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ChatId } from '../../domain/chat.js';
 import {
@@ -6,6 +10,7 @@ import {
   type Fixtures,
 } from '../../testing/repository-contract.js';
 import { PrismaClient } from './client.js';
+import { pendingMigrations } from './migrations.js';
 import { prismaRepositories } from './repositories.js';
 import { prismaStorageGauge } from './storage-gauge.js';
 import { toUser, userFields } from './user.repository.js';
@@ -33,6 +38,93 @@ describe.runIf(url)('prisma', () => {
         repositories: prismaRepositories(db),
         fixtures: prismaFixtures(db),
       };
+    });
+  });
+
+  describe('migrations', () => {
+    const MIGRATIONS = fileURLToPath(
+      new URL('../../../prisma/migrations', import.meta.url)
+    );
+
+    it('sees a migrated database is up to date, and what a new migration adds', async () => {
+      expect(await pendingMigrations(db, MIGRATIONS)).toEqual([]);
+
+      // The same history, and one migration the database hasn't seen.
+      const next = mkdtempSync(join(tmpdir(), 'msgr-migrations-'));
+      for (const entry of readdirSync(MIGRATIONS, { withFileTypes: true })) {
+        if (entry.isDirectory()) mkdirSync(join(next, entry.name));
+      }
+      mkdirSync(join(next, '29991231000000_next'));
+      expect(await pendingMigrations(db, next)).toEqual([
+        '29991231000000_next',
+      ]);
+    });
+    describe('in a schema of their own', () => {
+      // Prisma's search_path follows ?schema=, so this history is apart from
+      // the migrated one the other tests use.
+      const SCHEMA = 'msgr_migrations_test';
+      let other: PrismaClient;
+      const local = (...names: string[]) => {
+        const dir = mkdtempSync(join(tmpdir(), 'msgr-migrations-'));
+        for (const name of names) mkdirSync(join(dir, name));
+        writeFileSync(join(dir, 'migration_lock.toml'), '');
+        return dir;
+      };
+
+      beforeAll(async () => {
+        await db.$executeRawUnsafe(`DROP SCHEMA IF EXISTS ${SCHEMA} CASCADE`);
+        await db.$executeRawUnsafe(`CREATE SCHEMA ${SCHEMA}`);
+        const separator = url?.includes('?') ? '&' : '?';
+        other = new PrismaClient({
+          datasourceUrl: `${url}${separator}schema=${SCHEMA}`,
+        });
+      });
+      afterAll(async () => {
+        await other.$disconnect();
+        await db.$executeRawUnsafe(`DROP SCHEMA IF EXISTS ${SCHEMA} CASCADE`);
+      });
+
+      it('is every migration, for a database never migrated', async () => {
+        expect(await pendingMigrations(other, local('1_a', '2_b'))).toEqual([
+          '1_a',
+          '2_b',
+        ]);
+      });
+
+      it('counts a failed or rolled-back migration as pending, even one from a newer release', async () => {
+        // Prisma's own table, as `migrate deploy` creates it.
+        await other.$executeRawUnsafe(`CREATE TABLE _prisma_migrations (
+          id VARCHAR(36) PRIMARY KEY, checksum VARCHAR(64) NOT NULL,
+          finished_at TIMESTAMPTZ, migration_name VARCHAR(255) NOT NULL,
+          logs TEXT, rolled_back_at TIMESTAMPTZ,
+          started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          applied_steps_count INTEGER NOT NULL DEFAULT 0)`);
+        await other.$executeRawUnsafe(`INSERT INTO _prisma_migrations
+          (id, checksum, migration_name, finished_at, rolled_back_at) VALUES
+          ('1', '', '1_applied', now(), NULL),
+          ('2', '', '2_failed', NULL, NULL),
+          ('3', '', '3_rolled_back', NULL, now()),
+          ('4', '', '3_rolled_back', now(), now()),
+          ('5', '', '9_failed_in_a_newer_release', NULL, NULL)`);
+
+        expect(
+          await pendingMigrations(
+            other,
+            local('1_applied', '2_failed', '3_rolled_back', '4_new')
+          )
+        ).toEqual([
+          '2_failed',
+          '3_rolled_back',
+          '4_new',
+          '9_failed_in_a_newer_release',
+        ]);
+        // Rolled back to a release that knows only the first: the half-done
+        // ones still send it to the CLI, which refuses.
+        expect(await pendingMigrations(other, local('1_applied'))).toEqual([
+          '2_failed',
+          '9_failed_in_a_newer_release',
+        ]);
+      });
     });
   });
 

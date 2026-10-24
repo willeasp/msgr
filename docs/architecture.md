@@ -17,6 +17,18 @@ friends on free hosting, and stays simple on purpose.
                                Postgres
 ```
 
+## Opening the app
+
+The service worker (`public/sw.js`) keeps the built app on the device, so it
+opens at once from the Home Screen, with or without a network, and never shows
+the host's "waking up" page. It keeps nothing anyone wrote: chats and messages
+come from the server. Until the server says who's signed in, the app shows the
+desktop and, after a moment, why it's waiting; only the server saying nobody is
+signed in sends anyone to `/login`. Queries that couldn't reach a server are
+asked again by themselves. The server, for its part, listens the moment it
+starts and holds GraphQL until the database is up to date
+([ADR 11](adr/0011-the-shell-is-kept-chats-are-not.md)).
+
 ## The API
 
 A functional core and an imperative shell; [CLAUDE.md](../CLAUDE.md) has the

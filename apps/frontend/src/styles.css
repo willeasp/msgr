@@ -17,3 +17,20 @@ html,
 body {
   overscroll-behavior: none;
 }
+
+/*
+On a phone the app runs edge to edge (viewport-fit=cover): the desktop shows
+under the home indicator and beside a notch, while the menu bar and the
+windows keep clear of them.
+*/
+#root {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  background: var(--dither);
+}
+
+/* No grey flash on a tap, and no wait to see whether it's a double tap. */
+html {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
