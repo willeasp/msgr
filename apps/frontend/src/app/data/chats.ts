@@ -28,7 +28,7 @@ export const GET_CHATS = gql(`
         avatar {
           width
           height
-          bits
+          url
         }
       }
       participants {
@@ -63,7 +63,7 @@ export const GET_CHAT_DATA = gql(`
         avatar {
           width
           height
-          bits
+          url
         }
       }
       participants {
@@ -84,17 +84,17 @@ export const GET_CHAT_MESSAGES = gql(`
       picture {
         width
         height
-        bits
+        url
       }
       movie {
         width
         height
         frames
-        bits
+        url
       }
       sound {
         frames
-        bits
+        url
       }
       sender {
         id
@@ -102,7 +102,7 @@ export const GET_CHAT_MESSAGES = gql(`
         avatar {
           width
           height
-          bits
+          url
         }
       }
       createdAt

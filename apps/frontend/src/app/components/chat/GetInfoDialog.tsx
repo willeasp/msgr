@@ -66,7 +66,7 @@ const MESSAGE_INFO = gql(`
           avatar {
             width
             height
-            bits
+            url
           }
         }
       }
@@ -87,7 +87,7 @@ const MESSAGE_READS = gql(`
           avatar {
             width
             height
-            bits
+            url
           }
         }
       }

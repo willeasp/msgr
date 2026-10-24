@@ -62,7 +62,7 @@ describe('withReceivedMessage', () => {
 
   // Your own send's response can land after the feed brought a later message.
   it('previews a movie by its being one, not by its frames', () => {
-    const movie = { width: 8, height: 8, frames: 3, bits: 'AAAA' };
+    const movie = { width: 8, height: 8, frames: 3, url: '/media/a-new/movie' };
     const next = withReceivedMessage([row('a', 'x')], {
       ...received('a', 'unused'),
       content: null,
@@ -79,11 +79,11 @@ describe('withReceivedMessage', () => {
     ]);
   });
 
-  it('previews a sound by its being one, not by its bits', () => {
+  it('previews a sound by its being one, not by its address', () => {
     const next = withReceivedMessage([row('a', 'x')], {
       ...received('a', 'unused'),
       content: null,
-      sound: { frames: 51, bits: 'AAAA' },
+      sound: { frames: 51, url: '/media/a-new/sound' },
     });
 
     expect(next[0]?.messages).toEqual([

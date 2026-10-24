@@ -11,6 +11,7 @@ import Button from '../../../sacred/components/Button';
 import TextArea from '../../../sacred/components/TextArea';
 import { pixelSize, useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
 import { recordMessage } from '../../data/chats';
+import { movies, pictures, sounds } from '../../data/media';
 import { Menu } from '../MenuBar';
 import { useMediaQuery } from '../../hooks/use-media-query';
 import { useMovieTick } from '../../hooks/use-movie';
@@ -43,17 +44,17 @@ const SEND_MESSAGE = gql(`
       picture {
         width
         height
-        bits
+        url
       }
       movie {
         width
         height
         frames
-        bits
+        url
       }
       sound {
         frames
-        bits
+        url
       }
       createdAt
       sender {
@@ -62,7 +63,7 @@ const SEND_MESSAGE = gql(`
         avatar {
           width
           height
-          bits
+          url
         }
       }
       chat {
@@ -75,7 +76,7 @@ const SEND_MESSAGE = gql(`
           avatar {
             width
             height
-            bits
+            url
           }
         }
         participants {
@@ -192,9 +193,6 @@ export function MessageInput({
         const sent = options?.variables?.content;
         if (sent) setMessageInput((now) => (now.trim() === sent ? '' : now));
       },
-      update: (cache, { data }) => {
-        if (data?.sendMessage) recordMessage(cache, data.sendMessage);
-      },
     }
   );
 
@@ -213,6 +211,13 @@ export function MessageInput({
     }
 
     const sent = attachment;
+    // A movie goes with what's drawn over it drawn into every frame.
+    const movie =
+      sent?.kind === 'movie'
+        ? sent.drawing
+          ? drawnOver(sent.movie, sent.drawing)
+          : sent.movie
+        : null;
     setPreparing(true);
     try {
       await typing.said();
@@ -221,15 +226,20 @@ export function MessageInput({
           chatId,
           content: content || null,
           picture: sent?.kind === 'picture' ? await toWire(sent.bits) : null,
-          movie:
-            sent?.kind === 'movie'
-              ? movieToWire(
-                  sent.drawing
-                    ? drawnOver(sent.movie, sent.drawing)
-                    : sent.movie
-                )
-              : null,
+          movie: movie && movieToWire(movie),
           sound: sent?.kind === 'sound' ? soundToWire(sent.codes) : null,
+        },
+        update: (cache, { data }) => {
+          if (!data?.sendMessage) return;
+          // What was just sent is already here: kept before it's shown, so
+          // it's never fetched back.
+          const { picture, movie: kept, sound } = data.sendMessage;
+          if (picture && sent?.kind === 'picture') {
+            pictures.keep(picture, sent.bits);
+          }
+          if (kept && movie) movies.keep(kept, movie);
+          if (sound && sent?.kind === 'sound') sounds.keep(sound, sent.codes);
+          recordMessage(cache, data.sendMessage);
         },
       });
       if (data) typing.sent();

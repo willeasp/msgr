@@ -4,8 +4,8 @@ import { GET_CHAT_MESSAGES } from '../../data/chats';
 import { useReading } from '../../hooks/use-reading';
 import { LoadingState } from '../LoadingState';
 import { Muted } from '../Muted';
-import type { WireMovie } from '../../../lib/movie-wire';
-import type { WirePicture } from '../../../lib/picture-wire';
+import type { KeptMovie } from '../../../lib/movie-wire';
+import type { KeptPicture } from '../../../lib/picture-wire';
 import { MessageBubble } from './MessageBubble';
 import styles from './MessageList.module.css';
 
@@ -14,8 +14,8 @@ interface MessageListProps {
   currentUserId: string | undefined;
   /** Name each run's sender: in groups and channels, not direct chats. */
   showNames: boolean;
-  onDrawOnIt?: (picture: WirePicture) => void;
-  onDrawOnMovie?: (movie: WireMovie) => void;
+  onDrawOnIt?: (picture: KeptPicture) => void;
+  onDrawOnMovie?: (movie: KeptMovie) => void;
   /** Opens Get Info on a message: a click on it. */
   onGetInfo?: (messageId: string) => void;
 }

@@ -4,11 +4,10 @@ import {
   frameOf,
   fromBase64,
   setPixel,
-  toBase64,
   type Frames,
 } from '@msgr/media';
 import { describe, expect, it } from 'vitest';
-import { fromWire, movieFrames, toWire } from './movie-wire';
+import { fromBytes, toWire } from './movie-wire';
 
 const movie = (): Frames => {
   const frames = { width: 13, height: 7, count: 3, bytes: new Uint8Array(42) };
@@ -25,30 +24,19 @@ describe('movies on the wire', () => {
     ).toEqual(movie());
   });
 
-  it('round-trips', () => {
-    expect(fromWire(toWire(movie()))).toEqual(movie());
+  it('reads back the bytes the server keeps', () => {
+    const size = { width: 13, height: 7, frames: 3 };
+    expect(fromBytes(size, encodeMovie(movie()))).toEqual(movie());
   });
 
-  it('refuses a movie of an impossible size or with bits that are not base64', () => {
-    const { bits } = toWire(movie());
-    for (const wire of [
-      { width: 0, height: 7, frames: 3, bits },
-      { width: 13, height: 7, frames: 0, bits },
-      { width: 13, height: 7, frames: 49, bits },
-      { width: 13, height: 7, frames: 3, bits: 'not base64!' },
+  it('refuses a movie of an impossible size', () => {
+    const coded = encodeMovie(movie());
+    for (const size of [
+      { width: 0, height: 7, frames: 3 },
+      { width: 13, height: 7, frames: 0 },
+      { width: 13, height: 7, frames: 49 },
     ]) {
-      expect(fromWire(wire)).toBeNull();
+      expect(fromBytes(size, coded)).toBeNull();
     }
-  });
-
-  it('decodes each movie once, telling apart equal bytes of different shapes', () => {
-    const bits = toBase64(
-      encodeMovie({ width: 8, height: 2, count: 1, bytes: Uint8Array.of(1, 2) })
-    );
-    const wide = { width: 8, height: 2, frames: 1, bits };
-    const tall = { width: 2, height: 8, frames: 1, bits };
-    expect(movieFrames(wide)).toMatchObject({ width: 8, height: 2 });
-    expect(movieFrames(tall)).toMatchObject({ width: 2, height: 8 });
-    expect(movieFrames(wide)).toBe(movieFrames({ ...wide }));
   });
 });

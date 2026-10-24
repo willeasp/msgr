@@ -8,6 +8,7 @@ import { ME } from '../data/me';
 import { useAlerts } from '../hooks/use-alerts';
 import { useChatFeed } from '../hooks/use-chat-feed';
 import { useInstallPrompt } from '../hooks/use-install-prompt';
+import { useMediaRetry } from '../hooks/use-media';
 import {
   dismissOffer,
   offerDismissed,
@@ -54,6 +55,7 @@ function Live({ viewer, isAdmin }: { viewer: Viewer; isAdmin: boolean }) {
   const alerts = useAlerts(viewer.id, chatOnScreen ?? undefined);
   useWatching(chatOnScreen ?? undefined);
   useOpenChatFromNotifications();
+  useMediaRetry();
   const install = useInstallPrompt();
   const notifications = useNotifications();
 

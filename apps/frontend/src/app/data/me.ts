@@ -13,7 +13,7 @@ export const ME = gql(`
       avatar {
         width
         height
-        bits
+        url
       }
     }
     admin {

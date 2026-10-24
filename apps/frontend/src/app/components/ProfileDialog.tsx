@@ -3,12 +3,13 @@ import { useMutation, useQuery } from '@apollo/client/react';
 import { blank, isBlank, type Bits } from '@msgr/media';
 import { gql } from '../../lib/__generated__';
 import { identicon, pictureImage } from '../../lib/pixels';
-import { toWire } from '../../lib/picture-wire';
+import { toWire, type KeptPicture } from '../../lib/picture-wire';
 import AlertBanner from '../../sacred/components/AlertBanner';
 import Button from '../../sacred/components/Button';
 import Input from '../../sacred/components/Input';
 import { useModals } from '../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../sacred/modules/hotkeys';
+import { pictures } from '../data/media';
 import { ME } from '../data/me';
 import { useInks } from '../hooks/use-inks';
 import { usePicture } from '../hooks/use-picture';
@@ -20,6 +21,13 @@ import styles from './ProfileDialog.module.css';
 
 const SIDE = 64;
 
+/** The avatar as kept; a failure to read it is reported, never saved as none. */
+async function kept(avatar: KeptPicture): Promise<Bits> {
+  const bits = await pictures.at(avatar);
+  if (!bits) throw new Error('Could not read your picture. Try again.');
+  return bits;
+}
+
 const UPDATE_PROFILE = gql(`
   mutation UpdateProfile($name: String!, $avatar: PictureInput) {
     updateProfile(input: { name: $name, avatar: $avatar }) {
@@ -28,7 +36,7 @@ const UPDATE_PROFILE = gql(`
       avatar {
         width
         height
-        bits
+        url
       }
     }
   }
@@ -47,7 +55,9 @@ export function ProfileDialog() {
   const picture = drawn === undefined ? saved : drawn;
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [update, { loading }] = useMutation(UPDATE_PROFILE);
+  const [update] = useMutation(UPDATE_PROFILE);
+  // From the click: reading the kept picture comes before the request.
+  const [saving, setSaving] = useState(false);
 
   // Only while on top: Escape in the paint window above is the paint window's.
   const depth = useRef(modalStack.length);
@@ -75,20 +85,19 @@ export function ProfileDialog() {
     else take(bits);
   };
   const save = async () => {
-    if (!me) return;
+    if (!me || saving) return;
     setError(null);
+    setSaving(true);
     try {
+      // Saved together: an unchanged avatar is sent again as it is.
+      const avatar =
+        drawn === undefined ? me.avatar && (await kept(me.avatar)) : drawn;
       await update({
-        variables: {
-          name,
-          avatar:
-            drawn === undefined
-              ? me.avatar && {
-                  width: me.avatar.width,
-                  height: me.avatar.height,
-                  bits: me.avatar.bits,
-                }
-              : drawn && (await toWire(drawn)),
+        variables: { name, avatar: avatar && (await toWire(avatar)) },
+        // Kept before it's shown, so the viewer's new face never downloads.
+        update: (_, { data }) => {
+          const saved = data?.updateProfile.avatar;
+          if (saved && avatar) pictures.keep(saved, avatar);
         },
       });
       close();
@@ -98,6 +107,8 @@ export function ProfileDialog() {
           ? failure.message
           : 'Could not save. Try again.'
       );
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -177,7 +188,7 @@ export function ProfileDialog() {
           <Button theme="SECONDARY" type="button" onClick={() => close()}>
             Cancel
           </Button>
-          {loading || !me ? (
+          {saving || !me ? (
             <Button isDisabled>Save</Button>
           ) : (
             <Button type="submit">Save</Button>

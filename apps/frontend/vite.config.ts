@@ -21,6 +21,9 @@ const config = {
     // Same address as production: the API answers under /graphql.
     proxy: {
       '/graphql': { target: 'http://localhost:4000', ws: true },
+      // Pictures', movies' and sounds' bytes, at addresses of their own.
+      '/media': 'http://localhost:4000',
+      '/avatars': 'http://localhost:4000',
     },
   },
   preview: {

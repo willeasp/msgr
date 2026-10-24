@@ -1,7 +1,9 @@
 import { useEffect, useId, useState, useSyncExternalStore } from 'react';
 import type { SoundCodes } from '@msgr/media';
-import { soundCodes, soundKey, type WireSound } from '../../lib/sound-wire';
+import type { KeptSound } from '../../lib/sound-wire';
 import { audio } from '../browser/audio';
+import { sounds } from '../data/media';
+import { useMedia } from './use-media';
 
 /**
  * A player for one sound, on the page's one audio (`app/browser/audio.ts`): whether
@@ -40,19 +42,8 @@ export function useSoundPlayer(codes: SoundCodes | null) {
 }
 
 /**
- * A sound's codes once decoded; null until then, or for a broken one. The
- * same sound in another object, as the cache may hand over, keeps them.
+ * A sound's codes once fetched and decoded; null until then, or for a broken
+ * one. One already here is ready at once.
  */
-export function useSoundCodes(sound: WireSound | null | undefined) {
-  const [decoded, setDecoded] = useState<string | null>(null);
-  useEffect(() => {
-    if (!sound) return;
-    // After this paint: decoding a minute takes a moment.
-    const later = setTimeout(() => {
-      soundCodes(sound);
-      setDecoded(soundKey(sound));
-    });
-    return () => clearTimeout(later);
-  }, [sound]);
-  return sound && decoded === soundKey(sound) ? soundCodes(sound) : null;
-}
+export const useSoundCodes = (sound: KeptSound | null | undefined) =>
+  useMedia(sounds, sound);
