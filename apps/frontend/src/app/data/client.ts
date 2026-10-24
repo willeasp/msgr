@@ -4,6 +4,7 @@ import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { createClient } from 'graphql-ws';
 import { createCache } from '../../lib/cache';
 import {
+  AWAY_MS,
   isWorthRetrying,
   PONG_WAIT_MS,
   silenceWatch,
@@ -51,13 +52,10 @@ export function createApolloClient(): ApolloClient {
     // server doesn't answer (lib/connection.ts).
     keepAlive: 15_000,
     on: {
-      // Events are lost while the socket is down: on its return, ask again,
-      // media that failed meanwhile included.
+      // Events are lost while the socket is down: on its return, catch up.
       connected: (socket, _payload, wasRetry) => {
         open = socket as WebSocket;
-        if (!wasRetry) return;
-        void client.refetchQueries({ include: 'active' });
-        retryMedia();
+        if (wasRetry) catchUp();
       },
       ping: (received) => {
         if (!received) silence.asked();
@@ -75,8 +73,16 @@ export function createApolloClient(): ApolloClient {
   const silence = silenceWatch(PONG_WAIT_MS, () => feed.terminate());
   // Back from being hidden is when a socket is likeliest dead: ask at once,
   // rather than at the next ping, so a message missed meanwhile shows now.
+  // Back from a while away (locked, or opened from a notification), catch up
+  // at once too, rather than wait to learn whether the socket heard it all.
+  let hiddenAt: number | null = null;
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'visible') return;
+    if (document.visibilityState !== 'visible') {
+      hiddenAt = Date.now();
+      return;
+    }
+    if (hiddenAt !== null && Date.now() - hiddenAt >= AWAY_MS) catchUp();
+    hiddenAt = null;
     if (open?.readyState !== WebSocket.OPEN) return;
     open.send(JSON.stringify({ type: 'ping' }));
     silence.asked();
@@ -91,6 +97,21 @@ export function createApolloClient(): ApolloClient {
     ),
     cache: createCache(),
   });
+
+  // Events may have been missed: ask again for what's on screen, and for the
+  // chat list even when it isn't (a phone showing a chat), since it's read
+  // from the cache when it comes back. Media that failed meanwhile too.
+  function catchUp() {
+    const active = [...client.getObservableQueries('active')];
+    void client.refetchQueries({ include: 'active' });
+    // By name: what Apollo watches is its own copy of the document.
+    if (!active.some((query) => query.queryName === 'GetChats')) {
+      client
+        .query({ query: GET_CHATS, fetchPolicy: 'network-only' })
+        .catch(() => undefined);
+    }
+    retryMedia();
+  }
   return client;
 }
 
