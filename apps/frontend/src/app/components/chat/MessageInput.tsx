@@ -318,7 +318,6 @@ export function MessageInput({
           }}
           onKeyDown={handleKeyDown}
           placeholder="Write a message"
-          rows={1}
           enterKeyHint="send"
           isBlink
           autoFocus={hasMouse}

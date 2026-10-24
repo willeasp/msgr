@@ -100,6 +100,13 @@ keyboard, notifications, layout) is checked here.
 
 - [ ] **Return sends; Shift+Return adds a line.** A long message wraps; the box
       grows to 8 lines, then scrolls. Blank messages don't send.
+- [ ] **Editing:** the box draws its own text and block cursor over the real
+      field, so check it edits like any other. Put the cursor mid-text and type
+      a few letters; they stay where you typed. Select a word (double-click, or
+      long press on a phone, dragging the handles) and type over it; the
+      selection shows inverted, with no block cursor. Select all and delete.
+      On a phone, dictate a sentence and take an autocorrect suggestion; the
+      drawn text follows. The same goes for the login form's fields.
 - [ ] **Live:** Alice's message appears instantly in Test User's chat, which
       jumps to the top of the list with the new preview.
 - [ ] **Bubbles:** yours are black and on the right; theirs are outlined on the
