@@ -21,20 +21,17 @@ afterEach(() => {
 });
 
 /** Mounts a field whose value a parent holds, as msgr's are, with a button either side. */
-function mount(field: 'input' | 'textarea', props: Record<string, unknown> = {}) {
+function mount(field: 'input' | 'textarea', props: { type?: string } = {}) {
   let setValue: (value: string) => void = () => undefined;
   const Parent = () => {
     const [value, set] = useState('');
     setValue = set;
+    const onChange = (e: { target: { value: string } }) => set(e.target.value);
     return createElement(
       'div',
       null,
       createElement('button', null, 'Before'),
-      createElement(field === 'input' ? Input : TextArea, {
-        ...props,
-        value,
-        onChange: (e: { target: { value: string } }) => set(e.target.value),
-      }),
+      field === 'input' ? createElement(Input, { ...props, value, onChange }) : createElement(TextArea, { value, onChange }),
       createElement('button', null, 'After')
     );
   };

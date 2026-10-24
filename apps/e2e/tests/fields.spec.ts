@@ -25,12 +25,13 @@ test('the fields edit like any other: in the middle, over a selection, all at on
   page,
 }) => {
   await page.goto('/login');
-  // A slip in the middle of each, put right where it is.
+  // A slip in the middle of each, put right where it is. Bob has a login to
+  // spare under the throttle (ten an email, the whole suite's run).
   const email = page.getByLabel('Email');
-  await email.pressSequentially('erinexample.com');
+  await email.pressSequentially('bobexample.com');
   for (let i = 0; i < 'example.com'.length; i++) await email.press('ArrowLeft');
   await email.press('@');
-  await expect(email).toHaveValue('erin@example.com');
+  await expect(email).toHaveValue('bob@example.com');
   const password = page.getByLabel('Password');
   await password.pressSequentially(SEEDED_PASSWORD.replace('123', '13'));
   await password.press('ArrowLeft');
