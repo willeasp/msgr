@@ -11,7 +11,7 @@ import Button from '../../../sacred/components/Button';
 import TextArea from '../../../sacred/components/TextArea';
 import { pixelSize, useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
 import { recordMessage } from '../../data/chats';
-import { keepSent } from '../../data/media';
+import { movies, pictures, sounds } from '../../data/media';
 import { Menu } from '../MenuBar';
 import { useMediaQuery } from '../../hooks/use-media-query';
 import { useMovieTick } from '../../hooks/use-movie';
@@ -235,12 +235,10 @@ export function MessageInput({
           // it's never fetched back.
           const { picture, movie: kept, sound } = data.sendMessage;
           if (picture && sent?.kind === 'picture') {
-            keepSent.picture(picture.url, sent.bits);
+            pictures.keep(picture, sent.bits);
           }
-          if (kept && movie) keepSent.movie(kept.url, movie);
-          if (sound && sent?.kind === 'sound') {
-            keepSent.sound(sound.url, sent.codes);
-          }
+          if (kept && movie) movies.keep(kept, movie);
+          if (sound && sent?.kind === 'sound') sounds.keep(sound, sent.codes);
           recordMessage(cache, data.sendMessage);
         },
       });

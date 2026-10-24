@@ -68,7 +68,7 @@ describe("a message's movie", () => {
           width
           height
           frames
-          bits
+          url
         }
       }
     }
@@ -88,10 +88,10 @@ describe("a message's movie", () => {
     width: 8,
     height: 8,
     frames: 3,
-    bits: 'AAAA',
+    url: '/media/m/movie',
   };
 
-  it('keeps its bits when the chat list reads only whether there is one', () => {
+  it('keeps its address when the chat list reads only whether there is one', () => {
     const cache = createCache();
     cache.writeQuery({
       query: FULL,
@@ -121,7 +121,7 @@ describe("a message's sound", () => {
         id
         sound {
           frames
-          bits
+          url
         }
       }
     }
@@ -136,9 +136,9 @@ describe("a message's sound", () => {
       }
     }
   `;
-  const sound = { __typename: 'Sound', frames: 3, bits: 'AAAA' };
+  const sound = { __typename: 'Sound', frames: 3, url: '/media/m/sound' };
 
-  it('keeps its bits when the chat list reads only whether there is one', () => {
+  it('keeps its address when the chat list reads only whether there is one', () => {
     const cache = createCache();
     cache.writeQuery({
       query: FULL,

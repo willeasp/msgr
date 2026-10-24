@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, type CSSProperties } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type CSSProperties,
+  type RefObject,
+} from 'react';
 import type { Bits } from '@msgr/media';
 import { inkRuns } from '../../lib/paint';
 import { THEME_CHANGED } from '../browser/theme';
@@ -8,12 +14,17 @@ export const pixelSize = ({ width, height }: Pick<Bits, 'width' | 'height'>) =>
   ({ '--width': width, '--height': height } as CSSProperties);
 
 /**
- * Paints `bits` on the returned canvas in the canvas's own CSS `color` on its
- * `background-color` (the theme's ink and paper), and again whenever the
- * theme changes. Call `repaint` after changing `bits` in place.
+ * Paints `bits` on the returned canvas (or `canvas`, given) in the canvas's
+ * own CSS `color` on its `background-color` (the theme's ink and paper), and
+ * again whenever the theme changes. Call `repaint` after changing `bits` in
+ * place.
  */
-export function useBitmapCanvas(bits: Bits) {
-  const ref = useRef<HTMLCanvasElement>(null);
+export function useBitmapCanvas(
+  bits: Bits,
+  canvas?: RefObject<HTMLCanvasElement | null>
+) {
+  const own = useRef<HTMLCanvasElement>(null);
+  const ref = canvas ?? own;
 
   const repaint = useCallback(() => {
     const canvas = ref.current;
@@ -26,7 +37,7 @@ export function useBitmapCanvas(bits: Bits) {
     for (const [x, y, length] of inkRuns(bits)) {
       context.fillRect(x, y, length, 1);
     }
-  }, [bits]);
+  }, [bits, ref]);
 
   useEffect(() => {
     repaint();

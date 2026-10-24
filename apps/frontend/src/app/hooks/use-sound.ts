@@ -2,7 +2,8 @@ import { useEffect, useId, useState, useSyncExternalStore } from 'react';
 import type { SoundCodes } from '@msgr/media';
 import type { KeptSound } from '../../lib/sound-wire';
 import { audio } from '../browser/audio';
-import { soundAt, soundNow } from '../data/media';
+import { sounds } from '../data/media';
+import { useMedia } from './use-media';
 
 /**
  * A player for one sound, on the page's one audio (`app/browser/audio.ts`): whether
@@ -44,23 +45,5 @@ export function useSoundPlayer(codes: SoundCodes | null) {
  * A sound's codes once fetched and decoded; null until then, or for a broken
  * one. One already here is ready at once.
  */
-export function useSoundCodes(sound: KeptSound | null | undefined) {
-  const [loaded, setLoaded] = useState<{
-    url: string;
-    codes: SoundCodes | null;
-  } | null>(null);
-  useEffect(() => {
-    if (!sound || soundNow(sound) !== undefined) return;
-    let current = true;
-    void soundAt(sound).then(
-      (codes) => current && setLoaded({ url: sound.url, codes })
-    );
-    return () => {
-      current = false;
-    };
-  }, [sound]);
-  if (!sound) return null;
-  const now = soundNow(sound);
-  if (now !== undefined) return now;
-  return loaded?.url === sound.url ? loaded.codes : null;
-}
+export const useSoundCodes = (sound: KeptSound | null | undefined) =>
+  useMedia(sounds, sound);

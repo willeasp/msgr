@@ -4,9 +4,10 @@ import {
   useSyncExternalStore,
   type RefObject,
 } from 'react';
-import { MOVIE_FPS, type Frames } from '@msgr/media';
+import { MOVIE_FPS } from '@msgr/media';
 import type { KeptMovie } from '../../lib/movie-wire';
-import { movieAt, movieNow } from '../data/media';
+import { movies } from '../data/media';
+import { useMedia } from './use-media';
 
 // One timer for every movie on the page, so they step together, and only
 // while one is showing. Still for anyone who asked for less motion, and while
@@ -67,26 +68,7 @@ export function useOnScreen(ref: RefObject<Element | null>) {
 
 /**
  * A movie's frames once fetched and decoded; null until then, or for a broken
- * one. One already here shows at once.
+ * one. One already here shows at once; any other is fetched once `near`.
  */
-export function useMovie(movie: KeptMovie | null | undefined) {
-  const [loaded, setLoaded] = useState<{
-    url: string;
-    frames: Frames | null;
-  } | null>(null);
-  useEffect(() => {
-    if (!movie || movieNow(movie) !== undefined) return;
-    let current = true;
-    void movieAt(movie).then(
-      (frames) => current && setLoaded({ url: movie.url, frames })
-    );
-    return () => {
-      current = false;
-    };
-  }, [movie]);
-  if (!movie) return null;
-  // Never the last movie's frames while the next one loads.
-  const now = movieNow(movie);
-  if (now !== undefined) return now;
-  return loaded?.url === movie.url ? loaded.frames : null;
-}
+export const useMovie = (movie: KeptMovie | null | undefined, near = true) =>
+  useMedia(movies, movie, near);

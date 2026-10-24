@@ -19,7 +19,7 @@ export function MessageMovie({ movie }: { movie: KeptMovie }) {
   const [shown, setShown] = useState(empty);
   const { ref } = useBitmapCanvas(shown);
   const onScreen = useOnScreen(ref);
-  const frames = useMovie(onScreen.ever ? movie : null);
+  const frames = useMovie(movie, onScreen.ever);
   const tick = useMovieTick(onScreen.now);
   useEffect(() => {
     setShown(frames ? frameOf(frames, tick % frames.count) : empty);

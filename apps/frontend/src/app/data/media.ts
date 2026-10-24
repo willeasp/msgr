@@ -3,7 +3,7 @@ import {
   fromBytes as movieFromBytes,
   type KeptMovie,
 } from '../../lib/movie-wire';
-import { onceEach } from '../../lib/once';
+import { onceEach, type Loaded } from '../../lib/once';
 import {
   fromBytes as pictureFromBytes,
   type KeptPicture,
@@ -20,49 +20,86 @@ import {
  * sent is kept as they made it, and never fetched back.
  */
 
-/** The bytes at a media address; null if the server has none for us. Throws while offline. */
-async function bytesAt(url: string): Promise<Uint8Array<ArrayBuffer> | null> {
+/**
+ * The bytes at a media address. Throws unless they're the server's own (not a
+ * failure, nor a page in their place), so asking again later may succeed.
+ */
+async function bytesAt(url: string): Promise<Uint8Array<ArrayBuffer>> {
   const response = await fetch(url);
-  if (!response.ok) return null;
+  const type = response.headers.get('Content-Type') ?? '';
+  if (!response.ok || !type.startsWith('application/octet-stream')) {
+    throw new Error(`No media at ${url}: ${response.status} ${type}`);
+  }
   return new Uint8Array(await response.arrayBuffer());
 }
 
-// Keyed by address alone: an address names its bytes and their shape for good.
-const pictures = onceEach<Bits>();
-const movies = onceEach<Frames>();
-const sounds = onceEach<SoundCodes>();
+/** One kind of media, kept by address: an address names its bytes and their shape for good. */
+export interface Media<Kept extends { readonly url: string }, T> {
+  /** What's known of it now: one already here shows at once. */
+  now(kept: Kept): Loaded<T>;
+  /** Fetched and decoded once; null if it can't be. Shared between callers: copy before changing it. */
+  at(kept: Kept): Promise<T | null>;
+  /** What the viewer just sent, as they made it: their own message never downloads. */
+  keep(kept: Kept, value: T): void;
+  subscribe(listener: () => void): () => void;
+}
 
-/** A picture's bits, if they're here already: shown at once, without a blank frame. */
-export const pictureNow = (picture: KeptPicture) => pictures.now(picture.url);
+const kinds: { retry(): void; clear(): void }[] = [];
 
-/** A picture's bits, fetched and inflated once. Shared between callers: copy before changing it. */
-export const pictureAt = (picture: KeptPicture): Promise<Bits | null> =>
-  pictures.get(picture.url, async () => {
-    const bytes = await bytesAt(picture.url);
-    return bytes && pictureFromBytes(picture, bytes);
-  });
+function media<Kept extends { readonly url: string }, T>(
+  decode: (
+    kept: Kept,
+    bytes: Uint8Array<ArrayBuffer>
+  ) => T | null | Promise<T | null>,
+  /** Whether a value is the one the server describes, so it may stand for it. */
+  fits: (kept: Kept, value: T) => boolean
+): Media<Kept, T> {
+  const store = onceEach<T>();
+  kinds.push(store);
+  return {
+    now: (kept) => store.now(kept.url),
+    async at(kept) {
+      const loaded = await store.get(kept.url, async () => {
+        const bytes = await bytesAt(kept.url);
+        try {
+          return await decode(kept, bytes);
+        } catch {
+          return null; // Bytes that don't decode never will.
+        }
+      });
+      return loaded.state === 'here' ? loaded.value : null;
+    },
+    keep(kept, value) {
+      if (fits(kept, value)) store.put(kept.url, value);
+    },
+    subscribe: store.subscribe,
+  };
+}
 
-export const movieNow = (movie: KeptMovie) => movies.now(movie.url);
+export const pictures = media<KeptPicture, Bits>(
+  pictureFromBytes,
+  (kept, bits) => bits.width === kept.width && bits.height === kept.height
+);
 
-/** A movie's frames, fetched and decoded once. Shared between callers: copy before changing it. */
-export const movieAt = (movie: KeptMovie): Promise<Frames | null> =>
-  movies.get(movie.url, async () => {
-    const bytes = await bytesAt(movie.url);
-    return bytes && movieFromBytes(movie, bytes);
-  });
+export const movies = media<KeptMovie, Frames>(
+  movieFromBytes,
+  (kept, frames) =>
+    frames.width === kept.width &&
+    frames.height === kept.height &&
+    frames.count === kept.frames
+);
 
-export const soundNow = (sound: KeptSound) => sounds.now(sound.url);
+export const sounds = media<KeptSound, SoundCodes>(
+  soundFromBytes,
+  (kept, codes) => codes.frames === kept.frames
+);
 
-/** A sound's codes, fetched and decoded once. Shared between callers: never change them. */
-export const soundAt = (sound: KeptSound): Promise<SoundCodes | null> =>
-  sounds.get(sound.url, async () => {
-    const bytes = await bytesAt(sound.url);
-    return bytes && soundFromBytes(sound, bytes);
-  });
+/** Asks again for whatever failed: the network is back, or the page is. */
+export function retryMedia(): void {
+  for (const kind of kinds) kind.retry();
+}
 
-/** What the viewer just sent, kept as they made it: their own message never downloads. */
-export const keepSent = {
-  picture: (url: string, bits: Bits) => pictures.put(url, bits),
-  movie: (url: string, frames: Frames) => movies.put(url, frames),
-  sound: (url: string, codes: SoundCodes) => sounds.put(url, codes),
-};
+/** Forgets every picture, movie and sound: someone else may be signing in. */
+export function forgetMedia(): void {
+  for (const kind of kinds) kind.clear();
+}

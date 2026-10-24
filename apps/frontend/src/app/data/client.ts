@@ -6,6 +6,7 @@ import { createCache } from '../../lib/cache';
 import { isWorthRetrying } from '../../lib/connection';
 import { GET_CHATS } from './chats';
 import { ME } from './me';
+import { retryMedia } from './media';
 
 /**
  * The app's one Apollo client. The API lives at the app's own address (Vite
@@ -42,9 +43,12 @@ export function createApolloClient(): ApolloClient {
           setTimeout(done, Math.min(1000 * 2 ** retries, 10_000))
         ),
       on: {
-        // Events are lost while the socket is down: on its return, ask again.
+        // Events are lost while the socket is down: on its return, ask again,
+        // media that failed meanwhile included.
         connected: (_socket, _payload, wasRetry) => {
-          if (wasRetry) void client.refetchQueries({ include: 'active' });
+          if (!wasRetry) return;
+          void client.refetchQueries({ include: 'active' });
+          retryMedia();
         },
       },
     })
