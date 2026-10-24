@@ -25,6 +25,13 @@ export function isWorthRetrying(
   return ServerParseError.is(error) || error instanceof TypeError;
 }
 
+/**
+ * How long the page may be hidden before it catches up on showing again, in
+ * case its socket missed something meanwhile; a shorter absence is covered by
+ * pinging the socket (`silenceWatch`).
+ */
+export const AWAY_MS = 10_000;
+
 /** How long the server may take to answer a ping before its socket is taken for dead. */
 export const PONG_WAIT_MS = 5_000;
 
