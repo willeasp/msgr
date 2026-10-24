@@ -1,5 +1,4 @@
-import { formatTime } from '../../../lib/time';
-import { useClock } from '../../hooks/use-clock';
+import { memo } from 'react';
 import ActionButton from '../../../sacred/components/ActionButton';
 import Message from '../../../sacred/components/Message';
 import MessageViewer from '../../../sacred/components/MessageViewer';
@@ -8,6 +7,7 @@ import { firstLink, splitLinks } from '../../../lib/links';
 import type { KeptMovie } from '../../../lib/movie-wire';
 import type { KeptPicture } from '../../../lib/picture-wire';
 import type { KeptSound } from '../../../lib/sound-wire';
+import { Ago } from '../Ago';
 import { Face, type Person } from '../Face';
 import { PixelText } from '../PixelText';
 import { MessageMovie } from './MessageMovie';
@@ -35,12 +35,15 @@ interface MessageBubbleProps {
   onDrawOnIt?: (picture: KeptPicture) => void;
   /** Opens the paint window over a movie; offered under each one. */
   onDrawOnMovie?: (movie: KeptMovie) => void;
-  /** Opens Get Info: a click or tap on the bubble. */
-  onGetInfo?: () => void;
+  /** Opens Get Info on the message: a click or tap on the bubble. */
+  onGetInfo?: (messageId: string) => void;
 }
 
-/** The viewer's own messages sit right in the accent colour, others' left. */
-export function MessageBubble({
+/**
+ * The viewer's own messages sit right in the accent colour, others' left.
+ * Drawn again only when its own props change, not whenever the history does.
+ */
+export const MessageBubble = memo(function MessageBubble({
   message,
   isCurrentUser,
   showMeta,
@@ -50,7 +53,6 @@ export function MessageBubble({
   onGetInfo,
 }: MessageBubbleProps) {
   const Bubble = isCurrentUser ? MessageViewer : Message;
-  const now = useClock();
   const { picture, movie, sound } = message;
   const content = message.content ?? '';
 
@@ -84,7 +86,7 @@ export function MessageBubble({
                 return;
               }
               if (window.getSelection()?.toString()) return;
-              onGetInfo?.();
+              onGetInfo?.(message.id);
             }}
           >
             <Bubble>
@@ -119,11 +121,7 @@ export function MessageBubble({
               )}
             </Bubble>
           </div>
-          {showMeta && (
-            <time className={styles.time} dateTime={message.createdAt}>
-              {formatTime(message.createdAt, now)}
-            </time>
-          )}
+          {showMeta && <Ago className={styles.time} date={message.createdAt} />}
         </div>
         {/* Under the bubble, not in it: the viewer's bubbles are inverted. */}
         {((picture && onDrawOnIt) || (movie && onDrawOnMovie)) && (
@@ -143,4 +141,4 @@ export function MessageBubble({
       </div>
     </div>
   );
-}
+});

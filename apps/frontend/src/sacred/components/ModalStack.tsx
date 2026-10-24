@@ -2,10 +2,10 @@ import styles from './ModalStack.module.css';
 
 import * as React from 'react';
 
-import { useModals } from './page/ModalContext';
+import { useModalStack } from './page/ModalContext';
 
 const ModalStack: React.FC = () => {
-  const { modalStack } = useModals();
+  const modalStack = useModalStack();
 
   const totalModals = modalStack.length;
 

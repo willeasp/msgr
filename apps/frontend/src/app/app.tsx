@@ -1,6 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
 import ModalStack from '../sacred/components/ModalStack';
-import { useModals } from '../sacred/components/page/ModalContext';
+import { useModalStack } from '../sacred/components/page/ModalContext';
 import AdminPage from './pages/admin';
 import Chat from './pages/chat';
 import LoginPage from './pages/login';
@@ -11,7 +11,7 @@ import styles from './app.module.css';
 
 /** Dims the page behind Sacred's modal stack, which draws no backdrop itself. */
 function ModalBackdrop() {
-  const { modalStack } = useModals();
+  const modalStack = useModalStack();
   return modalStack.length > 0 ? (
     <div className={styles.backdrop} aria-hidden="true" />
   ) : null;

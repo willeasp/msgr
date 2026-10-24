@@ -1,6 +1,6 @@
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
-import { formatTime } from '../../../lib/time';
-import { useClock } from '../../hooks/use-clock';
+import { Ago } from '../Ago';
 import Avatar from '../../../sacred/components/Avatar';
 import Indent from '../../../sacred/components/Indent';
 import RowEllipsis from '../../../sacred/components/RowEllipsis';
@@ -27,9 +27,12 @@ interface ChatListItemProps {
   isSelected: boolean;
 }
 
-export function ChatListItem({ chat, isSelected }: ChatListItemProps) {
+/** A chat in the list; drawn again only when its own props change. */
+export const ChatListItem = memo(function ChatListItem({
+  chat,
+  isSelected,
+}: ChatListItemProps) {
   const latestMessage = chat.messages[0];
-  const now = useClock();
   const face = useFace(chat.counterpart ?? { id: chat.id });
 
   return (
@@ -47,9 +50,7 @@ export function ChatListItem({ chat, isSelected }: ChatListItemProps) {
               </span>
             </RowEllipsis>
             {latestMessage && (
-              <time className={styles.time} dateTime={latestMessage.createdAt}>
-                {formatTime(latestMessage.createdAt, now)}
-              </time>
+              <Ago className={styles.time} date={latestMessage.createdAt} />
             )}
           </RowSpaceBetween>
           <RowEllipsis>
@@ -72,4 +73,4 @@ export function ChatListItem({ chat, isSelected }: ChatListItemProps) {
       </Avatar>
     </Link>
   );
-}
+});

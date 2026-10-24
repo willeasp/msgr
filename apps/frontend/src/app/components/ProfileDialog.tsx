@@ -7,7 +7,10 @@ import { toWire, type KeptPicture } from '../../lib/picture-wire';
 import AlertBanner from '../../sacred/components/AlertBanner';
 import Button from '../../sacred/components/Button';
 import Input from '../../sacred/components/Input';
-import { useModals } from '../../sacred/components/page/ModalContext';
+import {
+  useModals,
+  useModalStack,
+} from '../../sacred/components/page/ModalContext';
 import { useHotkeys } from '../../sacred/modules/hotkeys';
 import { pictures } from '../data/media';
 import { ME } from '../data/me';
@@ -44,7 +47,8 @@ const UPDATE_PROFILE = gql(`
 
 /** Your name and picture, as everyone sees them. From File → Profile…. */
 export function ProfileDialog() {
-  const { open, close, modalStack } = useModals();
+  const { open, close } = useModals();
+  const modalStack = useModalStack();
   const { data } = useQuery(ME);
   const me = data?.me;
   const [name, setName] = useState(me?.name ?? '');

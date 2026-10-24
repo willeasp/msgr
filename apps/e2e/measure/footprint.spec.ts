@@ -178,6 +178,16 @@ test('what using a chat costs', async ({ page, browser }) => {
     )
   );
 
+  // Get Info on a message, and closing it.
+  results['getInfo'] = summary(
+    await rendersDuring(page, LOG, async () => {
+      await chat.locator(LOG).getByText('Line 40:').click();
+      await expect(page.getByLabel('Message Info')).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(page.getByLabel('Message Info')).toBeHidden();
+    })
+  );
+
   // The viewer writing 40 characters.
   const composer = chat.getByRole('textbox', { name: 'Message' });
   await composer.click();
