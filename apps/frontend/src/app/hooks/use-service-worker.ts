@@ -1,11 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { NavigateFunction, useNavigate, useParams } from 'react-router-dom';
-
-/** Installs /sw.js, which shows notifications and opens their chats. */
-export function registerServiceWorker() {
-  if (!('serviceWorker' in navigator)) return;
-  navigator.serviceWorker.register('/sw.js').catch(() => undefined);
-}
+import {
+  onServiceWorkerMessage,
+  restartToUpdate,
+  updateReady,
+} from '../browser/service-worker';
 
 // Puts the list underneath the chat, so going back (a phone's edge swipe) shows it.
 function openOverList(navigate: NavigateFunction, chatId: string) {
@@ -19,7 +18,7 @@ export function useOpenChatFromNotifications() {
   const { chatId } = useParams<{ chatId: string }>();
 
   // A notification that opened Msgr lands on its chat with no history behind
-  // it. Only where the page arrived counts, not where it goes after.
+  // it. Only on arrival: the chat and navigate of the first render.
   const arrival = useRef({ chatId, navigate });
   useEffect(() => {
     const { chatId, navigate } = arrival.current;
@@ -27,14 +26,19 @@ export function useOpenChatFromNotifications() {
       openOverList(navigate, chatId);
   }, []);
 
-  useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
-    const onMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'open-chat')
-        openOverList(navigate, event.data.chatId);
-    };
-    navigator.serviceWorker.addEventListener('message', onMessage);
-    return () =>
-      navigator.serviceWorker.removeEventListener('message', onMessage);
-  }, [navigate]);
+  useEffect(
+    () =>
+      onServiceWorkerMessage((data) => {
+        const message = data as { type?: string; chatId?: string } | null;
+        if (message?.type === 'open-chat' && message.chatId)
+          openOverList(navigate, message.chatId);
+      }),
+    [navigate]
+  );
+}
+
+/** Restarts into a newer Msgr, once one is installed; undefined until then. */
+export function useRestartToUpdate(): (() => void) | undefined {
+  const ready = useSyncExternalStore(updateReady.subscribe, updateReady.get);
+  return ready ? restartToUpdate : undefined;
 }

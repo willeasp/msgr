@@ -10,10 +10,12 @@ export const hashPassword = async (password: string): Promise<PasswordHash> =>
 
 export function createBcryptPasswordHasher(): PasswordHasher {
   // A real digest of a secret nobody knows: checking against it costs exactly
-  // as much as checking a real one, and never succeeds.
-  const decoy = bcrypt.hashSync(randomUUID(), COST);
+  // as much as checking a real one, and never succeeds. Made off the main
+  // thread, so booting doesn't wait for it; it's ready long before a login.
+  const decoy = bcrypt.hash(randomUUID(), COST);
   return {
     hash: hashPassword,
-    verify: (password, hash) => bcrypt.compare(password, hash ?? decoy),
+    verify: async (password, hash) =>
+      bcrypt.compare(password, hash ?? (await decoy)),
   };
 }
