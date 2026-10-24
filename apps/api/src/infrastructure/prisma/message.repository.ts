@@ -96,8 +96,16 @@ export function prismaMessageRepository(db: PrismaClient): MessageRepository {
     },
 
     async append(message) {
-      const { chatId, senderId, createdAt, content, picture, movie, sound } =
-        message;
+      const {
+        id,
+        chatId,
+        senderId,
+        createdAt,
+        content,
+        picture,
+        movie,
+        sound,
+      } = message;
       const body = {
         content,
         picture: picture?.deflated ?? null,
@@ -112,7 +120,8 @@ export function prismaMessageRepository(db: PrismaClient): MessageRepository {
       };
       const [row] = await db.$transaction([
         db.message.create({
-          data: { chatId, senderId, createdAt, ...body },
+          // The sender's chosen id, or Prisma's own when there's none.
+          data: { id, chatId, senderId, createdAt, ...body },
           select: messageFields,
         }),
         db.chat.update({

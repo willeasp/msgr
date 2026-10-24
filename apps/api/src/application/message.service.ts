@@ -1,5 +1,6 @@
 import { ChatId, visibleTo, type Chat } from '../domain/chat.js';
 import {
+  invalidInput,
   notFound,
   type InvalidInput,
   type NotFound,
@@ -35,12 +36,14 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
   async function post(
     viewer: User,
     chatId: string,
-    body: MessageBody
+    body: MessageBody,
+    id: MessageId | undefined
   ): Promise<Result<Message, NotFound>> {
     const chat = visibleTo(await loaders.chat.load(ChatId(chatId)), viewer.id);
     if (!chat.ok) return chat;
 
     const message = await repositories.messages.append({
+      id,
       ...body,
       chatId: chat.value.id,
       senderId: viewer.id,
@@ -140,6 +143,8 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
     async send(
       viewer: User,
       input: {
+        /** Chosen by the sender, so a retry returns what was stored rather than posting again. */
+        readonly id?: string | null;
         readonly chatId: string;
         readonly content?: string | null;
         readonly picture?: RawPicture | null;
@@ -147,6 +152,8 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
         readonly sound?: RawSound | null;
       }
     ): Promise<Result<Message, InvalidInput | NotFound>> {
+      const id = input.id == null ? ok(undefined) : MessageId.parse(input.id);
+      if (!id.ok) return id;
       const content =
         input.content == null ? ok(null) : MessageContent.parse(input.content);
       if (!content.ok) return content;
@@ -166,7 +173,22 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
         sound.value
       );
       if (!body.ok) return body;
-      return post(viewer, input.chatId, body.value);
+      if (id.value) {
+        // Sent before, its answer lost on the way back: the same message
+        // again, stored and delivered once. The id is no one else's to use.
+        const sent = await loaders.message.load(id.value);
+        if (sent) {
+          if (sent.senderId !== viewer.id || sent.chatId !== input.chatId) {
+            return err(invalidInput('id', 'That message id is taken'));
+          }
+          const chat = visibleTo(
+            await loaders.chat.load(sent.chatId),
+            viewer.id
+          );
+          return chat.ok ? ok(sent) : chat;
+        }
+      }
+      return post(viewer, input.chatId, body.value, id.value);
     },
 
     /**

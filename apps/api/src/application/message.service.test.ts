@@ -143,6 +143,71 @@ describe('sending a message', () => {
   });
 });
 
+describe('sending under an id the sender chose', () => {
+  const CHOSEN = '3f0e1c2a-9b4d-4c8e-a1f2-0123456789ab';
+
+  it('keeps the id, and sending it again returns the same message, stored and delivered once', async () => {
+    const { services, ada, grace, chat } = await team();
+    const toGrace = services().messages.feed(grace);
+    const delivered = nextEvent(toGrace);
+    const send = () =>
+      services().messages.send(ada, {
+        id: CHOSEN,
+        chatId: chat.id,
+        content: 'hi',
+      });
+
+    const first = expectOk(await send());
+    const again = expectOk(await send());
+
+    expect(first.id).toBe(CHOSEN);
+    expect(again).toEqual(first);
+    expect(
+      expectOk(await services().messages.list(grace, { chatId: chat.id }))
+    ).toEqual([first]);
+    expect(await delivered).toEqual(first);
+    expect(await nextEvent(toGrace)).toBe('nothing');
+  });
+
+  it("refuses an id that's someone else's, or in another chat, or no UUID at all", async () => {
+    const { fixtures, services, ada, grace, chat } = await team();
+    const other = await fixtures.groupChat('Other', [ada, grace]);
+    expectOk(
+      await services().messages.send(grace, {
+        id: CHOSEN,
+        chatId: chat.id,
+        content: 'mine',
+      })
+    );
+    const refused = {
+      ok: false,
+      error: { type: 'InvalidInput', field: 'id' },
+    };
+
+    expect(
+      await services().messages.send(ada, {
+        id: CHOSEN,
+        chatId: chat.id,
+        content: 'hi',
+      })
+    ).toMatchObject(refused);
+    expect(
+      await services().messages.send(grace, {
+        id: CHOSEN,
+        chatId: other.id,
+        content: 'hi',
+      })
+    ).toMatchObject(refused);
+    expect(
+      await services().messages.send(ada, {
+        id: 'not-a-uuid',
+        chatId: chat.id,
+        content: 'hi',
+      })
+    ).toMatchObject(refused);
+  });
+});
+
 describe('sending a picture', () => {
   it('stores it alone or with text, stamped by the clock, and delivers it live', async () => {
     const { services, ada, grace, linus, chat } = await team();

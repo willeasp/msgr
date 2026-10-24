@@ -554,6 +554,33 @@ describe('messages', () => {
     }
   }`;
 
+  it('sends under an id the sender chose, and sending it again returns it, stored once', async () => {
+    const { app, ada, team } = await world();
+    const id = '3f0e1c2a-9b4d-4c8e-a1f2-0123456789ab';
+    const sendAs = `mutation ($id: ID, $chatId: ID!, $content: String!) {
+      sendMessage(input: { id: $id, chatId: $chatId, content: $content }) { id content }
+    }`;
+    const variables = { id, chatId: team.id, content: 'once' };
+
+    const first = await execute(app, sendAs, { as: ada, variables });
+    const again = await execute(app, sendAs, { as: ada, variables });
+    const read = await execute(
+      app,
+      'query ($id: ID!) { messages(chatId: $id) { id content } }',
+      { as: ada, variables: { id: team.id } }
+    );
+    const malformed = await execute(app, sendAs, {
+      as: ada,
+      variables: { ...variables, id: 'mine' },
+    });
+
+    expect(first.data).toEqual({ sendMessage: { id, content: 'once' } });
+    expect(again.data).toEqual(first.data);
+    expect(read.data).toEqual({ messages: [{ id, content: 'once' }] });
+    expect(codeOf(malformed)).toBe('BAD_USER_INPUT');
+    expect(malformed.errors?.[0]?.extensions['field']).toBe('id');
+  });
+
   it('sends a picture, alone or with text, and reads it back', async () => {
     const { app, ada, team } = await world();
     const picture = pictureInput(13, 7);

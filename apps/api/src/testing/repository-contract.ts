@@ -429,6 +429,30 @@ export function repositoryContract(
       expect(await page(2, 6)).toEqual([]);
     });
 
+    it('stores a message under the id its sender chose, or one of its own', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const chat = await repositories.chats.saveDirect(pairOf(ada, grace));
+      const chosen = MessageId('3f0e1c2a-9b4d-4c8e-a1f2-0123456789ab');
+      const message = await repositories.messages.append({
+        id: chosen,
+        chatId: chat.id,
+        senderId: ada.id,
+        content: 'mine' as MessageContent,
+        picture: null,
+        movie: null,
+        sound: null,
+        createdAt: new Date('2030-01-01T00:00:00Z'),
+      });
+      const theirs = await send(chat, grace, 'theirs', '2030-01-01T00:01:00Z');
+
+      expect(message.id).toBe(chosen);
+      expect(theirs.id).not.toBe(chosen);
+      expect(await repositories.messages.findByIds([chosen])).toEqual([
+        message,
+      ]);
+    });
+
     it('stores pictures, alone or with text, and reads them back unchanged', async () => {
       const ada = await fixtures.user({ name: 'Ada' });
       const grace = await fixtures.user({ name: 'Grace' });
