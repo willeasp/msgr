@@ -20,7 +20,7 @@ import {
   PICTURE_DOCUMENT,
   SOUND_DOCUMENT,
   TEXT_DOCUMENT,
-} from '../icons';
+} from '../dialog-icons';
 import { LoadingState } from '../LoadingState';
 import { DialogButtons, MacDialog } from '../MacDialog';
 import { Muted } from '../Muted';

@@ -51,7 +51,7 @@ export function MessageList({
   }, [messagesData?.messages]);
 
   // Whatever's on a visible screen has been read.
-  useReading(messagesData?.messages.at(-1)?.id);
+  useReading(chatId, messagesData?.messages.at(-1)?.id);
 
   // Read to the end, the history stays at its end while its window resizes:
   // a phone's keyboard coming up under it, or the window itself.

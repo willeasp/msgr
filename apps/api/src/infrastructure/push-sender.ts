@@ -8,11 +8,12 @@ export function createWebPushSender(vapid: {
   readonly privateKey: string;
 }): PushSender {
   return {
-    async send({ endpoint, p256dh, auth }, notification) {
+    async send({ endpoint, p256dh, auth }, { notification, unread }) {
       try {
         await webpush.sendNotification(
           { endpoint, keys: { p256dh, auth } },
-          JSON.stringify(notification),
+          // What public/sw.js shows, and the number it puts on the app.
+          JSON.stringify({ ...notification, unread }),
           // Held a day for a phone that's off; delivered at once when it's on.
           { vapidDetails: vapid, TTL: 24 * 60 * 60, urgency: 'high' }
         );

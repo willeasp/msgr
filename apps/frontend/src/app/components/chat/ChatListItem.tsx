@@ -9,6 +9,7 @@ import { useFace, type Person } from '../Face';
 import { Muted } from '../Muted';
 import styles from './ChatListItem.module.css';
 import { PixelText } from '../PixelText';
+import { unreadLabel } from '../../../lib/chat-list';
 
 interface ChatListItemProps {
   chat: {
@@ -16,6 +17,8 @@ interface ChatListItemProps {
     title: string;
     /** The other person, in a direct chat: the row shows their face. */
     counterpart?: Person | null;
+    /** Others' messages the viewer hasn't read: the preview darkens and counts them. */
+    unreadCount: number;
     messages: Array<{
       id: string;
       content?: string | null;
@@ -34,6 +37,21 @@ export const ChatListItem = memo(function ChatListItem({
 }: ChatListItemProps) {
   const latestMessage = chat.messages[0];
   const face = useFace(chat.counterpart ?? { id: chat.id });
+  const unread = chat.unreadCount;
+  const preview = (
+    <PixelText
+      text={
+        latestMessage
+          ? latestMessage.content ??
+            (latestMessage.movie
+              ? 'Movie'
+              : latestMessage.sound
+              ? 'Sound'
+              : 'Picture')
+          : 'No messages yet'
+      }
+    />
+  );
 
   return (
     <Link
@@ -53,22 +71,17 @@ export const ChatListItem = memo(function ChatListItem({
               <Ago className={styles.time} date={latestMessage.createdAt} />
             )}
           </RowSpaceBetween>
-          <RowEllipsis>
-            <Muted>
-              <PixelText
-                text={
-                  latestMessage
-                    ? latestMessage.content ??
-                      (latestMessage.movie
-                        ? 'Movie'
-                        : latestMessage.sound
-                        ? 'Sound'
-                        : 'Picture')
-                    : 'No messages yet'
-                }
-              />
-            </Muted>
-          </RowEllipsis>
+          <div className={styles.preview}>
+            <RowEllipsis>
+              {unread ? preview : <Muted>{preview}</Muted>}
+            </RowEllipsis>
+            {unread > 0 && (
+              <span className={styles.unread}>
+                {unreadLabel(unread)}
+                <span className={styles.hidden}> unread</span>
+              </span>
+            )}
+          </div>
         </Indent>
       </Avatar>
     </Link>

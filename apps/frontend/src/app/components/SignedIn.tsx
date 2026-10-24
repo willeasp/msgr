@@ -6,6 +6,7 @@ import { shouldOffer } from '../../lib/push';
 import { useModals } from '../../sacred/components/page/ModalContext';
 import { ME } from '../data/me';
 import { useAlerts } from '../hooks/use-alerts';
+import { useAppBadge } from '../hooks/use-app-badge';
 import { useChatFeed } from '../hooks/use-chat-feed';
 import { useInstallPrompt } from '../hooks/use-install-prompt';
 import { useMediaRetry } from '../hooks/use-media';
@@ -30,9 +31,9 @@ import {
 /**
  * The layout of every signed-in route: it sends anyone signed out to /login,
  * and holds what must last as long as someone is signed in, whatever view is
- * on screen: the live feed, alerts, typing, the notifications offer and the
- * notifications' links. A view under it only draws itself, so it can't stop
- * any of them.
+ * on screen: the live feed, alerts, typing, the app's badge, the
+ * notifications offer and the notifications' links. A view under it only
+ * draws itself, so it can't stop any of them.
  * Who that is comes from `sessionOf` (lib/connection.ts).
  */
 export function SignedIn() {
@@ -120,8 +121,12 @@ function Live({ viewer, isAdmin }: { viewer: Viewer; isAdmin: boolean }) {
     open(NotificationsDialog, { setup, onTurnOn: turnOnNotifications });
   });
 
+  useAppBadge();
   const typists = useTypists();
   useChatFeed({
+    viewerId: viewer.id,
+    isReading: (chatId) =>
+      chatId === chatOnScreen && document.visibilityState === 'visible',
     onMessage: (message) => {
       // Their message is what they were typing.
       typists.stopped(message.chat.id, message.sender.id);

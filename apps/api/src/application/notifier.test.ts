@@ -63,6 +63,33 @@ describe('notifying about a message', () => {
     });
   });
 
+  it("tells each browser how many messages its person has yet to read, for the app's badge", async () => {
+    const { deps, push, notifier, ada, linus, chat } = await team();
+    const keep = (sender: User, content: string, at: string) =>
+      deps.repositories.messages.append({
+        chatId: chat.id,
+        senderId: sender.id,
+        content: content as MessageContent,
+        picture: null,
+        movie: null,
+        sound: null,
+        createdAt: new Date(at),
+      });
+    await keep(linus, 'one', '2030-01-01T00:01:00Z');
+    const two = await keep(ada, 'two', '2030-01-01T00:02:00Z');
+
+    await notifier.message(two, chat, ada);
+
+    expect(
+      Object.fromEntries(
+        push.sent.map(({ endpoint, unread }) => [
+          endpoint.split('/').pop(),
+          unread,
+        ])
+      )
+    ).toEqual({ 'grace-laptop': 2, 'grace-phone': 2, 'linus-phone': 1 });
+  });
+
   it('skips people watching that chat, but not people watching another', async () => {
     const { deps, fixtures, push, notifier, ada, grace, linus, chat, message } =
       await team();
@@ -110,6 +137,26 @@ describe('notifying about a message', () => {
       notifier.message(message(ada, 'hi'), chat, ada)
     ).resolves.toBeUndefined();
     expect(quiet).toHaveBeenCalled();
+    quiet.mockRestore();
+  });
+
+  it('still notifies when the unread count fails, leaving the badge be', async () => {
+    const quiet = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const { deps, push, notifier, ada, chat, message } = await team();
+    vi.spyOn(deps.repositories.reads, 'countAllUnread').mockRejectedValue(
+      new Error('database asleep')
+    );
+
+    await notifier.message(message(ada, 'hi'), chat, ada);
+
+    expect(names(push.sent)).toEqual([
+      'grace-laptop',
+      'grace-phone',
+      'linus-phone',
+    ]);
+    expect(push.sent.map(({ unread }) => unread)).toEqual([null, null, null]);
     quiet.mockRestore();
   });
 

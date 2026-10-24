@@ -27,10 +27,30 @@ export function createNotifier({
     const browsers = await repositories.pushSubscriptions.findByUserIds(
       recipients
     );
+    if (browsers.length === 0) return;
+    // Counted after the message is kept, so it's in the badge too. Failing
+    // to count leaves the badge as it is, never the notification unsent.
+    const unread = await repositories.reads
+      .countAllUnread([...new Set(browsers.map(({ userId }) => userId))])
+      .then(
+        (totals) => {
+          const found = new Map(
+            totals.map(({ readerId, total }) => [readerId, total])
+          );
+          return (userId: UserId) => found.get(userId) ?? 0;
+        },
+        (error) => {
+          console.error('Counting unread for a push failed', error);
+          return () => null;
+        }
+      );
     await Promise.all(
       browsers.map(async ({ userId, subscription }) => {
         try {
-          const outcome = await pushSender.send(subscription, notification);
+          const outcome = await pushSender.send(subscription, {
+            notification,
+            unread: unread(userId),
+          });
           if (outcome === 'gone') {
             await repositories.pushSubscriptions.remove(
               subscription.endpoint,

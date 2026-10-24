@@ -300,6 +300,14 @@ Answered 2026-10-24:
 
 6. **Sacred stays**, its fields made fast and correct in place (PR 4) rather than replaced.
 7. **Phones keep the desktop's look** ([ADR 0013](../../adr/0013-phones-keep-the-desktops-look.md)), after seeing each part of the phone layout built: only Back and Info in a chat's title bar and New… in the Chats window's, the composer kept on the keyboard, and Get Info by holding. Edge to edge, the clock's removal, the back swipe, the zoom rectangles, the thumb-sized controls and the one-row composer are not taken.
+8. **A messenger's manners, as drawn** (PR 6, split into 6a unread, 6b the history, 6c sending and the connection), after seeing each option mocked into the app:
+   - an unread chat's count, inverted at the end of its preview line, the preview turning from grey to ink;
+   - each day opened by its name on a ruled line;
+   - messages timed by the clock ("8:15 AM") under those days, not "ago";
+   - a black "New Messages" button over the history's foot while you've scrolled up;
+   - earlier messages loading by themselves as you reach the top, the wristwatch showing meanwhile;
+   - a message on its way showing the wristwatch where its time goes, and one that failed saying "Not Sent." with Try Again;
+   - "Reconnecting…" in the chat's title bar, where typing shows.
 
 ## Out of scope
 

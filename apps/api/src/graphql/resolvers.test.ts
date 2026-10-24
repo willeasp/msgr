@@ -416,6 +416,47 @@ describe('chats', () => {
     ).toEqual({ chat: { counterpart: null } });
   });
 
+  it('counts what each viewer has yet to read, every chat in one batch', async () => {
+    const { app, ada, grace, linus, team, direct } = await world();
+    const services = app.services();
+    const say = async (sender: User, chatId: string) => {
+      const sent = await services.messages.send(sender, {
+        chatId,
+        content: 'hi',
+      });
+      if (!sent.ok) throw new Error('setup');
+      return sent.value;
+    };
+    await say(linus, team.id);
+    const latest = await say(linus, team.id);
+    await say(grace, direct.id);
+    const count = vi.spyOn(app.deps.repositories.reads, 'countUnread');
+    const query = '{ chats { title unreadCount } }';
+
+    expect((await execute(app, query, { as: ada })).data).toEqual({
+      chats: [
+        { title: 'Grace', unreadCount: 1 },
+        { title: 'Team', unreadCount: 2 },
+      ],
+    });
+    expect(count).toHaveBeenCalledTimes(1);
+    // Grace has read nothing, but sending read the direct chat for her.
+    expect((await execute(app, query, { as: grace })).data).toEqual({
+      chats: [
+        { title: 'Ada', unreadCount: 0 },
+        { title: 'Team', unreadCount: 2 },
+      ],
+    });
+
+    await services.messages.markRead(ada, latest.id);
+    expect((await execute(app, query, { as: ada })).data).toEqual({
+      chats: [
+        { title: 'Grace', unreadCount: 1 },
+        { title: 'Team', unreadCount: 0 },
+      ],
+    });
+  });
+
   it("returns null for a chat the viewer isn't in", async () => {
     const { app, linus, direct } = await world();
 

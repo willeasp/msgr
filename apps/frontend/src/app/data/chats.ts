@@ -5,14 +5,15 @@ import {
   withReceivedMessage,
   type ChatRow,
   type ReceivedMessage,
+  type Receiver,
 } from '../../lib/chat-list';
 import { gql } from '../../lib/__generated__';
 
 /*
  * The chats the whole app reads and keeps current: the list, a chat's
  * header, and its history. Each is cached once, so every window showing
- * them agrees; what changes them goes through `recordMessage` and
- * `recordChat`, the only two writes.
+ * them agrees; what changes them goes through `recordMessage`, `recordChat`
+ * and `recordRead`, the only writes.
  */
 
 /** The viewer's chats, most recently active first, each with its newest message. */
@@ -22,6 +23,7 @@ export const GET_CHATS = gql(`
       id
       kind
       title
+      unreadCount
       counterpart {
         id
         name
@@ -117,13 +119,18 @@ export const GET_CHAT_MESSAGES = gql(`
 
 /**
  * The one way a message gets into the cache, whether the feed brought it or
- * the viewer just sent it: onto the chat list and into the chat's history,
- * together, so the two can't disagree. Hence sending selects all the feed does.
+ * the viewer just sent it: onto the chat list, counted unread unless
+ * `receiver` is reading it, and into the chat's history, together, so the
+ * two can't disagree. Hence sending selects all the feed does.
  */
-export function recordMessage(cache: ApolloCache, message: ReceivedMessage) {
+export function recordMessage(
+  cache: ApolloCache,
+  message: ReceivedMessage,
+  receiver: Receiver
+) {
   cache.updateQuery({ query: GET_CHATS }, (existing) =>
     existing
-      ? { chats: [...withReceivedMessage(existing.chats, message)] }
+      ? { chats: [...withReceivedMessage(existing.chats, message, receiver)] }
       : existing
   );
   // The chat's history too, open or not, so it is current when opened.
@@ -148,6 +155,14 @@ export function recordMessage(cache: ApolloCache, message: ReceivedMessage) {
         ],
       }
   );
+}
+
+/** The viewer has read a chat to its newest message: none of it is unread. */
+export function recordRead(cache: ApolloCache, chatId: string) {
+  cache.modify({
+    id: cache.identify({ __typename: 'Chat', id: chatId }),
+    fields: { unreadCount: () => 0 },
+  });
 }
 
 /** A chat that now includes the viewer, onto the chat list. */

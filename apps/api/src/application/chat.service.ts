@@ -59,9 +59,12 @@ export function createChatService(deps: Dependencies, loaders: Loaders) {
     ): Promise<Result<ChannelChat, InvalidInput>> {
       const channelName = ChannelName.parse(name);
       if (!channelName.ok) return channelName;
-      return ok(
-        await repositories.chats.joinChannel(channelName.value, viewer.id)
+      const channel = await repositories.chats.joinChannel(
+        channelName.value,
+        viewer.id
       );
+      await repositories.reads.startReading(channel.id, [viewer.id]);
+      return ok(channel);
     },
 
     /**
@@ -97,6 +100,11 @@ export function createChatService(deps: Dependencies, loaders: Loaders) {
       for (const person of newcomers) {
         channel = await repositories.chats.joinChannel(channel.name, person.id);
       }
+      // Before they're told: the news carries what they have unread.
+      await repositories.reads.startReading(
+        channel.id,
+        newcomers.map(({ id }) => id)
+      );
       const event: ChatAdded = {
         chat: channel,
         by: viewer.id,

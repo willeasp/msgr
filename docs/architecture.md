@@ -75,7 +75,12 @@ Reads are stored. While a chat is open on a visible page, the page calls
 `markRead` with its newest message; the server keeps one `ReadMark` per
 advance, and a message was first read at the earliest mark on it or after it
 in its chat (never counting its sender). Get Info on a message reads them
-through `Message.readBy`.
+through `Message.readBy`. What's unread is counted from a `ReadPoint` per
+person and chat, the furthest they've read, which `markRead` moves only
+forward and joining a channel sets just before its newest message:
+`Chat.unreadCount` is how many messages others sent after it or after
+the last they sent, whichever is later, and each push carries the recipient's
+total for the app's badge ([ADR 0014](adr/0014-unread-counted-from-read-points.md)).
 
 Because `PubSub` and the login throttle live in process memory, Msgr runs as a
 single instance (see [ADR 0005](adr/0005-free-single-instance-hosting.md)).

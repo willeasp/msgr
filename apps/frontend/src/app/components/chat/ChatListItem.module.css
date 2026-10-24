@@ -33,3 +33,47 @@
   padding-left: 1ch;
   opacity: 0.6;
 }
+
+/* The preview line, with an unread chat's count at its end. */
+.preview {
+  display: flex;
+  align-items: center;
+  gap: 1ch;
+
+  > :first-child {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* How many are unread, inverted, as a Mac's badge: the only highlight. */
+.unread {
+  flex: none;
+  padding: 0 0.7ch;
+  border-radius: 0.75em;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-family-chrome);
+  line-height: calc(var(--line) - 2px);
+}
+
+.selected .unread {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* Forced colours take the background: an outline keeps it a count. */
+@media (forced-colors: active) {
+  .unread {
+    border: 1px solid CanvasText;
+  }
+}
+
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

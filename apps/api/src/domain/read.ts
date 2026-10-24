@@ -1,3 +1,4 @@
+import type { ChatId } from './chat.js';
 import type { MessageId } from './message.js';
 import type { UserId } from './user.js';
 
@@ -15,3 +16,28 @@ export interface Read {
 export const firstReadFirst = (a: Read, b: Read): number =>
   a.at.getTime() - b.at.getTime() ||
   (a.readerId < b.readerId ? -1 : a.readerId > b.readerId ? 1 : 0);
+
+/**
+ * How many messages others sent in a chat after the last one someone read or
+ * sent there: sending a message reads everything before it. Joining starts
+ * a newcomer just before the newest, so what came before isn't theirs to
+ * catch up on.
+ * Counted up to `UNREAD_LIMIT`.
+ */
+export interface Unread {
+  readonly chatId: ChatId;
+  readonly count: number;
+}
+
+/**
+ * Unread is counted no further than this in a chat: the list says "99+"
+ * past 99, and counting a channel someone never opens to its first message
+ * would cost as much as it has.
+ */
+export const UNREAD_LIMIT = 100;
+
+/** Someone's unread messages summed over every chat they're in: their app's badge. */
+export interface UnreadTotal {
+  readonly readerId: UserId;
+  readonly total: number;
+}

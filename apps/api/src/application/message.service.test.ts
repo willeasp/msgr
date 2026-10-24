@@ -85,6 +85,8 @@ describe('sending a message', () => {
         {
           endpoint: fakeBrowser('grace-phone').endpoint,
           notification: { title: 'Ada in Team', body: 'hi', chatId: chat.id },
+          // Grace hasn't read it yet: the badge on her app.
+          unread: 1,
         },
       ])
     );

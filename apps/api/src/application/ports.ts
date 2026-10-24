@@ -17,8 +17,8 @@ import type {
   NewMessage,
 } from '../domain/message.js';
 import type { Page } from '../domain/page.js';
-import type { Notification, PushSubscription } from '../domain/push.js';
-import type { Read } from '../domain/read.js';
+import type { Push, PushSubscription } from '../domain/push.js';
+import type { Read, Unread, UnreadTotal } from '../domain/read.js';
 import type { Result } from '../domain/result.js';
 import type { StorageUsage } from '../domain/storage.js';
 import type { PictureCodec } from '../domain/picture.js';
@@ -107,6 +107,24 @@ export interface ReadRepository {
    * first did. Messages nobody has read are left out.
    */
   findByMessageIds(ids: readonly MessageId[]): Promise<Read[]>;
+  /**
+   * Starts each reader just before the chat's newest message, as joining it
+   * does: what came before isn't theirs to catch up on, and the newest waits
+   * for them, unread. Someone who already has a place keeps it, and nothing
+   * is marked read.
+   */
+  startReading(chatId: ChatId, readerIds: readonly UserId[]): Promise<void>;
+  /**
+   * For each chat, how many messages others sent there after the last one
+   * `readerId` read or sent, up to `UNREAD_LIMIT`. Chats with none, and
+   * unknown chats, are left out.
+   */
+  countUnread(readerId: UserId, chatIds: readonly ChatId[]): Promise<Unread[]>;
+  /**
+   * For each reader, those counts summed over every chat they're in. Readers
+   * with none are left out.
+   */
+  countAllUnread(readerIds: readonly UserId[]): Promise<UnreadTotal[]>;
 }
 
 export interface InviteRepository {
@@ -201,10 +219,7 @@ export interface Watching {
 /** Sends one notification to one browser through its push service. */
 export interface PushSender {
   /** 'gone' when the push service says the browser unsubscribed. Other failures throw. */
-  send(
-    subscription: PushSubscription,
-    notification: Notification
-  ): Promise<'sent' | 'gone'>;
+  send(subscription: PushSubscription, push: Push): Promise<'sent' | 'gone'>;
 }
 
 export type Clock = () => Date;
