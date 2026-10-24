@@ -17,8 +17,7 @@ const sources = (readdirSync(SRC, { recursive: true }) as string[]).filter(
 );
 
 it('compiles every component and hook', () => {
-  const failures: string[] = [];
-  let compiled = 0;
+  const events: (CompilerEvent & { file: string })[] = [];
   for (const file of sources) {
     transformSync(readFileSync(join(SRC, file), 'utf8'), {
       filename: file,
@@ -30,24 +29,24 @@ it('compiles every component and hook', () => {
           'babel-plugin-react-compiler',
           {
             logger: {
-              logEvent(_: string, event: CompilerEvent) {
-                if (event.kind === 'CompileSuccess') compiled += 1;
-                if (event.kind === 'CompileError') {
-                  const detail = event.detail?.options ?? event.detail;
-                  failures.push(
-                    `${file}:${event.fnLoc?.start.line}: ${detail?.reason}`
-                  );
-                }
-              },
+              logEvent: (_: string, event: CompilerEvent) =>
+                events.push({ ...event, file }),
             },
           },
         ],
       ],
     });
   }
+  const failures = events
+    .filter((event) => event.kind === 'CompileError')
+    .map((event) => {
+      const detail = event.detail?.options ?? event.detail;
+      return `${event.file}:${event.fnLoc?.start.line}: ${detail?.reason}`;
+    });
   expect(failures).toEqual([]);
   // Every function component and hook in the app, give or take a few.
-  expect(compiled).toBeGreaterThan(80);
+  const compiled = events.filter((event) => event.kind === 'CompileSuccess');
+  expect(compiled.length).toBeGreaterThan(80);
   // Compiling the whole app takes a few seconds, more beside other suites.
 }, 60_000);
 

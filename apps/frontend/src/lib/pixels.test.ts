@@ -1,10 +1,12 @@
-import { blank, setPixel } from '@msgr/media';
+import { blank, setPixel, type Bits } from '@msgr/media';
 import { describe, expect, it } from 'vitest';
 import {
   bitmapOf,
+  fillPixels,
   identicon,
   identiconCells,
   pictureImage,
+  pixelOf,
   pixelPath,
   svgMask,
 } from './pixels';
@@ -113,5 +115,68 @@ describe('pictureImage', () => {
     );
     expect(svg).toContain('fill="ivory"');
     expect(svg).toContain('fill="navy"');
+  });
+});
+
+describe('fillPixels', () => {
+  const INK = pixelOf([0, 0, 0, 255]);
+  const PAPER = pixelOf([255, 255, 255, 255]);
+  const read = (pixels: Uint32Array, width: number) =>
+    Array.from({ length: pixels.length / width }, (_, y) =>
+      Array.from(pixels.subarray(y * width, (y + 1) * width), (p) =>
+        p === INK ? '#' : p === PAPER ? '.' : '?'
+      ).join('')
+    );
+
+  it('writes ink and paper, pixel for pixel, past byte boundaries and padding', () => {
+    // 10 wide: each row is two bytes, the last six bits padding.
+    const bits = blank(10, 3);
+    for (const [x, y] of [
+      [0, 0],
+      [7, 0],
+      [8, 0],
+      [9, 1],
+      [3, 2],
+    ] as const) {
+      setPixel(bits, x, y, true);
+    }
+    // Ink in the padding is no pixel's, and never shows.
+    bits.bytes[3] = (bits.bytes[3] ?? 0) | 0b0011_1111;
+    const pixels = new Uint32Array(10 * 3);
+    fillPixels(pixels, bits, INK, PAPER);
+    expect(read(pixels, 10)).toEqual([
+      '#......##.',
+      '.........#',
+      '...#......',
+    ]);
+  });
+
+  it('overwrites whatever the buffer held before', () => {
+    const bits: Bits = blank(8, 1);
+    const pixels = new Uint32Array(8).fill(INK);
+    fillPixels(pixels, bits, INK, PAPER);
+    expect(read(pixels, 8)).toEqual(['........']);
+  });
+});
+
+describe('pixelOf', () => {
+  it('lays a colour out as an ImageData does: red, green, blue, alpha', () => {
+    const view = new Uint8ClampedArray(
+      new Uint32Array([pixelOf([1, 2, 3, 4])]).buffer
+    );
+    expect([...view]).toEqual([1, 2, 3, 4]);
+  });
+});
+
+describe('faces as images', () => {
+  it('makes each once for each look, so many rows showing one person cost one', () => {
+    const bits = blank(4, 4);
+    const inks = { ink: '#000', paper: '#fff' };
+    expect(pictureImage(bits, inks)).toBe(pictureImage(bits, { ...inks }));
+    expect(pictureImage(bits, inks)).not.toBe(
+      pictureImage(bits, { ink: '#fff', paper: '#000' })
+    );
+    expect(identicon('u1', inks)).toBe(identicon('u1', { ...inks }));
+    expect(identicon('u1', inks)).not.toBe(identicon('u2', inks));
   });
 });

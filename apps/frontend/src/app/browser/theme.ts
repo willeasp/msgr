@@ -39,6 +39,33 @@ export function applyTheme(theme: Theme, { save = false } = {}): void {
   window.dispatchEvent(new Event(THEME_CHANGED));
 }
 
+/** A CSS colour as red, green, blue and alpha, 0 to 255 each. */
+export type Rgba = readonly [number, number, number, number];
+
+let pen: CanvasRenderingContext2D | null | undefined;
+const resolved = new Map<string, Rgba | null>();
+
+/**
+ * Any colour CSS computes (`rgb(…)`, a tint's `oklch(…)`) as sRGB, by
+ * painting it on a pixel of its own; null if the browser can't paint it.
+ */
+export function rgbaOf(css: string): Rgba | null {
+  if (resolved.has(css)) return resolved.get(css) ?? null;
+  pen ??= document
+    .createElement('canvas')
+    .getContext('2d', { willReadFrequently: true });
+  if (!pen) return null;
+  pen.clearRect(0, 0, 1, 1);
+  pen.fillStyle = 'transparent'; // Kept if the browser can't read `css`.
+  pen.fillStyle = css;
+  pen.fillRect(0, 0, 1, 1);
+  const [r = 0, g = 0, b = 0, a = 0] = pen.getImageData(0, 0, 1, 1).data;
+  const rgba: Rgba | null =
+    a === 0 && css !== 'transparent' ? null : [r, g, b, a];
+  resolved.set(css, rgba);
+  return rgba;
+}
+
 /**
  * The page's paper as `#rrggbb`, which every browser's bars take. A tint's
  * paper is worked out in CSS from its colour (`oklch(from …)`), which phones a
@@ -46,16 +73,10 @@ export function applyTheme(theme: Theme, { save = false } = {}): void {
  * browser can't say.
  */
 function paperHex(): string | null {
-  const pen = document
-    .createElement('canvas')
-    .getContext('2d', { willReadFrequently: true });
-  if (!pen) return null;
-  pen.fillStyle = 'transparent'; // Kept if the browser can't read the paper.
-  pen.fillStyle = getComputedStyle(document.body).backgroundColor;
-  pen.fillRect(0, 0, 1, 1);
-  const [r, g, b, alpha] = pen.getImageData(0, 0, 1, 1).data;
-  if (alpha !== 255) return null;
-  return `#${[r, g, b]
-    .map((n) => (n ?? 0).toString(16).padStart(2, '0'))
+  const paper = rgbaOf(getComputedStyle(document.body).backgroundColor);
+  if (!paper || paper[3] !== 255) return null;
+  return `#${paper
+    .slice(0, 3)
+    .map((n) => n.toString(16).padStart(2, '0'))
     .join('')}`;
 }

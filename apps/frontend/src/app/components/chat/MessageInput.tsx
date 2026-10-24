@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useMutation } from '@apollo/client/react';
 import { blank, type Bits } from '@msgr/media';
 import { parseCommand } from '../../../lib/commands';
@@ -14,7 +14,7 @@ import { recordMessage } from '../../data/chats';
 import { movies, pictures, sounds } from '../../data/media';
 import { Menu } from '../MenuBar';
 import { useMediaQuery } from '../../hooks/use-media-query';
-import { useMovieTick } from '../../hooks/use-movie';
+import { useMovieSteps } from '../../hooks/use-movie';
 import { useSayTyping } from '../../hooks/use-typing';
 import type { Attachment } from '../../../lib/attachment';
 import { firstMedia } from '../../../lib/files';
@@ -135,14 +135,14 @@ function AttachedMovie({
   attachment: Extract<Attachment, { kind: 'movie' }>;
   onEdit: () => void;
 }) {
-  const tick = useMovieTick();
+  const ref = useRef<HTMLCanvasElement>(null);
+  // Each frame drawn into the same bytes, then painted.
   const [shown] = useState(() => blank(movie.width, movie.height));
-  // Each frame drawn into the same bytes, as a new object so the canvas repaints.
-  const frame = useMemo(
-    () => frameShown(movie, tick % movie.count, drawing, { ...shown }),
-    [movie, drawing, tick, shown]
+  useMovieSteps(
+    ref,
+    (tick) => frameShown(movie, tick % movie.count, drawing, shown),
+    true
   );
-  const { ref } = useBitmapCanvas(frame);
   return (
     <button
       type="button"

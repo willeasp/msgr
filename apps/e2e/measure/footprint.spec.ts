@@ -204,6 +204,24 @@ test('what using a chat costs', async ({ page, browser }) => {
     renders: typed && summary(typed),
   };
 
+  // A stroke across the paint window: 120 moves of the pointer.
+  await composer.fill('');
+  await chat.getByRole('button', { name: 'Attach', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Draw…' }).click();
+  const paint = page.getByRole('dialog', { name: /^Drawing for / });
+  const canvas = paint.locator('canvas');
+  await canvas.hover({ position: { x: 10, y: 10 } });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('The paint window has no canvas');
+  results['stroke120'] = await cost.during(async () => {
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width - 10, box.y + box.height - 10, {
+      steps: 120,
+    });
+    await page.mouse.up();
+    await page.waitForTimeout(100);
+  });
+
   results['heapAtEnd'] = await cost.heap();
 
   const out = JSON.stringify(results, null, 2);

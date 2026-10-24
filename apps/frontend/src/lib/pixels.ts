@@ -54,11 +54,18 @@ export interface Inks {
 
 export const BLACK_ON_WHITE: Inks = { ink: '#000', paper: '#fff' };
 
+// Faces are the same few people over and over: made once per look.
+const identicons = new Map<string, string>();
+const pictureImages = new WeakMap<Bits, Map<string, string>>();
+
 /** A framed identicon as a data URI, for an <img> or background. */
 export function identicon(
   seed: string,
   { ink, paper }: Inks = BLACK_ON_WHITE
 ): string {
+  const key = `${seed} ${ink} ${paper}`;
+  const made = identicons.get(key);
+  if (made) return made;
   const bitmap = identiconCells(seed).map((row) =>
     row.map((ink) => (ink ? '#' : '.')).join('')
   );
@@ -71,20 +78,32 @@ export function identicon(
       bitmap
     )}" fill="${ink}" transform="translate(2 2)"/>` +
     `</svg>`;
-  return dataUri(svg);
+  const uri = dataUri(svg);
+  identicons.set(key, uri);
+  return uri;
 }
 
-/** A picture as a data URI for an <img> or background. */
+/**
+ * A picture as a data URI for an <img> or background; made once for each
+ * picture and inks, so long as the picture's bits aren't changed in place.
+ */
 export function pictureImage(
   bits: Bits,
   { ink, paper }: Inks = BLACK_ON_WHITE
 ): string {
+  const looks = pictureImages.get(bits) ?? new Map<string, string>();
+  pictureImages.set(bits, looks);
+  const key = `${ink} ${paper}`;
+  const made = looks.get(key);
+  if (made) return made;
   const { width, height } = bits;
-  return dataUri(
+  const uri = dataUri(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" shape-rendering="crispEdges">` +
       `<rect width="${width}" height="${height}" fill="${paper}"/>` +
       `<path d="${pixelPath(bitmapOf(bits))}" fill="${ink}"/></svg>`
   );
+  looks.set(key, uri);
+  return uri;
 }
 
 // Escapes the parentheses too: Avatar puts this in an unquoted CSS url().
@@ -109,4 +128,37 @@ export function svgMask(bitmap: Bitmap): string {
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges">` +
     `<path d="${pixelPath(bitmap)}"/></svg>`;
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+
+/** A colour as one pixel of an ImageData's 32-bit view, in the machine's byte order. */
+export function pixelOf([red, green, blue, alpha]: readonly [
+  number,
+  number,
+  number,
+  number
+]): number {
+  const pixel = new Uint8ClampedArray([red, green, blue, alpha]);
+  return new Uint32Array(pixel.buffer)[0] ?? 0;
+}
+
+/**
+ * Writes `bits` into `pixels`, the 32-bit view of an ImageData of the same
+ * size: `ink` where it has ink and `paper` elsewhere, one write a pixel.
+ * Drawn with putImageData, a frame costs one call however busy it is.
+ */
+export function fillPixels(
+  pixels: Uint32Array,
+  { width, height, bytes }: Bits,
+  ink: number,
+  paper: number
+): void {
+  const row = (width + 7) >> 3;
+  let at = 0;
+  for (let y = 0; y < height; y++) {
+    const start = y * row;
+    for (let x = 0; x < width; x++) {
+      pixels[at++] =
+        (bytes[start + (x >> 3)] ?? 0) & (0x80 >> (x & 7)) ? ink : paper;
+    }
+  }
 }

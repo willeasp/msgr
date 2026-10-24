@@ -145,23 +145,6 @@ export function fill(bits: Bits, x: number, y: number, pattern: Pattern): void {
   }
 }
 
-/** Each row's runs of ink, as [x, y, length], for drawing with fillRect. */
-export function inkRuns(bits: Bits): [number, number, number][] {
-  const runs: [number, number, number][] = [];
-  for (let y = 0; y < bits.height; y++) {
-    let start = -1;
-    for (let x = 0; x <= bits.width; x++) {
-      const ink = getPixel(bits, x, y);
-      if (ink && start < 0) start = x;
-      if (!ink && start >= 0) {
-        runs.push([start, y, x - start]);
-        start = -1;
-      }
-    }
-  }
-  return runs;
-}
-
 /** A pattern tiled to `width`×`height`, for a swatch drawn by PixelIcon. */
 export const swatch = (
   pattern: Pattern,
