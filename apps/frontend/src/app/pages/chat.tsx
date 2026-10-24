@@ -16,12 +16,9 @@ import {
 import { ChatWindow } from '../components/chat/ChatWindow';
 import { GET_CHAT_DATA, GET_CHATS } from '../data/chats';
 import { EmptyChatState } from '../components/chat/EmptyChatState';
-import { useMediaQuery } from '../hooks/use-media-query';
+import { usePhone } from '../hooks/use-phone';
 import { useSignedIn } from '../hooks/use-signed-in';
 import styles from './chat.module.css';
-
-// Below this the Chats window and the open chat take turns on the desktop.
-const NARROW = '(max-width: 760px)';
 
 const LEAVE_CHANNEL = gql(`
   mutation LeaveChannel($chatId: ID!) {
@@ -36,7 +33,8 @@ export function Chat() {
   const navigate = useNavigate();
   const { viewer, typists } = useSignedIn();
   const { open } = useModals();
-  const isNarrow = useMediaQuery(NARROW);
+  // On a phone the Chats window and the open chat take turns, each the screen.
+  const isPhone = usePhone();
 
   const getInfo = (messageId: string) => open(GetInfoDialog, { messageId });
 
@@ -62,8 +60,14 @@ export function Chat() {
           navigate('/');
         }
       : undefined;
+  const joinChannel = () => open(JoinChannelDialog, {});
   const chats = (
-    <ChatSidebar selectedChatId={chatId} onNewChat={startNewChat} />
+    <ChatSidebar
+      selectedChatId={chatId}
+      onNewChat={startNewChat}
+      onNewChannel={newChannel}
+      onJoinChannel={joinChannel}
+    />
   );
 
   const conversation = chatId ? (
@@ -92,7 +96,7 @@ export function Chat() {
         onLeaveChannel={leaveOpenChannel}
       />
       <main className={styles.desktop}>
-        {isNarrow ? (
+        {isPhone ? (
           chatId ? (
             conversation
           ) : (

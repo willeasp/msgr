@@ -21,7 +21,8 @@ Kept small so upstream diffs stay readable:
   hooks hoisted above early returns (`BlockLoader`) or made unconditional
   (`DropdownMenuTrigger`).
 - `DropdownMenuTrigger` returns focus to its trigger only if nothing else took
-  it, so a menu item that opens a dialog leaves the dialog's field focused.
+  it, so a menu item that opens a dialog leaves the dialog's field focused,
+  and sets `aria-expanded` on it (which `ActionButton` drops).
 - `TextArea` and `Input` draw a copy of the text, with a block for the
   insertion point, over a transparent real field. Upstream's set the field's
   caret (`TextArea` from effects, `Input` on focus), which jumped it to the

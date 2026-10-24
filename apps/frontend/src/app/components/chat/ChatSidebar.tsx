@@ -2,7 +2,8 @@ import { useQuery } from '@apollo/client/react';
 import { GET_CHATS } from '../../data/chats';
 import Button from '../../../sacred/components/Button';
 import { LoadingState } from '../LoadingState';
-import { MacWindow } from '../MacWindow';
+import { MacWindow, TitleBarButton } from '../MacWindow';
+import { Menu } from '../MenuBar';
 import { Muted } from '../Muted';
 import { ChatListItem } from './ChatListItem';
 import styles from './ChatSidebar.module.css';
@@ -10,9 +11,16 @@ import styles from './ChatSidebar.module.css';
 interface ChatSidebarProps {
   selectedChatId: string | undefined;
   onNewChat: () => void;
+  onNewChannel: () => void;
+  onJoinChannel: () => void;
 }
 
-export function ChatSidebar({ selectedChatId, onNewChat }: ChatSidebarProps) {
+export function ChatSidebar({
+  selectedChatId,
+  onNewChat,
+  onNewChannel,
+  onJoinChannel,
+}: ChatSidebarProps) {
   const { data: chatsData, loading: chatsLoading } = useQuery(GET_CHATS);
 
   const chats = chatsData?.chats ?? [];
@@ -26,6 +34,18 @@ export function ChatSidebar({ selectedChatId, onNewChat }: ChatSidebarProps) {
             ? 'Loading…'
             : `${chats.length} ${chats.length === 1 ? 'chat' : 'chats'}`}
         </span>
+      }
+      // On a phone, starting something is in reach, not only in File.
+      action={
+        <Menu
+          title="New"
+          button={<TitleBarButton aria-haspopup="menu">New…</TitleBarButton>}
+          items={[
+            { label: 'New Chat…', onClick: onNewChat },
+            { label: 'New Channel…', onClick: onNewChannel },
+            { label: 'Join Channel…', onClick: onJoinChannel },
+          ]}
+        />
       }
       fill
     >

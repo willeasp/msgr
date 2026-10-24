@@ -9,10 +9,15 @@ import type { KeptPicture } from '../../../lib/picture-wire';
 import { movies, pictures } from '../../data/media';
 import ActionButton from '../../../sacred/components/ActionButton';
 import { useModals } from '../../../sacred/components/page/ModalContext';
-import { MacWindow } from '../MacWindow';
+import { MacWindow, TitleBarButton } from '../MacWindow';
 import { MessageInput } from './MessageInput';
 import { MessageList } from './MessageList';
-import { PaintDialog, SoundDialog, TrimDialog } from '../dialogs';
+import {
+  ChatInfoDialog,
+  PaintDialog,
+  SoundDialog,
+  TrimDialog,
+} from '../dialogs';
 import type { Attachment } from '../../../lib/attachment';
 import { firstMedia, isSoundFile, isVideo } from '../../../lib/files';
 import { pictureFromFile } from '../../browser/picture-file';
@@ -21,6 +26,9 @@ import type { Typists } from '../../hooks/use-typing';
 import styles from './ChatWindow.module.css';
 import { PixelText } from '../PixelText';
 import { useChatOnScreen } from '../../hooks/use-signed-in';
+import { usePhone } from '../../hooks/use-phone';
+import { INFO } from '../icons';
+import { PixelIcon } from '../PixelIcon';
 
 interface ChatWindowProps {
   chatId: string;
@@ -30,7 +38,7 @@ interface ChatWindowProps {
   onAddPeople?: () => void;
   /** Who is writing where, for the title bar. */
   typists: Typists;
-  /** Opens Get Info on a message, when it's clicked. */
+  /** Opens Get Info on a message, clicked or held. */
   onGetInfo: (messageId: string) => void;
 }
 
@@ -51,6 +59,7 @@ export function ChatWindow({
   // While this window is up, its chat's messages neither beep nor notify.
   useChatOnScreen(chatId);
   const { open } = useModals();
+  const isPhone = usePhone();
   // The picture, movie or sound going with the next message: drawn,
   // recorded, or made from a file.
   const [attachment, setAttachment] = useState<Attachment | null>(null);
@@ -139,17 +148,25 @@ export function ChatWindow({
       ? ['member', 'members']
       : ['person', 'people'];
 
+  const people = (
+    <span>
+      {count} {count === 1 ? one : many}
+    </span>
+  );
+
   return (
     <MacWindow
       title={title}
       onClose={onClose}
       status={<TypingStatus typists={typists} chatId={chatId} />}
       info={
-        chat && (
+        chat &&
+        // On a phone the names and Add People… are behind Info.
+        (isPhone ? (
+          people
+        ) : (
           <>
-            <span>
-              {count} {count === 1 ? one : many}
-            </span>
+            {people}
             <span className={styles.names}>
               <PixelText
                 text={chat.participants.map(({ name }) => name).join(', ')}
@@ -159,6 +176,16 @@ export function ChatWindow({
               <ActionButton onClick={onAddPeople}>Add People…</ActionButton>
             )}
           </>
+        ))
+      }
+      action={
+        chat && (
+          <TitleBarButton
+            aria-label="Info"
+            onClick={() => open(ChatInfoDialog, { chatId, onAddPeople })}
+          >
+            <PixelIcon bitmap={INFO} scale={1} />
+          </TitleBarButton>
         )
       }
       fill

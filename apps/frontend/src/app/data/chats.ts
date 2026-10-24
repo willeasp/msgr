@@ -70,6 +70,11 @@ export const GET_CHAT_DATA = gql(`
         id
         name
         email
+        avatar {
+          width
+          height
+          url
+        }
       }
     }
   }

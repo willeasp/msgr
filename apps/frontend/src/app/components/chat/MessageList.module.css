@@ -2,8 +2,8 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  /* Room on the right for the bubbles' drop shadow. */
-  padding: var(--line) 2ch var(--line) 1ch;
+  /* Room either side for the bubbles' 2-pixel drop shadow. */
+  padding: var(--line) 1ch;
 }
 
 .empty {

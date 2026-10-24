@@ -45,8 +45,9 @@
   margin-right: 1ch;
 }
 
-/* Too narrow for both, as on a phone: while there's a status, it takes the
-   title's place. The info line under the bar still says whose window it is. */
+/* Too narrow for both: while there's a status, it takes the title's place.
+   The info line under the bar still says whose window it is. (A phone shows
+   the status in that line instead.) */
 @container (max-width: 480px) {
   .titleBar:has(.status > :not(:empty)) .title {
     display: none;
@@ -102,4 +103,72 @@
   flex: 1;
   flex-direction: column;
   min-height: 0;
+}
+
+/* A phone's title bar (ADR 0013) --------------------------------------- */
+
+/* Back and the window's control: a thumb's target, 44 points, reaching down
+   from the title bar over the info line, which has nothing to press there. */
+.back,
+.titleButton {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  display: flex;
+  align-items: flex-start;
+  height: 44px;
+  min-width: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font-family: var(--font-family-chrome);
+  font-size: var(--font-size);
+  cursor: pointer;
+}
+
+.back {
+  left: 0;
+  justify-content: flex-start;
+  padding-left: 1ch;
+}
+
+.action {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+}
+
+.titleButton {
+  position: relative;
+  justify-content: flex-end;
+  padding-right: 1ch;
+}
+
+/* The glyph or word itself, on paper across the stripes, inverted when pressed. */
+.glyph {
+  display: flex;
+  align-items: center;
+  height: var(--line);
+  padding: 0 0.5ch;
+  background: var(--paper);
+  line-height: var(--line);
+  white-space: nowrap;
+}
+
+.back:active .glyph,
+.titleButton:active .glyph {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.back:focus-visible,
+.titleButton:focus-visible {
+  outline: none;
+
+  & .glyph {
+    outline: 1px dashed var(--ink);
+    outline-offset: 1px;
+  }
 }

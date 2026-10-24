@@ -16,7 +16,7 @@ interface MessageListProps {
   showNames: boolean;
   onDrawOnIt?: (picture: KeptPicture) => void;
   onDrawOnMovie?: (movie: KeptMovie) => void;
-  /** Opens Get Info on a message: a click on it. */
+  /** Opens Get Info on a message: a click on it, or a finger held on it. */
   onGetInfo?: (messageId: string) => void;
 }
 
@@ -53,6 +53,31 @@ export function MessageList({
   // Whatever's on a visible screen has been read.
   useReading(messagesData?.messages.at(-1)?.id);
 
+  // Read to the end, the history stays at its end while its window resizes:
+  // a phone's keyboard coming up under it, or the window itself.
+  const log = useRef<HTMLDivElement>(null);
+  const hasMessages = !!messagesData?.messages.length;
+  useEffect(() => {
+    const element = log.current;
+    if (!element) return;
+    let atEnd = true;
+    const scrolled = () => {
+      // Within a line or so of it: opening on the latest message leaves
+      // the padding below it out of view.
+      atEnd =
+        element.scrollHeight - element.scrollTop - element.clientHeight < 32;
+    };
+    const resized = new ResizeObserver(() => {
+      if (atEnd) element.scrollTop = element.scrollHeight;
+    });
+    element.addEventListener('scroll', scrolled, { passive: true });
+    resized.observe(element);
+    return () => {
+      element.removeEventListener('scroll', scrolled);
+      resized.disconnect();
+    };
+  }, [hasMessages]);
+
   if (messagesLoading && !messagesData) {
     return (
       <div className={styles.root}>
@@ -74,7 +99,7 @@ export function MessageList({
   }
 
   return (
-    <div className={styles.root} role="log" aria-label="Messages">
+    <div ref={log} className={styles.root} role="log" aria-label="Messages">
       {messages.map((message, index) => (
         <MessageBubble
           key={message.id}

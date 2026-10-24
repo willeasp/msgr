@@ -1,8 +1,18 @@
+/*
+The screen: what's visible of the page, above a phone's keyboard
+(--viewport-top and --keyboard-inset, from app/browser/viewport.ts), so the
+composer sits on the keyboard; and clear of a notch and the home indicator,
+which the keyboard covers while it's up.
+*/
 .screen {
+  position: fixed;
+  inset: var(--viewport-top, 0px) 0 var(--keyboard-inset, 0px);
   display: flex;
   flex-direction: column;
-  height: 100%;
   overflow: hidden;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    max(0px, env(safe-area-inset-bottom) - var(--keyboard-inset, 0px))
+    env(safe-area-inset-left);
 }
 
 /* The dithered desktop the windows sit on. */

@@ -31,6 +31,15 @@ test('the title bar shows who is typing, with the watch, until they send', async
     });
   }).toPass({ intervals: [3000], timeout: 15_000 });
   await expect(status.locator('svg')).toBeVisible();
+  // In the title bar, across the stripes from the close box.
+  const close = await chatWindow(page, 'Project Team')
+    .getByRole('button', { name: 'Close Project Team' })
+    .boundingBox();
+  const shown = await status.boundingBox();
+  if (!close || !shown) throw new Error('The title bar has no box');
+  expect(
+    Math.abs(shown.y + shown.height / 2 - (close.y + close.height / 2))
+  ).toBeLessThan(10);
 
   await composer.fill('Agenda is up');
   await composer.press('Enter');

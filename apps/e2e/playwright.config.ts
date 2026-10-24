@@ -15,6 +15,13 @@ const repo = (path: string) =>
 export default defineConfig({
   projects: [
     { name: 'e2e', testDir: './tests' },
+    // A phone's layout (ADR 0013), on two phones' screens, in Chromium.
+    { name: 'pixel', testDir: './phone', use: { ...devices['Pixel 7'] } },
+    {
+      name: 'iphone',
+      testDir: './phone',
+      use: { ...devices['iPhone 15'], browserName: 'chromium' },
+    },
     // The README's pictures, remade with `npm run screenshots`.
     { name: 'screenshots', testDir: './screenshots' },
     // What the app costs to use, printed by `npm run measure`.

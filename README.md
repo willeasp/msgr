@@ -26,7 +26,7 @@
 - **Direct chats, groups and `#channels`.** Start a chat with anyone from **File → New Chat…** or <kbd>Ctrl</kbd>&nbsp;<kbd>K</kbd>. Make a channel with **File → New Channel…** and bring people in with **Add People…**, or join one from **File → Join Channel…** or by typing `/join #name` in the message box.
 - **Live.** Messages arrive the moment they're sent, and the chat list reorders itself.
 - **The wristwatch while someone types.** While someone writes to you, the chat window's title bar shows the classic Macintosh watch, its hand going round, and "Ana is typing…". It goes the moment their message arrives.
-- **Get Info on any message.** Click or tap a message: what it is and how big, where and when it was sent, and who has read it and when. A chat counts as read while it's open on your screen.
+- **Get Info on any message.** Click a message, or hold a finger on it: what it is and how big, where and when it was sent, and who has read it and when. A chat counts as read while it's open on your screen.
 - **Pixel emoji.** Every emoji is redrawn as black-and-white pixel art in the theme's ink, and a message of just emoji shows them big.
 - **MacPaint drawings.** **Attach → Draw…** opens a paint window with a pencil, brush, paint bucket, eraser and eight patterns, and attaches the picture to your message. **Draw on It** opens any picture in the chat to add to it.
 - **Photos, the 1984 way.** **Attach → Picture…**, pasting or dropping a photo dithers it to black and white on your device, up to 320 pixels a side, to send with or without text. Only the dithered picture leaves your device, in a few kilobytes.

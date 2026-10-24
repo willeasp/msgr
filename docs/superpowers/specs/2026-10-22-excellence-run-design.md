@@ -200,7 +200,7 @@ The proposal:
 - **Menus on the Popover API.** Light dismiss and the top layer, positioned with CSS anchor positioning where available. This replaces the `MutationObserver` that watches the whole body while a menu is open.
 - **The rest.** Single-use wrappers fold into the component that uses them. The tint math moves into the skin's tokens, and `sacred/` goes.
 
-**ADR 0013:** own the Macintosh's controls (supersedes 0001).
+**An ADR:** own the Macintosh's controls (supersedes 0001). Not written: Sacred stays (answer 6).
 
 ### 5. A phone's layout
 
@@ -250,7 +250,7 @@ Below 760 px (as now), the screen is the window:
   - A click still opens it with a mouse.
 - **Desktop keeps its desktop**, and gains everything in PR 6.
 
-**ADR 0014:** phones get a phone's layout. The e2e suite gains a phone project (Pixel 7 and iPhone viewports) for these specs, and `npm run screenshots` gains phone pictures.
+**An ADR:** phones get a phone's layout, written instead as [ADR 0013](../../adr/0013-phones-keep-the-desktops-look.md) (answer 7). The e2e suite gains a phone project (Pixel 7 and iPhone viewports) for these specs, and `npm run screenshots` gains phone pictures.
 
 ### 6. A messenger's manners
 
@@ -295,6 +295,11 @@ Answered 2026-10-22:
 3. **Get Info on touch is a long press.**
 4. **Sacred: open.** Replacing it is recommended (the fields, dialogs and menus go anyway; what's left doesn't justify a second style system). Trimming it is the alternative. Decided before PR 4.
 5. **Each PR has its own `claude/…` branch**, so the next can be in review while the previous one is.
+
+Answered 2026-10-24:
+
+6. **Sacred stays**, its fields made fast and correct in place (PR 4) rather than replaced.
+7. **Phones keep the desktop's look** ([ADR 0013](../../adr/0013-phones-keep-the-desktops-look.md)), after seeing each part of the phone layout built: only Back and Info in a chat's title bar and New… in the Chats window's, the composer kept on the keyboard, and Get Info by holding. Edge to edge, the clock's removal, the back swipe, the zoom rectangles, the thumb-sized controls and the one-row composer are not taken.
 
 ## Out of scope
 

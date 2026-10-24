@@ -138,6 +138,9 @@ export const AboutDialog = dialog(() =>
 export const AddPeopleDialog = dialog(() =>
   import('./chat/AddPeopleDialog').then((m) => m.AddPeopleDialog)
 );
+export const ChatInfoDialog = dialog(() =>
+  import('./chat/ChatInfoDialog').then((m) => m.ChatInfoDialog)
+);
 export const GetInfoDialog = dialog(() =>
   import('./chat/GetInfoDialog').then((m) => m.GetInfoDialog)
 );

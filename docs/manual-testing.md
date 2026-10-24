@@ -30,14 +30,21 @@ keyboard, notifications, layout) is checked here.
 - [ ] **About:** click the speech-bubble logo top left. An About box appears;
       OK or Esc closes it.
 - [ ] **Narrow window** (under 760px wide, or DevTools device mode): one window
-      at a time. Opening a chat fills the screen; the close box at the top left
-      of its title bar goes back to the list.
+      at a time. Opening a chat fills the screen; the < at the top left of its
+      title bar goes back to the list, and the (i) at the right lists its
+      people, with Add People… in a channel. The Chats window's New… offers
+      New Chat…, New Channel… and Join Channel….
 - [ ] _Optional:_ with macOS's Reduce Motion on, dialogs open without the zoom
       and the cursor stops blinking.
 
 - [ ] **Home Screen (iPhone or Android):** add Msgr to the Home Screen and open
       it. The menu bar sits below the status bar, which takes the theme's paper
       (white, black or a tint), and the desktop runs under the home indicator.
+- [ ] **The keyboard (iPhone and Android):** open a chat and tap the message
+      box. The keyboard comes up under the composer: the menu bar and the
+      chat's title stay at the top, nothing slides off the screen, and the
+      latest message stays in view. Close the keyboard: the screen fills out
+      again. Pinch to zoom still magnifies.
 - [ ] **Offline:** open Msgr once, turn on Airplane Mode and open it again. The
       desktop appears at once with "No connection"; you're not sent to the login
       page. Turn Airplane Mode off and your chats appear.
@@ -98,6 +105,10 @@ keyboard, notifications, layout) is checked here.
 
 ## 5. Messaging (use both windows)
 
+- [ ] **Get Info on a phone:** scroll the history with a finger starting on a
+      message, and tap a message: nothing opens. Hold a finger on one: it
+      inverts, and after half a second Get Info opens. No text selection or
+      callout menu appears. With a mouse, a click opens it as before.
 - [ ] **Return sends; Shift+Return adds a line.** A long message wraps; the box
       grows to 8 lines, then scrolls. Blank messages don't send.
 - [ ] **Editing:** the box draws its own text and block cursor over the real

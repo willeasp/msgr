@@ -7,9 +7,11 @@ import { ModalProvider } from './sacred/components/page/ModalContext';
 import { createApolloClient, preloadSignedIn } from './app/data/client';
 import { registerServiceWorker } from './app/browser/service-worker';
 import { applyTheme, loadTheme } from './app/browser/theme';
+import { followVisualViewport } from './app/browser/viewport';
 
 applyTheme(loadTheme());
 registerServiceWorker();
+followVisualViewport();
 
 const client = createApolloClient();
 // Signing in and signing up are the only views for someone signed out.
