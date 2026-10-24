@@ -1,5 +1,5 @@
-/* A message: the sender's face in front, then the bubble, its time beside it.
-   Theirs on the left, the viewer's mirrored on the right. */
+/* A message: the bubble, its time beside it. Theirs on the left, the
+   sender's face in front; the viewer's mirrored on the right, without one. */
 .theirs,
 .own {
   display: flex;

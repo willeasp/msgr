@@ -119,7 +119,7 @@ test('a drawn face, then the pattern back once it is removed', async ({
   await expect(face(page)).not.toHaveAttribute('data-picture');
 });
 
-test('faces lead each run; only chats of more than two name the sender', async ({
+test('others’ faces lead their runs, the viewer’s own none; only chats of more than two name the sender', async ({
   page,
 }) => {
   await page.goto('/login');
@@ -133,6 +133,13 @@ test('faces lead each run; only chats of more than two name the sender', async (
   await expect(log('#general').getByText('You', { exact: true })).toHaveCount(
     0
   );
+  // Faces are others': the viewer's own messages keep to the right without one.
+  const own = log('#general').locator('[class*="MessageBubble__own"]');
+  await expect(own.getByText('Morning, everyone!')).toBeVisible();
+  await expect(own.locator('img')).toHaveCount(0);
+  await expect(
+    log('#general').locator('[class*="MessageBubble__theirs"] img').first()
+  ).toBeVisible();
 
   // A direct chat needs no names: each run is just a face and its bubbles.
   await chatsWindow(page).getByText('Test User', { exact: true }).click();

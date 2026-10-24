@@ -28,7 +28,7 @@ interface MessageBubbleProps {
     createdAt: string;
   };
   isCurrentUser: boolean;
-  /** The first of a run from one sender: it shows their face and the time. */
+  /** The first of a run from one sender: it shows the time, and their face if it's someone else's. */
   showMeta: boolean;
   /** Name the sender above the run: in groups and channels, not direct chats. */
   showName: boolean;
@@ -77,10 +77,13 @@ export const MessageBubble = memo(function MessageBubble({
         showMeta ? styles.first : ''
       }`}
     >
-      {/* Follow-ups keep the face's place, so a run lines up. */}
-      <div className={styles.face}>
-        {showMeta && <Face person={message.sender} />}
-      </div>
+      {/* Theirs lead with the sender's face, follow-ups keeping its place so
+          a run lines up; the viewer's own need none, and keep to the right. */}
+      {!isCurrentUser && (
+        <div className={styles.face}>
+          {showMeta && <Face person={message.sender} />}
+        </div>
+      )}
       <div className={styles.body}>
         {showMeta && showName && !isCurrentUser && (
           <span className={styles.sender}>
