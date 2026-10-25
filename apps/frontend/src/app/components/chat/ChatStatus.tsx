@@ -22,36 +22,35 @@ export function ChatStatus({
 }) {
   const reconnecting = useReconnecting();
   const typing = typingLine(useTypingIn(typists, chatId));
-  // Nobody's typing reaches a page that's lost its connection.
-  const line = reconnecting ? null : typing;
   return (
     <>
-      <span
-        role="status"
-        aria-label="Connection"
-        className={reconnecting ? styles.status : undefined}
-      >
-        {reconnecting && (
-          <>
-            <Wristwatch />
-            <span className={styles.line}>Reconnecting…</span>
-          </>
-        )}
-      </span>
-      <span
-        role="status"
-        aria-label="Typing"
-        className={line ? styles.status : undefined}
-      >
-        {line && (
-          <>
-            <Wristwatch />
-            <span className={styles.line}>
-              <PixelText text={line} />
-            </span>
-          </>
-        )}
-      </span>
+      <Saying
+        label="Connection"
+        words={reconnecting ? 'Reconnecting…' : null}
+      />
+      {/* Nobody's typing reaches a page that's lost its connection. */}
+      <Saying
+        label="Typing"
+        words={typing && !reconnecting ? <PixelText text={typing} /> : null}
+      />
     </>
+  );
+}
+
+/** One thing the title bar can say, beside the watch: always there, empty when there's nothing to say. */
+function Saying({ label, words }: { label: string; words: React.ReactNode }) {
+  return (
+    <span
+      role="status"
+      aria-label={label}
+      className={words ? styles.status : undefined}
+    >
+      {words && (
+        <>
+          <Wristwatch />
+          <span className={styles.line}>{words}</span>
+        </>
+      )}
+    </span>
   );
 }
