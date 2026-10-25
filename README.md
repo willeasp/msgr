@@ -24,7 +24,7 @@
 
 - **Invite-only.** Nobody can sign up without a link from someone already in. **File → Invite a Friend…** makes one; it works once and lasts a week. Whoever signs up with it lands in a chat with you, and you get told they joined.
 - **Direct chats, groups and `#channels`.** Start a chat with anyone from **File → New Chat…** or <kbd>Ctrl</kbd>&nbsp;<kbd>K</kbd>. Make a channel with **File → New Channel…** and bring people in with **Add People…**, or join one from **File → Join Channel…** or by typing `/join #name` in the message box.
-- **Live.** Messages arrive the moment they're sent, and the chat list reorders itself.
+- **Live.** Messages arrive the moment they're sent, and the chat list reorders itself. Yours shows the moment you press Send, the wristwatch beside it until it's there, and the next can follow at once; one that couldn't be sent says so, with Try Again. When the connection drops, the chat's title bar says it's reconnecting, and it catches up once it's back.
 - **Your place, kept.** Each day in a chat is named, and each run of someone's messages timed by the clock. Scroll up and earlier messages keep coming, as far back as the chat goes, without moving what you're reading; read further up and new messages wait below, unread, with a button to them, rather than pulling you down.
 - **Unread at a glance.** A chat with messages you haven't read shows how many, and the installed app's icon on your Home Screen or Dock shows them all; with notifications on, even while it's closed.
 - **The wristwatch while someone types.** While someone writes to you, the chat window's title bar shows the classic Macintosh watch, its hand going round, and "Ana is typing…". It goes the moment their message arrives.
