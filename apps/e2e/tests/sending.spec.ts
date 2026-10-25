@@ -93,10 +93,16 @@ async function sends(page: Page) {
     asked: () => asked,
     /** Lets the next send through. */
     come: async () => (await next()).fallback(),
-    /** Refuses the next send, before it reaches the server. */
-    refuse: async () =>
+    /** Refuses the next send before it reaches the server, failing, or saying why as the server does. */
+    refuse: async (reason?: string) =>
       (await next()).fulfill({
-        json: { errors: [{ message: 'The server is having a moment.' }] },
+        json: {
+          errors: [
+            reason
+              ? { message: reason, extensions: { code: 'BAD_USER_INPUT' } }
+              : { message: 'Something went wrong' },
+          ],
+        },
       }),
     /** Lets the next send reach the server, and holds its answer until the test lets it go. */
     late: async () => {
@@ -174,17 +180,19 @@ test('one that doesn’t get there says Not Sent., keeping its words, and Try Ag
 }) => {
   const held = await sends(page);
   const { window, log, say, field, stored } = await chat(page, playwright);
-  const notSent = window.getByRole('alert');
+  const notSent = log.getByText(/^Not Sent\./);
 
   await say('Try me');
   await held.refuse();
-  await expect(notSent).toHaveText(/^Not Sent\./);
+  await expect(notSent).toHaveText('Not Sent.');
   await expect(log.getByText('Try me', { exact: true })).toBeVisible();
   await expect(field).toHaveValue('');
   expect(await stored()).toEqual([]);
 
   await window.getByRole('button', { name: 'Try Again' }).click();
   await expect(log.getByRole('img', { name: 'Sending' })).toHaveCount(1);
+  // Its button gone, the keyboard is still in the history.
+  await expect(log).toBeFocused();
   await held.come();
   // Stored: it shows its time, which one on its way or not sent never does.
   await expect(log.locator('time')).toHaveCount(1);
@@ -205,17 +213,50 @@ test('one whose answer was lost, while the live connection is down too, is store
   await connection.cut();
   await say('Only once');
   await held.lose();
-  await expect(window.getByRole('alert')).toHaveText(/^Not Sent\./);
+  await expect(log.getByText(/^Not Sent\./)).toBeVisible();
   expect((await stored()).map(({ content }) => content)).toEqual(['Only once']);
 
   await window.getByRole('button', { name: 'Try Again' }).click();
   await held.come();
   // Stored: it shows its time, which one on its way or not sent never does.
   await expect(log.locator('time')).toHaveCount(1);
-  await expect(window.getByRole('alert')).toHaveCount(0);
+  await expect(log.getByText(/^Not Sent\./)).toHaveCount(0);
   await expect(log.getByText('Only once', { exact: true })).toHaveCount(1);
   expect((await stored()).map(({ content }) => content)).toEqual(['Only once']);
   connection.restore();
+});
+
+test('one the server refuses says why; one too long to send stays in the field, saying so', async ({
+  page,
+  playwright,
+}) => {
+  const held = await sends(page);
+  const { window, log, say, field, stored } = await chat(page, playwright);
+
+  await say('Refused');
+  await held.refuse('That message can’t be sent here.');
+  await expect(log.getByText(/^Not Sent\./)).toHaveText(
+    'Not Sent. That message can’t be sent here.'
+  );
+
+  // Never sent at all: the server would only refuse it.
+  const tooLong = 'a'.repeat(4001);
+  await say(tooLong);
+  await expect(window.getByRole('alert')).toHaveText(
+    'A message can be at most 4,000 characters. This one is 4,001.'
+  );
+  await expect(field).toHaveValue(tooLong);
+  await page.waitForTimeout(300);
+  expect(held.asked()).toBe(1);
+  // Cut to size, it goes, and the complaint with it.
+  await field.press('Backspace');
+  await expect(window.getByRole('alert')).toHaveCount(0);
+  await field.press('Enter');
+  await held.come();
+  await expect(log.getByRole('img', { name: 'Sending' })).toHaveCount(0);
+  expect((await stored()).map(({ content }) => content.length)).toEqual([
+    4000,
+  ]);
 });
 
 test('a chat says Reconnecting… once its live connection has been down a moment, until it’s back', async ({

@@ -1,7 +1,10 @@
 import { ServerError, ServerParseError } from '@apollo/client/errors';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  connectionAfter,
   isWorthRetrying,
+  type LiveConnection,
+  type SocketEvent,
   RECONNECTING_AFTER_MS,
   sessionOf,
   silenceWatch,
@@ -152,5 +155,63 @@ describe('untilReconnectingShows', () => {
     expect(untilReconnectingShows(1000, 2500)).toBe(500);
     expect(untilReconnectingShows(1000, 3000)).toBe(0);
     expect(untilReconnectingShows(1000, 9000)).toBe(0);
+  });
+});
+
+describe('connectionAfter', () => {
+  const idle: LiveConnection = { kind: 'idle' };
+  const up: LiveConnection = { kind: 'up' };
+  const connected: SocketEvent = { kind: 'connected' };
+  const dropped: SocketEvent = { kind: 'closed', code: 1006 };
+  const after = (events: SocketEvent[], from = idle) =>
+    events.reduce<LiveConnection>(
+      (connection, event, i) => connectionAfter(connection, event, 1000 * i),
+      from
+    );
+
+  it('goes down when a socket that was up drops, and stays down since then through every failed try', () => {
+    expect(after([connected, dropped])).toEqual({ kind: 'down', since: 1000 });
+    expect(after([connected, dropped, dropped, dropped])).toEqual({
+      kind: 'down',
+      since: 1000,
+    });
+    // A socket taken for dead, terminated by the page, is down too.
+    expect(after([connected, { kind: 'closed', code: 4499 }])).toEqual({
+      kind: 'down',
+      since: 1000,
+    });
+    // And one closed without a code.
+    expect(after([connected, { kind: 'closed', code: null }])).toEqual({
+      kind: 'down',
+      since: 1000,
+    });
+    // The server going away as it restarts.
+    expect(after([connected, { kind: 'closed', code: 1001 }])).toEqual({
+      kind: 'down',
+      since: 1000,
+    });
+  });
+
+  it('is up again once it connects', () => {
+    expect(after([connected, dropped, connected])).toEqual(up);
+  });
+
+  it('says nothing before it has first been up: that wait is the Connecting screen’s', () => {
+    expect(after([dropped, dropped])).toEqual(idle);
+  });
+
+  it('has nothing to reconnect once the page closed it on purpose, however it was', () => {
+    const closed: SocketEvent = { kind: 'closed', code: 1000 };
+    expect(after([connected, closed])).toEqual(idle);
+    expect(after([connected, dropped, closed])).toEqual(idle);
+    // Signed in again: its first wait is the Connecting screen's.
+    expect(after([connected, closed, dropped])).toEqual(idle);
+  });
+
+  it('keeps the same state when nothing changed, so nothing listening hears of it', () => {
+    expect(connectionAfter(up, connected, 5)).toBe(up);
+    expect(connectionAfter(idle, dropped, 5)).toBe(idle);
+    const down: LiveConnection = { kind: 'down', since: 1 };
+    expect(connectionAfter(down, dropped, 5)).toBe(down);
   });
 });

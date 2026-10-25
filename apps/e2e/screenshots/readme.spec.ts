@@ -138,7 +138,7 @@ test('someone typing, and Get Info on a message', async ({ browser }) => {
         variables: { chatId },
       },
     });
-    await expect(team.getByRole('status')).toHaveText(
+    await expect(team.getByRole('status', { name: 'Typing' })).toHaveText(
       'Diana Prince is typing…',
       { timeout: 1000 }
     );

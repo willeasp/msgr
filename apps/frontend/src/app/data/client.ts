@@ -5,33 +5,35 @@ import { createClient } from 'graphql-ws';
 import { createCache, mayHaveMissed } from '../../lib/cache';
 import {
   AWAY_MS,
+  connectionAfter,
   isWorthRetrying,
   PONG_WAIT_MS,
   silenceWatch,
+  type LiveConnection,
+  type SocketEvent,
 } from '../../lib/connection';
 import { GET_CHATS } from './chats';
 import { ME } from './me';
 import { retryMedia } from './media';
 
-let downSince: number | null = null;
-let everUp = false;
+let connection: LiveConnection = { kind: 'idle' };
 const connectionListeners = new Set<() => void>();
 
-function liveConnectionIs(up: boolean) {
-  const next = up ? null : downSince ?? (everUp ? Date.now() : null);
-  if (up) everUp = true;
-  if (next === downSince) return;
-  downSince = next;
+function socketWas(event: SocketEvent) {
+  const next = connectionAfter(connection, event, Date.now());
+  if (next === connection) return;
+  connection = next;
   for (const listener of connectionListeners) listener();
 }
 
 /**
  * Since when the live connection has been down, having been up; null while
- * it's up, or before it first is (the Connecting screen's wait). What a
- * chat says "Reconnecting…" from (useReconnecting).
+ * it's up, before it first is (the Connecting screen's wait), or once it
+ * was let go on purpose (lib/connection.ts). What a chat says
+ * "Reconnecting…" from (useReconnecting).
  */
 export const liveConnection = {
-  downSince: () => downSince,
+  downSince: () => (connection.kind === 'down' ? connection.since : null),
   subscribe(listener: () => void) {
     connectionListeners.add(listener);
     return () => {
@@ -82,7 +84,7 @@ export function createApolloClient(): ApolloClient {
       // Events are lost while the socket is down: on its return, catch up.
       connected: (socket, _payload, wasRetry) => {
         open = socket as WebSocket;
-        liveConnectionIs(true);
+        socketWas({ kind: 'connected' });
         if (wasRetry) catchUp();
       },
       ping: (received) => {
@@ -91,10 +93,18 @@ export function createApolloClient(): ApolloClient {
       pong: (received) => {
         if (received) silence.answered();
       },
-      closed: () => {
+      closed: (event) => {
         open = null;
         silence.answered();
-        liveConnectionIs(false);
+        // A CloseEvent, or graphql-ws's own when the page terminates it.
+        const code =
+          typeof event === 'object' && event && 'code' in event
+            ? event.code
+            : null;
+        socketWas({
+          kind: 'closed',
+          code: typeof code === 'number' ? code : null,
+        });
       },
     },
   });

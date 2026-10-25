@@ -45,11 +45,11 @@
   margin-right: 1ch;
 }
 
-/* Too narrow for both: while there's a status, it takes the title's place.
+/* Too narrow for both: while a status says something, it takes the title's place.
    The info line under the bar still says whose window it is. (A phone shows
    the status in that line instead.) */
 @container (max-width: 480px) {
-  .titleBar:has(.status > :not(:empty)) .title {
+  .titleBar:has(.status [role='status']:not(:empty)) .title {
     display: none;
   }
 

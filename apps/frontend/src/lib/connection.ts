@@ -38,6 +38,43 @@ export const PONG_WAIT_MS = 5_000;
 /** How long the live connection may be down before a chat says it's reconnecting: a blip says nothing. */
 export const RECONNECTING_AFTER_MS = 2_000;
 
+/**
+ * The live connection, as a chat tells of it: up; down since a moment,
+ * having been up; or idle, never up yet (the Connecting screen's wait) or
+ * closed on purpose, with nothing left to listen for (signed out).
+ */
+export type LiveConnection =
+  | { readonly kind: 'idle' }
+  | { readonly kind: 'up' }
+  | { readonly kind: 'down'; readonly since: number };
+
+/** The socket connected, or closed, and how (a CloseEvent's code; null if it said none). */
+export type SocketEvent =
+  | { readonly kind: 'connected' }
+  | { readonly kind: 'closed'; readonly code: number | null };
+
+/** The page's own close: the socket let go once nothing listens (graphql-ws's lazy close), never the server's (1001 as it stops). */
+const CLOSED_ON_PURPOSE = 1000;
+
+/**
+ * The connection after a socket event at `now`. A connection that was up
+ * goes down when its socket closes, and stays down since then however
+ * many tries fail; one closed on purpose has nothing to reconnect.
+ */
+export function connectionAfter(
+  connection: LiveConnection,
+  event: SocketEvent,
+  now: number
+): LiveConnection {
+  if (event.kind === 'connected') {
+    return connection.kind === 'up' ? connection : { kind: 'up' };
+  }
+  if (event.code === CLOSED_ON_PURPOSE) {
+    return connection.kind === 'idle' ? connection : { kind: 'idle' };
+  }
+  return connection.kind === 'up' ? { kind: 'down', since: now } : connection;
+}
+
 /** How long until a connection down since `downSince` should say so; 0 once it should. */
 export const untilReconnectingShows = (downSince: number, now: number) =>
   Math.max(0, RECONNECTING_AFTER_MS - (now - downSince));

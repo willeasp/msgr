@@ -149,7 +149,7 @@ test('pasting or dropping a photo attaches it; a broken one is refused', async (
   await expect(chat.getByRole('alert')).toHaveCount(0);
 });
 
-test('a picture shows the moment it’s sent, from the device; one the server refuses says Not Sent., and Try Again sends it once however fast it’s pressed', async ({
+test('a picture shows the moment it’s sent, drawn from the device; one the server refuses says Not Sent., and Try Again sends it once', async ({
   browser,
 }) => {
   const page = await anotherPerson(browser);
@@ -176,14 +176,21 @@ test('a picture shows the moment it’s sent, from the device; one the server re
   await field.press('Enter');
   await field.press('Enter');
   await expect(pictures).toHaveCount(before + 1);
-  await expect(chat.getByRole('alert')).toHaveText(/^Not Sent\./);
+  const notSent = chat.getByText(/^Not Sent\./);
+  await expect(notSent).toBeVisible();
+  // Drawn from what's on the device: the server never had it.
+  const sent = pictures.last();
+  await expect(sent).toHaveAttribute('width', '320');
+  await expect.poll(() => inkAt(sent, 40, 80)).toBe(true);
+  expect(await inkAt(sent, 280, 80)).toBe(false);
   await expect(preview).toHaveCount(0);
   await expect(field).toHaveValue('');
   await page.unroute('**/graphql');
 
   const again = chat.getByRole('button', { name: 'Try Again' });
   await again.click();
-  await expect(chat.getByRole('alert')).toHaveCount(0);
+  await expect(notSent).toHaveCount(0);
+  await expect(chat.getByRole('log').getByRole('img', { name: 'Sending' })).toHaveCount(0);
   await expect(pictures).toHaveCount(before + 1);
   await page.waitForTimeout(500);
   await expect(pictures).toHaveCount(before + 1);

@@ -2,17 +2,18 @@ import { useId, useRef, useState } from 'react';
 import { useApolloClient } from '@apollo/client/react';
 import { blank, type Bits } from '@msgr/media';
 import { parseCommand } from '../../../lib/commands';
-import { drawnOver, frameShown } from '../../../lib/movie';
+import { frameShown } from '../../../lib/movie';
+import { tooLong } from '../../../lib/outbox';
 import Button from '../../../sacred/components/Button';
 import TextArea from '../../../sacred/components/TextArea';
 import { pixelSize, useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
-import { send, type Made } from '../../data/outbox';
+import { send } from '../../data/outbox';
 import { useSignedIn } from '../../hooks/use-signed-in';
 import { Menu } from '../MenuBar';
 import { useMediaQuery } from '../../hooks/use-media-query';
 import { useMovieSteps } from '../../hooks/use-movie';
 import { useSayTyping } from '../../hooks/use-typing';
-import type { Attachment } from '../../../lib/attachment';
+import { madeOf, type Attachment } from '../../../lib/attachment';
 import { firstMedia } from '../../../lib/files';
 import { SoundPlayer } from './SoundPlayer';
 import { useJoinChannel } from '../../hooks/use-join-channel';
@@ -132,26 +133,19 @@ export function MessageInput({
       return;
     }
 
+    // Kept in the field, to cut, rather than sent for the server to refuse.
+    const problem = tooLong(content);
+    if (problem) {
+      setCommandError(problem);
+      return;
+    }
+
     // At once, from what's on the device (app/data/outbox.ts): the field
     // empties and the next can follow while this one is on its way.
-    const made: Made | null =
-      attachment?.kind === 'picture'
-        ? { kind: 'picture', bits: attachment.bits }
-        : attachment?.kind === 'movie'
-        ? {
-            kind: 'movie',
-            // What's drawn over it, drawn into every frame.
-            frames: attachment.drawing
-              ? drawnOver(attachment.movie, attachment.drawing)
-              : attachment.movie,
-          }
-        : attachment?.kind === 'sound'
-        ? { kind: 'sound', codes: attachment.codes }
-        : null;
     send(client, {
       chatId,
       content: content || null,
-      made,
+      made: madeOf(attachment),
       sender: {
         __typename: 'User',
         id: viewer.id,

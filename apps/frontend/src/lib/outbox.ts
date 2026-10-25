@@ -1,20 +1,28 @@
+import { CombinedGraphQLErrors } from '@apollo/client/errors';
+
 /*
- * Messages the viewer sent from this page that the server hasn't yet
- * stored, shown at once at the foot of their chat's history: on their way,
- * or not sent, to be tried again. Each has the id its sender chose, which
- * it's stored under (ADR 0016), so once its history holds that id it shows
- * there instead, however it got there.
+ * Messages the viewer sent from this page, shown at once at the foot of
+ * their chat's history until it holds them: on their way, not sent (to be
+ * tried again), or stored and waiting for the history to show them. Each
+ * has the id its sender chose, which it's stored under (ADR 0016), so the
+ * history shows it in their place the moment it holds that id, however it
+ * got there; until then, nothing that comes late can take it back a step.
  */
 
-/** A message on its way, or one that wasn't sent (and why, if the server said). */
+/**
+ * A message sent from this page: on its way; not sent, and why if the
+ * server said; or stored, as the server answered or the feed brought it,
+ * until its chat's history holds it too.
+ */
 export type Outgoing<M> =
   | { readonly chatId: string; readonly message: M; readonly state: 'sending' }
   | {
       readonly chatId: string;
       readonly message: M;
-      readonly state: 'failed';
+      readonly state: 'notSent';
       readonly problem: string | null;
-    };
+    }
+  | { readonly chatId: string; readonly message: M; readonly state: 'stored' };
 
 export type Outbox<M> = readonly Outgoing<M>[];
 
@@ -29,29 +37,30 @@ export const queued = <M extends Identified>(
   message: M
 ): Outbox<M> => [...outbox, { chatId, message, state: 'sending' }];
 
-const changed = <M extends Identified>(
+/** The outbox with one message moved on, if it's in one of the states it moves on from; else the same outbox. */
+function moved<M extends Identified>(
   outbox: Outbox<M>,
   id: string,
-  change: (outgoing: Outgoing<M>) => Outgoing<M> | null
-): Outbox<M> => {
-  if (!outbox.some(({ message }) => message.id === id)) return outbox;
-  return outbox.flatMap((outgoing) => {
-    if (outgoing.message.id !== id) return [outgoing];
-    const next = change(outgoing);
-    return next ? [next] : [];
-  });
-};
+  from: readonly Outgoing<M>['state'][],
+  to: (outgoing: Outgoing<M>) => Outgoing<M>
+): Outbox<M> {
+  const at = outbox.findIndex(({ message }) => message.id === id);
+  const outgoing = outbox[at];
+  if (!outgoing || !from.includes(outgoing.state)) return outbox;
+  const next = to(outgoing);
+  return outbox.map((each, index) => (index === at ? next : each));
+}
 
-/** The outbox with a message that wasn't sent. */
+/** The outbox with a message on its way that didn't get there. Nothing else becomes not sent: a stored one's late failure changes nothing. */
 export const notSent = <M extends Identified>(
   outbox: Outbox<M>,
   id: string,
   problem: string | null
 ): Outbox<M> =>
-  changed(outbox, id, ({ chatId, message }) => ({
+  moved(outbox, id, ['sending'], ({ chatId, message }) => ({
     chatId,
     message,
-    state: 'failed',
+    state: 'notSent',
     problem,
   }));
 
@@ -60,17 +69,38 @@ export const sendingAgain = <M extends Identified>(
   outbox: Outbox<M>,
   id: string
 ): Outbox<M> =>
-  changed(outbox, id, ({ chatId, message }) => ({
+  moved(outbox, id, ['notSent'], ({ chatId, message }) => ({
     chatId,
     message,
     state: 'sending',
   }));
 
-/** The outbox without a message the server has stored. */
+/**
+ * The outbox with a message the server has stored, as it was stored, until
+ * its history holds it: whichever came first, the answer or the feed. A
+ * message not sent may have been stored all the same (its answer lost).
+ */
 export const stored = <M extends Identified>(
   outbox: Outbox<M>,
-  id: string
-): Outbox<M> => changed(outbox, id, () => null);
+  id: string,
+  message: M
+): Outbox<M> =>
+  moved(outbox, id, ['sending', 'notSent'], ({ chatId }) => ({
+    chatId,
+    message,
+    state: 'stored',
+  }));
+
+/** The outbox without the messages a history holds, whatever their state: holding one is proof it's stored. Else the same outbox. */
+export function settled<M extends Identified>(
+  outbox: Outbox<M>,
+  history: readonly Identified[]
+): Outbox<M> {
+  if (outbox.length === 0) return outbox;
+  const held = new Set(history.map(({ id }) => id));
+  const next = outbox.filter(({ message }) => !held.has(message.id));
+  return next.length === outbox.length ? outbox : next;
+}
 
 /** What a chat's history shows after its messages: its own outgoing ones it doesn't hold yet, in the order sent. */
 export function waitingIn<M extends Identified>(
@@ -82,4 +112,59 @@ export function waitingIn<M extends Identified>(
   return outbox.filter(
     (outgoing) => outgoing.chatId === chatId && !held.has(outgoing.message.id)
   );
+}
+
+/** The most a message's words may be, trimmed, as the server counts them (UTF-16 units, `MessageContent.MAX_LENGTH`). */
+export const MAX_LENGTH = 4000;
+
+/** Why words can't be sent as they are, for the composer to say before sending what the server would only refuse; null when they can. */
+export const tooLong = (content: string): string | null =>
+  content.length > MAX_LENGTH
+    ? `A message can be at most ${MAX_LENGTH.toLocaleString(
+        'en'
+      )} characters. This one is ${content.length.toLocaleString('en')}.`
+    : null;
+
+/**
+ * Why a message wasn't sent, as Not Sent. says it: the server's reason when
+ * it refused what was sent (too long, say); none when it couldn't be
+ * reached, failed, or took too long.
+ */
+export function whyNotSent(error: unknown): string | null {
+  if (!CombinedGraphQLErrors.is(error)) return null;
+  const refused = error.errors.find(
+    ({ extensions }) => extensions?.['code'] === 'BAD_USER_INPUT'
+  );
+  return refused?.message ?? null;
+}
+
+/**
+ * How long a send may go without an answer, from the moment it was sent,
+ * before it's taken for not sent: a minute, and as long again as its bytes
+ * take at 16 kB a second, a slow phone network's upload.
+ */
+export const sendAllowance = (bytes: number): number =>
+  60_000 + Math.ceil(bytes / 16);
+
+/**
+ * A version 4 UUID, the id a message is sent under, from 16 random bytes
+ * however they're made: `crypto.randomUUID` is only for secure pages, and a
+ * phone trying the app over a home network's plain http has none.
+ */
+export function chosenId(fill: (bytes: Uint8Array) => unknown): string {
+  const bytes = new Uint8Array(16);
+  fill(bytes);
+  // The version, 4, and the variant, 10xx.
+  bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40;
+  bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) =>
+    byte.toString(16).padStart(2, '0')
+  ).join('');
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20),
+  ].join('-');
 }

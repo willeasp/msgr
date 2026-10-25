@@ -44,7 +44,7 @@ interface MessageBubbleProps {
   outgoing?:
     | { readonly state: 'sending' }
     | {
-        readonly state: 'failed';
+        readonly state: 'notSent';
         readonly problem: string | null;
         readonly onTryAgain: () => void;
       };
@@ -161,8 +161,9 @@ export const MessageBubble = memo(function MessageBubble({
             )
           )}
         </div>
-        {outgoing?.state === 'failed' && (
-          <div className={styles.notSent} role="alert">
+        {/* Read out as it comes, in the log's polite part, as its message was. */}
+        {outgoing?.state === 'notSent' && (
+          <div className={styles.notSent}>
             <span>
               Not Sent.{outgoing.problem ? ` ${outgoing.problem}` : ''}
             </span>

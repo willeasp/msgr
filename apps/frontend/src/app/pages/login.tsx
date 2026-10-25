@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation } from '@apollo/client/react';
 import { gql } from '../../lib/__generated__';
+import { forgetOutbox } from '../data/outbox';
 import { useSessionChange } from '../hooks/use-session-change';
 import AlertBanner from '../../sacred/components/AlertBanner';
 import Button from '../../sacred/components/Button';
@@ -43,6 +44,8 @@ const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    // Nothing the last person sent may go once the cookie is someone else's.
+    forgetOutbox();
 
     try {
       await login({

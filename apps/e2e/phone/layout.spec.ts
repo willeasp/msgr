@@ -9,8 +9,10 @@ import {
   anotherPerson,
   chatsWindow,
   chatWindow,
+  feedListening,
   graphql,
   joinChannel,
+  liveConnection,
   signIn,
   signInAs,
 } from '../tests/support';
@@ -204,6 +206,29 @@ test('a direct chat’s Info has its two people and no Add People…; the line u
   const under = await box(title);
   expect((await box(status)).y).toBeGreaterThanOrEqual(under.y + under.height);
   await writer.context().close();
+});
+
+test('the line under a chat’s title says Reconnecting… at its end, as it says who’s typing', async ({
+  page,
+}) => {
+  const connection = await liveConnection(page);
+  const { chat } = await openChannel(page);
+  // Listening, so that what's cut was up.
+  const listening = feedListening(page);
+  await page.reload();
+  await expect(chat).toBeVisible();
+  await listening;
+  const status = chat.getByRole('status', { name: 'Connection' });
+
+  await connection.cut();
+  await expect(status).toHaveText('Reconnecting…', { timeout: 5_000 });
+  const title = await box(chat.getByRole('heading'));
+  const said = await box(status);
+  const window = await box(chat);
+  expect(said.y).toBeGreaterThanOrEqual(title.y + title.height);
+  // At the end of the line, where typing shows, not adrift in its middle.
+  expect(window.x + window.width - (said.x + said.width)).toBeLessThan(24);
+  connection.restore();
 });
 
 test('the composer sits on the keyboard, the history kept at its end', async ({

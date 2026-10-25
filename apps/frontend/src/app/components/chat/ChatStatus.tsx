@@ -22,8 +22,9 @@ export function ChatStatus({
 }) {
   const reconnecting = useReconnecting();
   const typing = typingLine(useTypingIn(typists, chatId));
+  // One box, however many it holds: a phone's info line lays out its parts.
   return (
-    <>
+    <span className={styles.says}>
       <Saying
         label="Connection"
         words={reconnecting ? 'Reconnecting…' : null}
@@ -33,7 +34,7 @@ export function ChatStatus({
         label="Typing"
         words={typing && !reconnecting ? <PixelText text={typing} /> : null}
       />
-    </>
+    </span>
   );
 }
 

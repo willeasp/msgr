@@ -16,6 +16,10 @@ test('Get Info on a message says who has read it, and when', async ({
     .getByRole('log', { name: 'Messages' })
     .getByText('Did the slides come through?');
   await expect(bubble).toBeVisible();
+  // Stored: one on its way has nothing to tell of yet.
+  await expect(
+    chat.getByRole('log').getByRole('img', { name: 'Sending' })
+  ).toHaveCount(0);
 
   // A click on the message opens it.
   await bubble.click();

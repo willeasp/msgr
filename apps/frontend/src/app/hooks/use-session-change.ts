@@ -42,10 +42,13 @@ export function useLogOut() {
   const forgetBrowser = useForgetBrowser();
   const changeSession = useSessionChange();
 
-  return () =>
-    forgetBrowser()
+  return () => {
+    // Nothing more goes as them, from the moment they ask.
+    forgetOutbox();
+    return forgetBrowser()
       .catch(() => undefined)
       .then(() => logout())
       .catch(() => undefined)
       .then(() => changeSession('/login'));
+  };
 }

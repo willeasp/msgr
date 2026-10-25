@@ -21,7 +21,7 @@ import type { KeptMovie } from '../../../lib/movie-wire';
 import type { KeptPicture } from '../../../lib/picture-wire';
 import Button from '../../../sacred/components/Button';
 import { GET_CHAT_MESSAGES } from '../../data/chats';
-import { tryAgain } from '../../data/outbox';
+import { settle, tryAgain } from '../../data/outbox';
 import { useClock } from '../../hooks/use-clock';
 import { useOutbox } from '../../hooks/use-outbox';
 import { useReading } from '../../hooks/use-reading';
@@ -64,6 +64,10 @@ export function MessageList(props: MessageListProps) {
   // What the viewer sent from here that the server hasn't stored yet, at
   // the foot, until the history holds it (lib/outbox.ts).
   const waiting = waitingIn(useOutbox(), chatId, messages);
+  // Once it holds them, it shows them itself.
+  useEffect(() => {
+    if (data) settle(data.messages);
+  }, [data]);
 
   if (loading && !data) {
     return (
@@ -327,7 +331,10 @@ function History({
   const newer = away === null ? 0 : arrivedSince(messages, away, currentUserId);
   const placed = placeMessages(shown).map(
     ({ message, startsDay, startsRun }) => {
-      const outgoing = waiting.find((one) => one.message === message);
+      // Stored, it's as any message, until the history holds it.
+      const outgoing = waiting.find(
+        (one) => one.message === message && one.state !== 'stored'
+      );
       return (
         <Fragment key={message.id}>
           {startsDay && <DayLine date={message.createdAt} />}
@@ -342,11 +349,15 @@ function History({
             onDrawOnMovie={outgoing ? undefined : onDrawOnMovie}
             onGetInfo={outgoing ? undefined : onGetInfo}
             outgoing={
-              outgoing?.state === 'failed'
+              outgoing?.state === 'notSent'
                 ? {
-                    state: 'failed',
+                    state: 'notSent',
                     problem: outgoing.problem,
-                    onTryAgain: () => tryAgain(client, outgoing.message.id),
+                    onTryAgain: () => {
+                      tryAgain(client, outgoing.message.id);
+                      // Its button gone, the keyboard stays in the history.
+                      log.current?.focus({ preventScroll: true });
+                    },
                   }
                 : outgoing
                 ? { state: 'sending' }
