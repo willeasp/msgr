@@ -39,15 +39,21 @@ have been stored: trying again must not post it twice.
   notice or 2 seconds, whichever is sooner. A message is on its way, not
   sent, or stored, and only moves forward (`moved`): whichever says it's
   stored first, the answer or the feed's copy, wins, and a late failure
-  changes nothing. It's given up on a minute after it was sent, and as long
-  again as its bytes take at 16 kB a second (`sendAllowance`), however long
-  it waited its turn, so a stuck send can't hold the ones behind it for
-  minutes each.
+  changes nothing. It shows until the history drawn holds it, never
+  sooner, so it can't blink out between the two; stored after the history
+  was fetched, it goes into the history in its place (`withStored`), so
+  what arrives later goes after it. It's given up on a minute after it was
+  sent, and as long again as its bytes take at 16 kB a second
+  (`sendAllowance`), however long it waited its turn, so a stuck send can't
+  hold the ones behind it for minutes each.
 - **A session's sends are its own.** Login, sign-up and logout forget the
   outbox before they ask the server, aborting any send on its way, and an
   answer that lands afterwards writes nothing: the mutation doesn't write the
   cache itself (`no-cache`), `recordMessage` does, only while the session it
-  was sent in lasts. Nothing the last person sent can go, or show, as the next.
+  was sent in lasts. Nothing the last person sent can go, or show, as the
+  next, from this tab: another tab signing in as someone else changes the
+  cookie under it, and what this tab sends afterwards goes as them, as any
+  request would.
 
 ## Consequences
 
@@ -58,8 +64,8 @@ have been stored: trying again must not post it twice.
   122 random bits can't be guessed.
 - Nothing is kept across a reload: a message not sent when the page goes is
   gone (sending offline stays out of scope).
-- A message tried again after others were sent is stored after them, as the
-  new place it shows in says.
+- A message tried again after others were sent is stored after them, and
+  shows after them as soon as it's tried (`sendingAgain` puts it last).
 - A kept shell one version behind sends no id and is served as before. The
   other way round, a shell newer than its server (a rollback) sends an id the
   old schema refuses: every send says "Not Sent." until the shell updates,

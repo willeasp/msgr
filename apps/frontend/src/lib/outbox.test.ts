@@ -12,6 +12,7 @@ import {
   tooLong,
   waitingIn,
   whyNotSent,
+  withStored,
   type Outbox,
 } from './outbox';
 
@@ -116,6 +117,19 @@ describe('the outbox', () => {
     expect(settled([], [message('1')])).toEqual([]);
   });
 
+  it('sends one not sent again last, as it’s stored after what was sent meanwhile', () => {
+    const outbox = queued(
+      notSent(queued([], 'a', message('1')), '1', null),
+      'a',
+      message('2')
+    );
+
+    expect(states(sendingAgain(outbox, '1'))).toEqual([
+      ['2', 'sending'],
+      ['1', 'sending'],
+    ]);
+  });
+
   it('changes nothing for a message it doesn’t hold', () => {
     const outbox = queued([], 'a', message('1'));
 
@@ -192,5 +206,39 @@ describe('chosenId', () => {
     expect(
       chosenId((bytes) => bytes.forEach((_, i) => (bytes[i] = i * 17)))
     ).toBe('00112233-4455-4677-8899-aabbccddeeff');
+  });
+});
+
+describe('withStored', () => {
+  const at = (id: string, minute: number) => ({
+    id,
+    createdAt: new Date(Date.UTC(2026, 9, 25, 12, minute)).toISOString(),
+  });
+
+  it('puts a message stored after the history was fetched in its place, by time and then id', () => {
+    const history = [at('a', 1), at('c', 3), at('e', 5)];
+
+    expect(withStored(history, [at('d', 4)]).map(({ id }) => id)).toEqual([
+      'a',
+      'c',
+      'd',
+      'e',
+    ]);
+    expect(
+      withStored(history, [at('f', 6), at('b', 2)]).map(({ id }) => id)
+    ).toEqual(['a', 'b', 'c', 'e', 'f']);
+    // The same moment: by id, as the server orders them.
+    expect(
+      withStored([at('a', 1), at('c', 1)], [at('b', 1)]).map(({ id }) => id)
+    ).toEqual(['a', 'b', 'c']);
+    expect(withStored([], [at('a', 1)])).toEqual([at('a', 1)]);
+  });
+
+  it('leaves out what it holds, and what’s older than all it holds, which the page before brings', () => {
+    const history = [at('c', 3), at('e', 5)];
+
+    expect(withStored(history, [at('c', 3)])).toBe(history);
+    expect(withStored(history, [at('a', 1)])).toBe(history);
+    expect(withStored(history, [])).toBe(history);
   });
 });

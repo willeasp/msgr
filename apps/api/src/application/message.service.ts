@@ -162,7 +162,8 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
         readonly sound?: RawSound | null;
       }
     ): Promise<Result<Message, InvalidInput | NotFound>> {
-      const id = input.id == null ? ok(undefined) : MessageId.parseChosen(input.id);
+      const id =
+        input.id == null ? ok(undefined) : MessageId.parseChosen(input.id);
       if (!id.ok) return id;
       const content =
         input.content == null ? ok(null) : MessageContent.parse(input.content);

@@ -64,16 +64,25 @@ export const notSent = <M extends Identified>(
     problem,
   }));
 
-/** The outbox with a message that wasn't sent on its way again. */
-export const sendingAgain = <M extends Identified>(
+/**
+ * The outbox with a message that wasn't sent on its way again, last: it's
+ * stored after whatever was sent meanwhile, so it shows after it too.
+ */
+export function sendingAgain<M extends Identified>(
   outbox: Outbox<M>,
   id: string
-): Outbox<M> =>
-  moved(outbox, id, ['notSent'], ({ chatId, message }) => ({
+): Outbox<M> {
+  const next = moved(outbox, id, ['notSent'], ({ chatId, message }) => ({
     chatId,
     message,
     state: 'sending',
   }));
+  if (next === outbox) return outbox;
+  return [
+    ...next.filter(({ message }) => message.id !== id),
+    ...next.filter(({ message }) => message.id === id),
+  ];
+}
 
 /**
  * The outbox with a message the server has stored, as it was stored, until
@@ -100,6 +109,43 @@ export function settled<M extends Identified>(
   const held = new Set(history.map(({ id }) => id));
   const next = outbox.filter(({ message }) => !held.has(message.id));
   return next.length === outbox.length ? outbox : next;
+}
+
+interface Dated extends Identified {
+  readonly createdAt: string;
+}
+
+/** Whether `a` was stored before `b`, as the server orders a history: by time, then id. */
+const before = (a: Dated, b: Dated) => {
+  const at = Date.parse(a.createdAt) - Date.parse(b.createdAt);
+  return at < 0 || (at === 0 && a.id < b.id);
+};
+
+/**
+ * A history with messages the server stored that it doesn't hold (it was
+ * fetched before they were stored), each in its place, so what arrives
+ * later goes after it. One older than all it holds is left out: the
+ * history doesn't reach back to it (it started again from a later page),
+ * and the page before brings it.
+ */
+export function withStored<M extends Dated>(
+  history: readonly M[],
+  stored: readonly M[]
+): readonly M[] {
+  const oldest = history[0];
+  const placed = stored
+    .filter(
+      (message) =>
+        !history.some(({ id }) => id === message.id) &&
+        !(oldest && before(message, oldest))
+    )
+    .reduce<readonly M[]>((into, message) => {
+      const at = into.findIndex((held) => before(message, held));
+      return at === -1
+        ? [...into, message]
+        : [...into.slice(0, at), message, ...into.slice(at)];
+    }, history);
+  return placed.length === history.length ? history : placed;
 }
 
 /** What a chat's history shows after its messages: its own outgoing ones it doesn't hold yet, in the order sent. */

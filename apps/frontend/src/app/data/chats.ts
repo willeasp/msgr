@@ -8,7 +8,9 @@ import {
   type Receiver,
 } from '../../lib/chat-list';
 import { gql } from '../../lib/__generated__';
+import type { GetChatMessagesQuery } from '../../lib/__generated__/graphql';
 import { HISTORY_PAGE } from '../../lib/history';
+import { withStored } from '../../lib/outbox';
 
 /*
  * The chats the whole app reads and keeps current: the list, a chat's
@@ -162,6 +164,32 @@ export function recordMessage(
           }),
         ],
       }
+  );
+}
+
+/**
+ * Messages the viewer sent that the server stored after their chat's
+ * history was fetched, so it doesn't hold them: into it, each in its place
+ * (`withStored`), so what arrives later shows after it. Those older than
+ * all it holds stay out, for the page before to bring.
+ */
+export function recordStored(
+  cache: ApolloCache,
+  chatId: string,
+  stored: readonly GetChatMessagesQuery['messages'][number][]
+) {
+  cache.updateQuery(
+    {
+      query: GET_CHAT_MESSAGES,
+      variables: { chatId, limit: HISTORY_PAGE },
+    },
+    (existing) => {
+      if (!existing) return existing;
+      const messages = withStored(existing.messages, stored);
+      return messages === existing.messages
+        ? existing
+        : { messages: [...messages] };
+    }
   );
 }
 

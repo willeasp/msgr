@@ -40,39 +40,44 @@ export const RECONNECTING_AFTER_MS = 2_000;
 
 /**
  * The live connection, as a chat tells of it: up; down since a moment,
- * having been up; or idle, never up yet (the Connecting screen's wait) or
- * closed on purpose, with nothing left to listen for (signed out).
+ * having been up; or idle, not up yet this session (the Connecting
+ * screen's wait).
  */
 export type LiveConnection =
   | { readonly kind: 'idle' }
   | { readonly kind: 'up' }
   | { readonly kind: 'down'; readonly since: number };
 
-/** The socket connected, or closed, and how (a CloseEvent's code; null if it said none). */
-export type SocketEvent =
+/**
+ * What happens to it: its socket connected or closed, or the session
+ * changed (signing in, up or out), after which nothing is left to
+ * reconnect, whatever the socket last did.
+ */
+export type ConnectionEvent =
   | { readonly kind: 'connected' }
-  | { readonly kind: 'closed'; readonly code: number | null };
-
-/** The page's own close: the socket let go once nothing listens (graphql-ws's lazy close), never the server's (1001 as it stops). */
-const CLOSED_ON_PURPOSE = 1000;
+  | { readonly kind: 'closed' }
+  | { readonly kind: 'sessionChanged' };
 
 /**
- * The connection after a socket event at `now`. A connection that was up
- * goes down when its socket closes, and stays down since then however
- * many tries fail; one closed on purpose has nothing to reconnect.
+ * The connection after an event at `now`. One that was up goes down when
+ * its socket closes, and stays down since then however many tries fail;
+ * one that was never up this session stays idle.
  */
 export function connectionAfter(
   connection: LiveConnection,
-  event: SocketEvent,
+  event: ConnectionEvent,
   now: number
 ): LiveConnection {
-  if (event.kind === 'connected') {
-    return connection.kind === 'up' ? connection : { kind: 'up' };
+  switch (event.kind) {
+    case 'connected':
+      return connection.kind === 'up' ? connection : { kind: 'up' };
+    case 'sessionChanged':
+      return connection.kind === 'idle' ? connection : { kind: 'idle' };
+    case 'closed':
+      return connection.kind === 'up'
+        ? { kind: 'down', since: now }
+        : connection;
   }
-  if (event.code === CLOSED_ON_PURPOSE) {
-    return connection.kind === 'idle' ? connection : { kind: 'idle' };
-  }
-  return connection.kind === 'up' ? { kind: 'down', since: now } : connection;
 }
 
 /** How long until a connection down since `downSince` should say so; 0 once it should. */

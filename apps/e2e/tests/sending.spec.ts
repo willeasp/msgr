@@ -59,6 +59,13 @@ async function chat(page: Page, playwright: Parameters<typeof newcomer>[0]) {
       await field.press('Enter');
     },
     field,
+    /** Sends a message as if from the sender's other device. */
+    post: (content: string) =>
+      graphql(
+        sender,
+        'mutation ($input: SendMessageInput!) { sendMessage(input: $input) { id } }',
+        { input: { chatId, content } }
+      ),
     /** What the server holds of the chat, oldest first. */
     stored: async () =>
       (
@@ -254,8 +261,40 @@ test('one the server refuses says why; one too long to send stays in the field, 
   await field.press('Enter');
   await held.come();
   await expect(log.getByRole('img', { name: 'Sending' })).toHaveCount(0);
-  expect((await stored()).map(({ content }) => content.length)).toEqual([
-    4000,
+  expect((await stored()).map(({ content }) => content.length)).toEqual([4000]);
+});
+
+test('one sent before its chat’s history comes shows at once, and takes its place in it, though the history was fetched before it was stored', async ({
+  page,
+  playwright,
+}) => {
+  // The history is asked for as the chat opens, and answered as it was
+  // then, but only once the test lets it go.
+  let answer: (() => Promise<void>) | undefined;
+  await page.route('**/graphql', async (route) => {
+    const body = route.request().postDataJSON() as {
+      operationName?: string;
+    } | null;
+    if (body?.operationName !== 'GetChatMessages' || answer) {
+      return route.fallback();
+    }
+    const response = await route.fetch();
+    answer = () => route.fulfill({ response });
+  });
+  const { log, say, stored, post } = await chat(page, playwright);
+
+  await say('Early');
+  await expect(log.getByText('Early', { exact: true })).toBeVisible();
+  await expect(log.getByRole('img', { name: 'Sending' })).toHaveCount(0);
+  await expect.poll(() => answer).toBeDefined();
+  await answer?.();
+  // What comes next goes after it, as the server has them.
+  await post('Later');
+  const shown = log.getByText(/^(Early|Later)$/);
+  await expect(shown).toHaveText(['Early', 'Later']);
+  expect((await stored()).map(({ content }) => content)).toEqual([
+    'Early',
+    'Later',
   ]);
 });
 

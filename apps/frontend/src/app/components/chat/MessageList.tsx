@@ -61,15 +61,18 @@ export function MessageList(props: MessageListProps) {
     fetchPolicy: 'cache-and-network',
   });
   const messages = data?.messages ?? [];
-  // What the viewer sent from here that the server hasn't stored yet, at
-  // the foot, until the history holds it (lib/outbox.ts).
+  // What the viewer sent from here, at the foot until the history holds it
+  // (lib/outbox.ts): on its way, not sent, or stored.
   const waiting = waitingIn(useOutbox(), chatId, messages);
-  // Once it holds them, it shows them itself.
+  // Once it holds them, it shows them itself; what it was fetched too early
+  // to hold goes into it, in its place.
+  const client = useApolloClient();
   useEffect(() => {
-    if (data) settle(data.messages);
-  }, [data]);
+    if (data) settle(client.cache, chatId, data.messages);
+  }, [data, client, chatId]);
 
-  if (loading && !data) {
+  // Something sent before the history came shows meanwhile, alone.
+  if (loading && !data && waiting.length === 0) {
     return (
       <div className={styles.root}>
         <LoadingState label="Loading messages" />
@@ -89,6 +92,8 @@ export function MessageList(props: MessageListProps) {
 
   return (
     <History
+      // Opened afresh when the history comes, under what was sent before it.
+      key={data ? 'history' : 'waiting'}
       {...props}
       messages={messages}
       waiting={waiting}
@@ -234,7 +239,7 @@ function History({
   onGetInfo,
 }: MessageListProps & {
   messages: readonly Message[];
-  /** Sent from here, not stored yet: after the messages. */
+  /** Sent from here, not in the history yet: after the messages. */
   waiting: readonly Outgoing<Message>[];
   loadEarlier: (before: string) => Promise<readonly Message[]>;
 }) {

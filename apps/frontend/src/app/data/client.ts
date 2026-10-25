@@ -9,8 +9,8 @@ import {
   isWorthRetrying,
   PONG_WAIT_MS,
   silenceWatch,
+  type ConnectionEvent,
   type LiveConnection,
-  type SocketEvent,
 } from '../../lib/connection';
 import { GET_CHATS } from './chats';
 import { ME } from './me';
@@ -19,7 +19,7 @@ import { retryMedia } from './media';
 let connection: LiveConnection = { kind: 'idle' };
 const connectionListeners = new Set<() => void>();
 
-function socketWas(event: SocketEvent) {
+function connectionHas(event: ConnectionEvent) {
   const next = connectionAfter(connection, event, Date.now());
   if (next === connection) return;
   connection = next;
@@ -27,12 +27,14 @@ function socketWas(event: SocketEvent) {
 }
 
 /**
- * Since when the live connection has been down, having been up; null while
- * it's up, before it first is (the Connecting screen's wait), or once it
- * was let go on purpose (lib/connection.ts). What a chat says
- * "Reconnecting…" from (useReconnecting).
+ * Since when the live connection has been down, having been up this
+ * session; null while it's up, or before it first is (the Connecting
+ * screen's wait; lib/connection.ts). What a chat says "Reconnecting…" from
+ * (useReconnecting).
  */
 export const liveConnection = {
+  /** Signing in, up or out: nothing is left to reconnect until the next session's socket is up. */
+  forget: () => connectionHas({ kind: 'sessionChanged' }),
   downSince: () => (connection.kind === 'down' ? connection.since : null),
   subscribe(listener: () => void) {
     connectionListeners.add(listener);
@@ -84,7 +86,7 @@ export function createApolloClient(): ApolloClient {
       // Events are lost while the socket is down: on its return, catch up.
       connected: (socket, _payload, wasRetry) => {
         open = socket as WebSocket;
-        socketWas({ kind: 'connected' });
+        connectionHas({ kind: 'connected' });
         if (wasRetry) catchUp();
       },
       ping: (received) => {
@@ -93,18 +95,10 @@ export function createApolloClient(): ApolloClient {
       pong: (received) => {
         if (received) silence.answered();
       },
-      closed: (event) => {
+      closed: () => {
         open = null;
         silence.answered();
-        // A CloseEvent, or graphql-ws's own when the page terminates it.
-        const code =
-          typeof event === 'object' && event && 'code' in event
-            ? event.code
-            : null;
-        socketWas({
-          kind: 'closed',
-          code: typeof code === 'number' ? code : null,
-        });
+        connectionHas({ kind: 'closed' });
       },
     },
   });

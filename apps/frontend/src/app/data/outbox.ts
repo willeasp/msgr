@@ -1,4 +1,4 @@
-import type { ApolloClient } from '@apollo/client';
+import type { ApolloCache, ApolloClient } from '@apollo/client';
 import type { Made } from '../../lib/attachment';
 import { gql } from '../../lib/__generated__';
 import type { GetChatMessagesQuery } from '../../lib/__generated__/graphql';
@@ -12,11 +12,12 @@ import {
   settled,
   stored,
   whyNotSent,
+  withStored,
   type Outbox,
 } from '../../lib/outbox';
 import { toWire as pictureToWire } from '../../lib/picture-wire';
 import { toWire as soundToWire } from '../../lib/sound-wire';
-import { recordMessage } from './chats';
+import { recordMessage, recordStored } from './chats';
 import { movies, pictures, sounds } from './media';
 
 const SEND_MESSAGE = gql(`
@@ -230,9 +231,32 @@ export function received(message: HistoryMessage): void {
   change(stored(outbox, message.id, message));
 }
 
-/** Lets go of what a chat's history now holds: it shows those itself. */
-export function settle(history: readonly { readonly id: string }[]): void {
+/**
+ * A chat's history as drawn: lets go of what it holds, which it shows
+ * itself. What was stored after it was fetched goes into it, in its place
+ * (`recordStored`), to be let go once that's drawn; what's older than all it
+ * holds is let go now, for the page before to bring.
+ */
+export function settle(
+  cache: ApolloCache,
+  chatId: string,
+  history: readonly HistoryMessage[]
+): void {
   change(settled(outbox, history));
+  const stored = outbox.flatMap((outgoing) =>
+    outgoing.chatId === chatId && outgoing.state === 'stored'
+      ? [outgoing.message]
+      : []
+  );
+  if (stored.length === 0) return;
+  const placed = new Set(withStored(history, stored).map(({ id }) => id));
+  change(
+    outbox.filter(
+      ({ chatId: chat, message, state }) =>
+        chat !== chatId || state !== 'stored' || placed.has(message.id)
+    )
+  );
+  recordStored(cache, chatId, stored);
 }
 
 /** Forgets every message not yet stored, and lets go of any on its way: someone else may be signing in. */

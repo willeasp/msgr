@@ -190,7 +190,9 @@ test('a picture shows the moment it’s sent, drawn from the device; one the ser
   const again = chat.getByRole('button', { name: 'Try Again' });
   await again.click();
   await expect(notSent).toHaveCount(0);
-  await expect(chat.getByRole('log').getByRole('img', { name: 'Sending' })).toHaveCount(0);
+  await expect(
+    chat.getByRole('log').getByRole('img', { name: 'Sending' })
+  ).toHaveCount(0);
   await expect(pictures).toHaveCount(before + 1);
   await page.waitForTimeout(500);
   await expect(pictures).toHaveCount(before + 1);
