@@ -4,6 +4,7 @@ import { CombinedGraphQLErrors } from '@apollo/client';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { gql } from '../../lib/__generated__';
 import { ME } from '../data/me';
+import { forgetOutbox } from '../data/outbox';
 import { useSessionChange } from '../hooks/use-session-change';
 import AlertBanner from '../../sacred/components/AlertBanner';
 import Button from '../../sacred/components/Button';
@@ -73,6 +74,8 @@ export function SignUpPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    // Nothing the last person sent may go once the cookie is someone else's.
+    forgetOutbox();
     try {
       await signUp({
         variables: { input: { inviteCode: code, name, email, password } },

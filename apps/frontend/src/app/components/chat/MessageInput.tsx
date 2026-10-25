@@ -1,92 +1,23 @@
 import { useId, useRef, useState } from 'react';
-import { useMutation } from '@apollo/client/react';
+import { useApolloClient } from '@apollo/client/react';
 import { blank, type Bits } from '@msgr/media';
 import { parseCommand } from '../../../lib/commands';
-import { gql } from '../../../lib/__generated__';
-import { drawnOver, frameShown } from '../../../lib/movie';
-import { toWire as movieToWire } from '../../../lib/movie-wire';
-import { toWire } from '../../../lib/picture-wire';
-import { toWire as soundToWire } from '../../../lib/sound-wire';
+import { frameShown } from '../../../lib/movie';
+import { tooLong } from '../../../lib/outbox';
 import Button from '../../../sacred/components/Button';
 import TextArea from '../../../sacred/components/TextArea';
 import { pixelSize, useBitmapCanvas } from '../../hooks/use-bitmap-canvas';
-import { recordMessage } from '../../data/chats';
-import { movies, pictures, sounds } from '../../data/media';
+import { send } from '../../data/outbox';
+import { useSignedIn } from '../../hooks/use-signed-in';
 import { Menu } from '../MenuBar';
 import { useMediaQuery } from '../../hooks/use-media-query';
 import { useMovieSteps } from '../../hooks/use-movie';
 import { useSayTyping } from '../../hooks/use-typing';
-import type { Attachment } from '../../../lib/attachment';
+import { madeOf, type Attachment } from '../../../lib/attachment';
 import { firstMedia } from '../../../lib/files';
 import { SoundPlayer } from './SoundPlayer';
 import { useJoinChannel } from '../../hooks/use-join-channel';
 import styles from './MessageInput.module.css';
-
-const SEND_MESSAGE = gql(`
-  mutation SendMessage(
-    $chatId: ID!
-    $content: String
-    $picture: PictureInput
-    $movie: MovieInput
-    $sound: SoundInput
-  ) {
-    sendMessage(
-      input: {
-        chatId: $chatId
-        content: $content
-        picture: $picture
-        movie: $movie
-        sound: $sound
-      }
-    ) {
-      id
-      content
-      picture {
-        width
-        height
-        url
-      }
-      movie {
-        width
-        height
-        frames
-        url
-      }
-      sound {
-        frames
-        url
-      }
-      createdAt
-      sender {
-        id
-        name
-        avatar {
-          width
-          height
-          url
-        }
-      }
-      chat {
-        id
-        kind
-        title
-        counterpart {
-          id
-          name
-          avatar {
-            width
-            height
-            url
-          }
-        }
-        participants {
-          id
-          name
-        }
-      }
-    }
-  }
-`);
 
 interface MessageInputProps {
   chatId: string;
@@ -185,24 +116,13 @@ export function MessageInput({
   // On a phone, opening a chat is for reading; the keyboard waits for a tap.
   const hasMouse = useMediaQuery('(pointer: fine)');
 
-  // Compressing the picture, before the mutation's own loading begins.
-  const [preparing, setPreparing] = useState(false);
-
-  const [sendMessage, { loading, error: sendError }] = useMutation(
-    SEND_MESSAGE,
-    {
-      // Keeps anything typed while it was sending.
-      onCompleted: (_, options) => {
-        const sent = options?.variables?.content;
-        if (sent) setMessageInput((now) => (now.trim() === sent ? '' : now));
-      },
-    }
-  );
+  const client = useApolloClient();
+  const { viewer } = useSignedIn();
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const content = messageInput.trim();
-    if ((!content && !attachment) || preparing || loading) return;
+    if (!content && !attachment) return;
 
     // "/join #general" joins a channel instead of being sent.
     const command = attachment ? null : parseCommand(messageInput);
@@ -213,50 +133,33 @@ export function MessageInput({
       return;
     }
 
+    // Kept in the field, to cut, rather than sent for the server to refuse.
+    const problem = tooLong(content);
+    if (problem) {
+      setCommandError(problem);
+      return;
+    }
+
+    // At once, from what's on the device (app/data/outbox.ts): the field
+    // empties and the next can follow while this one is on its way.
+    send(client, {
+      chatId,
+      content: content || null,
+      made: madeOf(attachment),
+      sender: {
+        __typename: 'User',
+        id: viewer.id,
+        name: viewer.name,
+        avatar: viewer.avatar ?? null,
+      },
+      // After the last typing notice: one the server handled after the
+      // message would show them typing again for seconds.
+      after: typing.said(),
+    });
+    typing.sent();
+    setMessageInput('');
+    if (attachment) onDetach(attachment);
     onSend();
-    const sent = attachment;
-    // A movie goes with what's drawn over it drawn into every frame.
-    const movie =
-      sent?.kind === 'movie'
-        ? sent.drawing
-          ? drawnOver(sent.movie, sent.drawing)
-          : sent.movie
-        : null;
-    const send = async () => {
-      await typing.said();
-      const { data } = await sendMessage({
-        variables: {
-          chatId,
-          content: content || null,
-          picture: sent?.kind === 'picture' ? await toWire(sent.bits) : null,
-          movie: movie && movieToWire(movie),
-          sound: sent?.kind === 'sound' ? soundToWire(sent.codes) : null,
-        },
-        update: (cache, { data }) => {
-          if (!data?.sendMessage) return;
-          // What was just sent is already here: kept before it's shown, so
-          // it's never fetched back.
-          const { picture, movie: kept, sound } = data.sendMessage;
-          if (picture && sent?.kind === 'picture') {
-            pictures.keep(picture, sent.bits);
-          }
-          if (kept && movie) movies.keep(kept, movie);
-          if (sound && sent?.kind === 'sound') sounds.keep(sound, sent.codes);
-          // Sending reads everything before it.
-          recordMessage(cache, data.sendMessage, {
-            viewerId: data.sendMessage.sender.id,
-            reading: true,
-          });
-        },
-      });
-      if (data) typing.sent();
-      if (sent && data) onDetach(sent);
-    };
-    setPreparing(true);
-    await send()
-      // Shown from `sendError`; the message and its attachment stay to retry.
-      .catch(() => undefined)
-      .finally(() => setPreparing(false));
   };
 
   // Enter sends; Shift+Enter (or an IME composition) adds a line.
@@ -307,7 +210,7 @@ export function MessageInput({
           </Button>
         </div>
       )}
-      {[attachError, commandError, sendError?.message].map(
+      {[attachError, commandError].map(
         (problem) =>
           problem && (
             <p key={problem} role="alert" className={styles.error}>
@@ -367,11 +270,7 @@ export function MessageInput({
           { label: 'Draw…', onClick: onDraw },
         ]}
       />
-      {preparing || loading ? (
-        <Button isDisabled>Sending</Button>
-      ) : (
-        <Button type="submit">Send</Button>
-      )}
+      <Button type="submit">Send</Button>
     </form>
   );
 }

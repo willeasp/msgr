@@ -5,13 +5,44 @@ import { createClient } from 'graphql-ws';
 import { createCache, mayHaveMissed } from '../../lib/cache';
 import {
   AWAY_MS,
+  connectionAfter,
   isWorthRetrying,
   PONG_WAIT_MS,
   silenceWatch,
+  type ConnectionEvent,
+  type LiveConnection,
 } from '../../lib/connection';
 import { GET_CHATS } from './chats';
 import { ME } from './me';
 import { retryMedia } from './media';
+
+let connection: LiveConnection = { kind: 'idle' };
+const connectionListeners = new Set<() => void>();
+
+function connectionHas(event: ConnectionEvent) {
+  const next = connectionAfter(connection, event, Date.now());
+  if (next === connection) return;
+  connection = next;
+  for (const listener of connectionListeners) listener();
+}
+
+/**
+ * Since when the live connection has been down, having been up this
+ * session; null while it's up, or before it first is (the Connecting
+ * screen's wait; lib/connection.ts). What a chat says "Reconnecting…" from
+ * (useReconnecting).
+ */
+export const liveConnection = {
+  /** Signing in, up or out: nothing is left to reconnect until the next session's socket is up. */
+  forget: () => connectionHas({ kind: 'sessionChanged' }),
+  downSince: () => (connection.kind === 'down' ? connection.since : null),
+  subscribe(listener: () => void) {
+    connectionListeners.add(listener);
+    return () => {
+      connectionListeners.delete(listener);
+    };
+  },
+};
 
 /**
  * The app's one Apollo client. The API lives at the app's own address (Vite
@@ -55,6 +86,7 @@ export function createApolloClient(): ApolloClient {
       // Events are lost while the socket is down: on its return, catch up.
       connected: (socket, _payload, wasRetry) => {
         open = socket as WebSocket;
+        connectionHas({ kind: 'connected' });
         if (wasRetry) catchUp();
       },
       ping: (received) => {
@@ -66,6 +98,7 @@ export function createApolloClient(): ApolloClient {
       closed: () => {
         open = null;
         silence.answered();
+        connectionHas({ kind: 'closed' });
       },
     },
   });

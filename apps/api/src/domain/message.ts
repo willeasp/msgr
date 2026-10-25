@@ -8,7 +8,27 @@ import type { Sound, SoundLength } from './sound.js';
 import type { UserId } from './user.js';
 
 export type MessageId = Brand<string, 'MessageId'>;
-export const MessageId = (value: string): MessageId => value as MessageId;
+
+/** A version 4 UUID, lowercase, as `crypto.randomUUID()` makes them. */
+const CHOSEN_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+/** A message's id: the server's own, or one its sender chose (`parseChosen`). */
+export const MessageId = Object.assign(
+  (value: string): MessageId => value as MessageId,
+  {
+    /**
+     * An id a sender chose for their message before sending it, so the
+     * message shown at once and the one stored are the same, and a retry
+     * can't post it twice: a version 4 UUID, never one of the server's own.
+     */
+    parseChosen(raw: string): Result<MessageId, InvalidInput> {
+      return CHOSEN_ID.test(raw)
+        ? ok(raw as MessageId)
+        : err(invalidInput('id', 'A message id is a version 4 UUID'));
+    },
+  }
+);
 
 interface Sent {
   readonly id: MessageId;
@@ -86,8 +106,10 @@ export const MessageBody = {
 /** Posted by a participant to a chat, as kept: its media's bytes apart. */
 export type Message = Sent & KeptBody;
 
-/** A message that has been accepted but not yet stored, its media whole. */
-export type NewMessage = Omit<Sent, 'id'> & MessageBody;
+/** A message accepted but not yet stored, its media whole: under its sender's chosen id, or a new one of the server's. */
+export type NewMessage = Omit<Sent, 'id'> & {
+  readonly id?: MessageId;
+} & MessageBody;
 
 /** The part of a message that has bytes of its own. */
 export type MediaPart = 'picture' | 'movie' | 'sound';

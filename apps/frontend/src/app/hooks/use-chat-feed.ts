@@ -4,6 +4,7 @@ import { gql } from '../../lib/__generated__';
 import type { OnChatAddedSubscription } from '../../lib/__generated__/graphql';
 import type { TypingEvent } from '../../lib/typing';
 import { recordChat, recordMessage } from '../data/chats';
+import { received } from '../data/outbox';
 import type { ArrivedMessage } from './use-alerts';
 
 // Selects a whole chat-list row, so a chat the list hasn't seen can join it.
@@ -160,6 +161,8 @@ export function useChatFeed(handlers: {
     onData: ({ data, client }) => {
       const message = data.data?.messageReceived;
       if (!message) return;
+      // One sent from here is stored, whether or not its answer comes.
+      received(message);
       recordMessage(client.cache, message, {
         viewerId: latest.current.viewerId,
         reading: latest.current.isReading(message.chat.id),

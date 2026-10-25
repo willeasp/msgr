@@ -196,6 +196,8 @@ export const typeDefs = /* GraphQL */ `
 
   "Text, a picture, a movie or a sound, or text with one of them."
   input SendMessageInput {
+    "Chosen by the sender (a version 4 UUID), so the message they show at once is the one stored, and sending it again returns it rather than posting it twice."
+    id: ID
     chatId: ID!
     content: String
     picture: PictureInput

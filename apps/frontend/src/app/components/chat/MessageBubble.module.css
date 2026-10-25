@@ -59,6 +59,23 @@
   white-space: nowrap;
 }
 
+/* The wristwatch where the time goes, while it's on its way. */
+.sending {
+  display: flex;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+/* Under a message that didn't go: why, and Try Again. */
+.notSent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1ch;
+  align-items: center;
+  justify-content: flex-end;
+  font-family: var(--font-family-chrome);
+}
+
 .content {
   display: block;
   max-width: 60ch;

@@ -1,6 +1,16 @@
 import { ServerError, ServerParseError } from '@apollo/client/errors';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { isWorthRetrying, sessionOf, silenceWatch, waitOf } from './connection';
+import {
+  connectionAfter,
+  isWorthRetrying,
+  type ConnectionEvent,
+  type LiveConnection,
+  RECONNECTING_AFTER_MS,
+  sessionOf,
+  silenceWatch,
+  untilReconnectingShows,
+  waitOf,
+} from './connection';
 
 const response = (status: number) => new Response('', { status });
 const serverError = (status: number) =>
@@ -135,5 +145,62 @@ describe('silenceWatch', () => {
     watch.asked();
     vi.advanceTimersByTime(5_000);
     expect(silent).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('untilReconnectingShows', () => {
+  it('says nothing of a blip, then that it is reconnecting from two seconds down', () => {
+    expect(RECONNECTING_AFTER_MS).toBe(2000);
+    expect(untilReconnectingShows(1000, 1000)).toBe(2000);
+    expect(untilReconnectingShows(1000, 2500)).toBe(500);
+    expect(untilReconnectingShows(1000, 3000)).toBe(0);
+    expect(untilReconnectingShows(1000, 9000)).toBe(0);
+  });
+});
+
+describe('connectionAfter', () => {
+  const idle: LiveConnection = { kind: 'idle' };
+  const up: LiveConnection = { kind: 'up' };
+  const connected: ConnectionEvent = { kind: 'connected' };
+  const closed: ConnectionEvent = { kind: 'closed' };
+  const sessionChanged: ConnectionEvent = { kind: 'sessionChanged' };
+  const after = (events: ConnectionEvent[], from = idle) =>
+    events.reduce<LiveConnection>(
+      (connection, event, i) => connectionAfter(connection, event, 1000 * i),
+      from
+    );
+
+  it('goes down when a socket that was up closes, and stays down since then through every failed try', () => {
+    expect(after([connected, closed])).toEqual({ kind: 'down', since: 1000 });
+    expect(after([connected, closed, closed, closed])).toEqual({
+      kind: 'down',
+      since: 1000,
+    });
+  });
+
+  it('is up again once it connects', () => {
+    expect(after([connected, closed, connected])).toEqual(up);
+  });
+
+  it('says nothing before it has first been up: that wait is the Connecting screen’s', () => {
+    expect(after([closed, closed])).toEqual(idle);
+  });
+
+  it('has nothing to reconnect once the session changes, however the socket was', () => {
+    expect(after([connected, sessionChanged])).toEqual(idle);
+    // Signed out while it was down: the retries end without a word.
+    expect(after([connected, closed, sessionChanged])).toEqual(idle);
+    // The socket let go once nothing listens, after the change.
+    expect(after([connected, sessionChanged, closed])).toEqual(idle);
+    // Signed in again: up once it connects.
+    expect(after([connected, closed, sessionChanged, connected])).toEqual(up);
+  });
+
+  it('keeps the same state when nothing changed, so nothing listening hears of it', () => {
+    expect(connectionAfter(up, connected, 5)).toBe(up);
+    expect(connectionAfter(idle, closed, 5)).toBe(idle);
+    expect(connectionAfter(idle, sessionChanged, 5)).toBe(idle);
+    const down: LiveConnection = { kind: 'down', since: 1 };
+    expect(connectionAfter(down, closed, 5)).toBe(down);
   });
 });

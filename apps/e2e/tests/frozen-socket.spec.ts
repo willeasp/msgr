@@ -67,14 +67,16 @@ test('messages sent while the socket was frozen show once the page does, in the 
   await expect(chat.getByRole('textbox', { name: 'Message' })).toBeVisible();
 
   await chatsWindow(writer).getByText('Frida Frozen', { exact: true }).click();
-  const composer = chatWindow(writer, 'Frida Frozen').getByRole('textbox', {
-    name: 'Message',
-  });
+  const writing = chatWindow(writer, 'Frida Frozen');
+  const composer = writing.getByRole('textbox', { name: 'Message' });
   const send = async (text: string) => {
     await composer.fill(text);
     await composer.press('Enter');
-    // Sent: the composer empties once the server has it.
-    await expect(composer).toHaveValue('');
+    // Stored: the wristwatch beside it goes once the server has it.
+    await expect(writing.getByText(text)).toBeVisible();
+    await expect(
+      writing.getByRole('log').getByRole('img', { name: 'Sending' })
+    ).toHaveCount(0);
   };
 
   // Shown again after a moment, as when the photo picker closes: with no

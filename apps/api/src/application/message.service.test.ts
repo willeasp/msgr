@@ -143,6 +143,108 @@ describe('sending a message', () => {
   });
 });
 
+describe('sending under an id the sender chose', () => {
+  const CHOSEN = '3f0e1c2a-9b4d-4c8e-a1f2-0123456789ab';
+
+  it('keeps the id, and sending it again returns the same message, stored and delivered once', async () => {
+    const { services, ada, grace, chat } = await team();
+    const toGrace = services().messages.feed(grace);
+    const delivered = nextEvent(toGrace);
+    const send = () =>
+      services().messages.send(ada, {
+        id: CHOSEN,
+        chatId: chat.id,
+        content: 'hi',
+      });
+
+    const first = expectOk(await send());
+    const again = expectOk(await send());
+
+    expect(first.id).toBe(CHOSEN);
+    expect(again).toEqual(first);
+    expect(
+      expectOk(await services().messages.list(grace, { chatId: chat.id }))
+    ).toEqual([first]);
+    expect(await delivered).toEqual(first);
+    expect(await nextEvent(toGrace)).toBe('nothing');
+  });
+
+  it('stores sends of one id at the same moment once, answering each with it', async () => {
+    const { services, ada, chat } = await team();
+    const send = () =>
+      services().messages.send(ada, {
+        id: CHOSEN,
+        chatId: chat.id,
+        content: 'hi',
+      });
+
+    const [first, second] = await Promise.all([send(), send()]);
+
+    expect(expectOk(second)).toEqual(expectOk(first));
+    expect(
+      expectOk(await services().messages.list(ada, { chatId: chat.id }))
+    ).toHaveLength(1);
+  });
+
+  it('answers a send again, once its sender has left the chat, as for any chat they’re not in', async () => {
+    const { services, ada } = await team();
+    const channel = expectOk(
+      await services().chats.joinChannel(ada, 'leaving')
+    );
+    const send = () =>
+      services().messages.send(ada, {
+        id: CHOSEN,
+        chatId: channel.id,
+        content: 'bye',
+      });
+    expectOk(await send());
+    expectOk(await services().chats.leaveChannel(ada, channel.id));
+
+    expect(await send()).toEqual({
+      ok: false,
+      error: { type: 'NotFound', entity: 'Chat' },
+    });
+  });
+
+  it("refuses an id that's someone else's, or in another chat, or no UUID at all", async () => {
+    const { fixtures, services, ada, grace, chat } = await team();
+    const other = await fixtures.groupChat('Other', [ada, grace]);
+    expectOk(
+      await services().messages.send(grace, {
+        id: CHOSEN,
+        chatId: chat.id,
+        content: 'mine',
+      })
+    );
+    const refused = {
+      ok: false,
+      error: { type: 'InvalidInput', field: 'id' },
+    };
+
+    expect(
+      await services().messages.send(ada, {
+        id: CHOSEN,
+        chatId: chat.id,
+        content: 'hi',
+      })
+    ).toMatchObject(refused);
+    expect(
+      await services().messages.send(grace, {
+        id: CHOSEN,
+        chatId: other.id,
+        content: 'hi',
+      })
+    ).toMatchObject(refused);
+    expect(
+      await services().messages.send(ada, {
+        id: 'not-a-uuid',
+        chatId: chat.id,
+        content: 'hi',
+      })
+    ).toMatchObject(refused);
+  });
+});
+
 describe('sending a picture', () => {
   it('stores it alone or with text, stamped by the clock, and delivers it live', async () => {
     const { services, ada, grace, linus, chat } = await team();

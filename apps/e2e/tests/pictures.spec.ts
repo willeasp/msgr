@@ -149,7 +149,7 @@ test('pasting or dropping a photo attaches it; a broken one is refused', async (
   await expect(chat.getByRole('alert')).toHaveCount(0);
 });
 
-test('a picture is sent once however fast Enter is pressed, and kept if sending fails', async ({
+test('a picture shows the moment it’s sent, drawn from the device; one the server refuses says Not Sent., and Try Again sends it once', async ({
   browser,
 }) => {
   const page = await anotherPerson(browser);
@@ -159,10 +159,11 @@ test('a picture is sent once however fast Enter is pressed, and kept if sending 
   const chat = chatWindow(page, 'Test User');
   const field = chat.getByRole('textbox', { name: 'Message' });
   const preview = chat.getByRole('button', { name: 'Edit picture' });
-  const pictures = chat.getByRole('img', { name: 'Picture' });
+  const pictures = chat.getByRole('log').getByRole('img', { name: 'Picture' });
   const before = await pictures.count();
 
-  // The server refuses once: the alert says so, and nothing is lost.
+  // The server refuses once: the picture is in the history already, saying
+  // it wasn't sent, and the composer is free for the next.
   await page.route('**/graphql', (route) =>
     route.request().postDataJSON()?.operationName === 'SendMessage'
       ? route.fulfill({
@@ -173,18 +174,27 @@ test('a picture is sent once however fast Enter is pressed, and kept if sending 
   await give(field, 'paste', await photo(page));
   await field.fill('once');
   await field.press('Enter');
-  await expect(chat.getByRole('alert')).toHaveText(
-    'The server is having a moment.'
-  );
-  await expect(preview).toBeVisible();
-  await expect(field).toHaveValue('once');
+  await field.press('Enter');
+  await expect(pictures).toHaveCount(before + 1);
+  const notSent = chat.getByText(/^Not Sent\./);
+  await expect(notSent).toBeVisible();
+  // Drawn from what's on the device: the server never had it.
+  const sent = pictures.last();
+  await expect(sent).toHaveAttribute('width', '320');
+  await expect.poll(() => inkAt(sent, 40, 80)).toBe(true);
+  expect(await inkAt(sent, 280, 80)).toBe(false);
+  await expect(preview).toHaveCount(0);
+  await expect(field).toHaveValue('');
   await page.unroute('**/graphql');
 
-  await field.press('Enter');
-  await field.press('Enter');
-  await expect(preview).toHaveCount(0);
+  const again = chat.getByRole('button', { name: 'Try Again' });
+  await again.click();
+  await expect(notSent).toHaveCount(0);
+  await expect(
+    chat.getByRole('log').getByRole('img', { name: 'Sending' })
+  ).toHaveCount(0);
   await expect(pictures).toHaveCount(before + 1);
   await page.waitForTimeout(500);
   await expect(pictures).toHaveCount(before + 1);
-  await expect(chat.getByRole('alert')).toHaveCount(0);
+  await expect(again).toHaveCount(0);
 });

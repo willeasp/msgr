@@ -126,6 +126,13 @@ keyboard, notifications, layout) is checked here.
       left. A name and the time of day come with the first of each run (one
       sender, each within five minutes of the last), and each day opens with
       its name on a ruled line.
+- [ ] **Sending on a phone:** send a message and, before it shows its time,
+      turn on Airplane Mode. Within a minute it says "Not Sent." with Try
+      Again, and the chat's title line says "Reconnecting…". Turn Airplane
+      Mode off: "Reconnecting…" goes; Try Again sends it, and the other
+      person sees it once, even if the first try had reached the server.
+      Send a picture, a movie and a sound the same way: each shows at once,
+      from the phone, before it's sent.
 - [ ] **A long history on an iPhone** (Safari has no scroll anchoring of its
       own; the app keeps the place itself, and Chromium can't show Safari's
       momentum): in a chat of more than 50 messages, flick up to the top. The

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { mediaPartOf, MessageBody, MessageContent } from './message.js';
+import {
+  mediaPartOf,
+  MessageBody,
+  MessageContent,
+  MessageId,
+} from './message.js';
 import type { Movie } from './movie.js';
 import type { Picture } from './picture.js';
 import type { Sound } from './sound.js';
@@ -112,5 +117,26 @@ describe('mediaPartOf', () => {
     expect(mediaPartOf({ content: null, ...none, sound: { frames: 2 } })).toBe(
       'sound'
     );
+  });
+});
+
+describe('MessageId.parseChosen', () => {
+  it('takes a version 4 UUID, as a browser makes them', () => {
+    const id = '3f0e1c2a-9b4d-4c8e-a1f2-0123456789ab';
+    expect(MessageId.parseChosen(id)).toEqual({ ok: true, value: id });
+  });
+
+  it('refuses anything else, the server’s own ids among them', () => {
+    for (const raw of [
+      '',
+      'cmh5x2k7f0000abcd1234efgh',
+      '3F0E1C2A-9B4D-4C8E-A1F2-0123456789AB',
+      '3f0e1c2a-9b4d-1c8e-a1f2-0123456789ab',
+      '3f0e1c2a-9b4d-4c8e-c1f2-0123456789ab',
+      ' 3f0e1c2a-9b4d-4c8e-a1f2-0123456789ab',
+      '3f0e1c2a9b4d4c8ea1f20123456789ab',
+    ]) {
+      expect(MessageId.parseChosen(raw).ok, raw).toBe(false);
+    }
   });
 });

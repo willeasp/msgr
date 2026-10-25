@@ -35,6 +35,55 @@ export const AWAY_MS = 10_000;
 /** How long the server may take to answer a ping before its socket is taken for dead. */
 export const PONG_WAIT_MS = 5_000;
 
+/** How long the live connection may be down before a chat says it's reconnecting: a blip says nothing. */
+export const RECONNECTING_AFTER_MS = 2_000;
+
+/**
+ * The live connection, as a chat tells of it: up; down since a moment,
+ * having been up; or idle, not up yet this session (the Connecting
+ * screen's wait).
+ */
+export type LiveConnection =
+  | { readonly kind: 'idle' }
+  | { readonly kind: 'up' }
+  | { readonly kind: 'down'; readonly since: number };
+
+/**
+ * What happens to it: its socket connected or closed, or the session
+ * changed (signing in, up or out), after which nothing is left to
+ * reconnect, whatever the socket last did.
+ */
+export type ConnectionEvent =
+  | { readonly kind: 'connected' }
+  | { readonly kind: 'closed' }
+  | { readonly kind: 'sessionChanged' };
+
+/**
+ * The connection after an event at `now`. One that was up goes down when
+ * its socket closes, and stays down since then however many tries fail;
+ * one that was never up this session stays idle.
+ */
+export function connectionAfter(
+  connection: LiveConnection,
+  event: ConnectionEvent,
+  now: number
+): LiveConnection {
+  switch (event.kind) {
+    case 'connected':
+      return connection.kind === 'up' ? connection : { kind: 'up' };
+    case 'sessionChanged':
+      return connection.kind === 'idle' ? connection : { kind: 'idle' };
+    case 'closed':
+      return connection.kind === 'up'
+        ? { kind: 'down', since: now }
+        : connection;
+  }
+}
+
+/** How long until a connection down since `downSince` should say so; 0 once it should. */
+export const untilReconnectingShows = (downSince: number, now: number) =>
+  Math.max(0, RECONNECTING_AFTER_MS - (now - downSince));
+
 /**
  * A watch on a socket that may have died without a word, as a phone's does
  * when it sleeps or the camera or photo picker covers the page: the page

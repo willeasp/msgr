@@ -8,6 +8,7 @@ import {
 } from '../../domain/chat.js';
 import { UserId } from '../../domain/user.js';
 import { Prisma, type PrismaClient } from './client.js';
+import { isUniqueViolation } from './unique-violation.js';
 
 const chatFields = {
   id: true,
@@ -148,7 +149,3 @@ function toDirectChat(row: ChatRow): DirectChat {
     participantIds: [first, second],
   };
 }
-
-const isUniqueViolation = (error: unknown): boolean =>
-  error instanceof Prisma.PrismaClientKnownRequestError &&
-  error.code === 'P2002';

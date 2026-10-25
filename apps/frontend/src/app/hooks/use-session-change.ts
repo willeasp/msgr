@@ -2,7 +2,9 @@ import { useApolloClient, useMutation } from '@apollo/client/react';
 import { useNavigate } from 'react-router-dom';
 import { gql } from '../../lib/__generated__';
 import { showBadge } from '../browser/badge';
+import { liveConnection } from '../data/client';
 import { forgetMedia } from '../data/media';
+import { forgetOutbox } from '../data/outbox';
 import { useForgetBrowser } from './use-notifications';
 
 /**
@@ -17,6 +19,9 @@ export function useSessionChange() {
 
   return async (to: string) => {
     forgetMedia();
+    // What the last person hadn't sent goes with them, unsent.
+    forgetOutbox();
+    liveConnection.forget();
     showBadge(0);
     await client.clearStore();
     navigate(to);
@@ -39,10 +44,14 @@ export function useLogOut() {
   const forgetBrowser = useForgetBrowser();
   const changeSession = useSessionChange();
 
-  return () =>
-    forgetBrowser()
+  return () => {
+    // Nothing waiting goes once they ask; anything they send meanwhile
+    // goes as them, and is let go with the rest when they're out.
+    forgetOutbox();
+    return forgetBrowser()
       .catch(() => undefined)
       .then(() => logout())
       .catch(() => undefined)
       .then(() => changeSession('/login'));
+  };
 }

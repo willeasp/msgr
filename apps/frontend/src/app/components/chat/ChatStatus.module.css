@@ -1,5 +1,12 @@
+/* Whichever is saying something, shrinking to fit. */
+.says {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+}
+
 /* A gap in the stripes, like the title's, holding the watch and the words. */
-.typing {
+.status {
   display: flex;
   gap: 1ch;
   align-items: center;

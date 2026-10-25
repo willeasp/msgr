@@ -102,6 +102,11 @@ else it answers exactly as if it didn't exist. The channel directory shows
 names and participant counts, never messages or members. Who has read a
 message, and that someone is typing, are told only to the chat's participants;
 a message in someone else's chat answers Get Info exactly like a missing one.
+A sender chooses each message's id, so a retry can't post it twice, but only a
+random version 4 UUID, never one shaped like the server's own. Sending again
+under a stored id answers with that message only to its own sender in its own
+chat; anyone else is told only that the id is taken, which says that it exists
+and nothing of what it holds, and 122 random bits can't be guessed.
 
 **Notifications.** Pushes go only to the browser vendors' push services
 (Google, Mozilla, Apple, Microsoft); an endpoint anywhere else is refused

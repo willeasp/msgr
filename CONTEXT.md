@@ -101,6 +101,10 @@ A window into a chat's history, returned oldest first: its newest messages, thos
 Messages from one sender, each sent within five minutes of the one before, on one day: the history shows the sender's face and name, and the time, once, with the first.
 _Avoid_: Group (that's a kind of chat), thread, cluster
 
+**Not sent**:
+A message the viewer sent that the server refused, or that had no answer within its time (a minute, and longer for a big movie), which may mean it never arrived or that its answer was lost: it stays at the foot of its history with Try Again, which sends it once whatever became of the last try. Until then it's on its way, with the wristwatch. Neither outlives the page.
+_Avoid_: Failed, error, pending (in UI text)
+
 **New messages**:
 What arrived in an open chat while the viewer read further up its history: a count on a button below, which takes them down to it. They're unread too, but the count is only for that window and only from others.
 _Avoid_: Unread (that's the chat list's count)

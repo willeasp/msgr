@@ -215,6 +215,16 @@ test('what using a chat costs', async ({ page, browser }) => {
     renders: typed && summary(typed),
   };
 
+  // Sending it: shown at once, then stored (ADR 0016).
+  results['messageSent'] = summary(
+    await rendersDuring(page, LOG, async () => {
+      await composer.press('Enter');
+      const log = chat.locator(LOG);
+      await expect(log.getByText(text)).toBeVisible();
+      await expect(log.getByRole('img', { name: 'Sending' })).toHaveCount(0);
+    })
+  );
+
   // A stroke across the paint window: 120 moves of the pointer.
   await composer.fill('');
   await chat.getByRole('button', { name: 'Attach', exact: true }).click();

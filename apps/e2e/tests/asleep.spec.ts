@@ -4,6 +4,7 @@ import {
   attach,
   chatsWindow,
   chatWindow,
+  liveConnection,
   menuBar,
   signIn,
 } from './support';
@@ -12,25 +13,6 @@ import {
  * A phone that sleeps drops its live connection and stops its timers. What it
  * shows when it wakes must still add up.
  */
-
-/** A phone whose live connection can be cut, and kept cut, at will. */
-async function phone(page: Page) {
-  const connection = { up: true, close: async () => undefined as void };
-  await page.routeWebSocket(/\/graphql$/, (socket) => {
-    if (!connection.up) return void socket.close({ code: 4000 });
-    socket.connectToServer();
-    connection.close = () => socket.close({ code: 4000 });
-  });
-  return {
-    async cut() {
-      connection.up = false;
-      await connection.close();
-    },
-    restore() {
-      connection.up = true;
-    },
-  };
-}
 
 const photo = (page: Page) =>
   page.evaluate(async () => {
@@ -51,7 +33,7 @@ test('what you send while the connection is down still shows in the chat list', 
   const page = await (
     await browser.newContext({ ...devices['Pixel 7'] })
   ).newPage();
-  const connection = await phone(page);
+  const connection = await liveConnection(page);
   await page.goto('/login');
   await signIn(page, 'test@example.com');
   await chatsWindow(page).getByText('#general').click();
@@ -83,7 +65,7 @@ test('what arrived while the connection was down shows once it is back', async (
   const page = await (
     await browser.newContext({ ...devices['Pixel 7'] })
   ).newPage();
-  const connection = await phone(page);
+  const connection = await liveConnection(page);
   await page.goto('/login');
   await signIn(page, 'charlie@example.com');
   await connection.cut();
