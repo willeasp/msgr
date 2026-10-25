@@ -13,7 +13,7 @@ export type MessageId = Brand<string, 'MessageId'>;
 const CHOSEN_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-/** A message's id: the server's own, or one its sender chose (`parse`). */
+/** A message's id: the server's own, or one its sender chose (`parseChosen`). */
 export const MessageId = Object.assign(
   (value: string): MessageId => value as MessageId,
   {
@@ -22,7 +22,7 @@ export const MessageId = Object.assign(
      * message shown at once and the one stored are the same, and a retry
      * can't post it twice: a version 4 UUID, never one of the server's own.
      */
-    parse(raw: string): Result<MessageId, InvalidInput> {
+    parseChosen(raw: string): Result<MessageId, InvalidInput> {
       return CHOSEN_ID.test(raw)
         ? ok(raw as MessageId)
         : err(invalidInput('id', 'A message id is a version 4 UUID'));
@@ -106,8 +106,7 @@ export const MessageBody = {
 /** Posted by a participant to a chat, as kept: its media's bytes apart. */
 export type Message = Sent & KeptBody;
 
-/** A message that has been accepted but not yet stored, its media whole. */
-/** A message to store: under its sender's chosen id, or a new one of the server's. */
+/** A message accepted but not yet stored, its media whole: under its sender's chosen id, or a new one of the server's. */
 export type NewMessage = Omit<Sent, 'id'> & {
   readonly id?: MessageId;
 } & MessageBody;

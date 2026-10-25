@@ -120,10 +120,10 @@ describe('mediaPartOf', () => {
   });
 });
 
-describe('MessageId.parse', () => {
+describe('MessageId.parseChosen', () => {
   it('takes a version 4 UUID, as a browser makes them', () => {
     const id = '3f0e1c2a-9b4d-4c8e-a1f2-0123456789ab';
-    expect(MessageId.parse(id)).toEqual({ ok: true, value: id });
+    expect(MessageId.parseChosen(id)).toEqual({ ok: true, value: id });
   });
 
   it('refuses anything else, the server’s own ids among them', () => {
@@ -136,7 +136,7 @@ describe('MessageId.parse', () => {
       ' 3f0e1c2a-9b4d-4c8e-a1f2-0123456789ab',
       '3f0e1c2a9b4d4c8ea1f20123456789ab',
     ]) {
-      expect(MessageId.parse(raw).ok, raw).toBe(false);
+      expect(MessageId.parseChosen(raw).ok, raw).toBe(false);
     }
   });
 });
