@@ -19,30 +19,51 @@ have been stored: trying again must not post it twice.
 ## Decision
 
 - **The sender chooses the id.** The client makes a version 4 UUID
-  (`crypto.randomUUID()`) and sends it with the message
+  (`chosenId`, `lib/outbox.ts`, from `crypto.getRandomValues`, which a page
+  served over plain http has too) and sends it with the message
   (`SendMessageInput.id`); the server stores the message under it
-  (`MessageId.parse`, which takes nothing else, so never one of its own
-  cuids). The history shows the stored message in place of the one on its
-  way the moment it holds that id, whether the answer or the feed brought
-  it (`waitingIn`, `lib/outbox.ts`).
-- **Sending again returns what's stored.** A send whose id the sender has
-  already used in that chat answers with that message, stored and delivered
-  once (`MessageService.send`). Anyone else's id, or one from another chat,
-  is refused. So Try Again is always safe, whatever became of the last try.
-- **An outbox on the page** (`app/data/outbox.ts`) holds what was sent and
-  isn't stored yet: shown at once from what's on the device (a picture,
+  (`MessageId.parseChosen`, which takes nothing else, so never one shaped like
+  its own cuids). The history shows the stored message in place of the one on
+  its way the moment it holds that id, whether the answer or the feed brought
+  it (`waitingIn`).
+- **Sending again returns what's stored.** The server tries to store first;
+  if the id is already a message's (the database's unique key says so, at
+  once, however many tries race), the sender's own in that chat answers with
+  that message, stored and delivered once (`MessageService.send`). Anyone
+  else's id, or one from another chat, is refused as taken. So Try Again is
+  always safe, whatever became of the last try.
+- **An outbox on the page** (`app/data/outbox.ts`) holds what was sent until
+  its history holds it: shown at once from what's on the device (a picture,
   movie or sound kept under an address of its own), sent one after another
   per chat (so they're stored in the order sent), after the last typing
-  notice, and given up after 60 seconds without an answer. A session change
-  forgets it.
+  notice or 2 seconds, whichever is sooner. A message is on its way, not
+  sent, or stored, and only moves forward (`moved`): whichever says it's
+  stored first, the answer or the feed's copy, wins, and a late failure
+  changes nothing. It's given up on a minute after it was sent, and as long
+  again as its bytes take at 16 kB a second (`sendAllowance`), however long
+  it waited its turn, so a stuck send can't hold the ones behind it for
+  minutes each.
+- **A session's sends are its own.** Login, sign-up and logout forget the
+  outbox before they ask the server, aborting any send on its way, and an
+  answer that lands afterwards writes nothing: the mutation doesn't write the
+  cache itself (`no-cache`), `recordMessage` does, only while the session it
+  was sent in lasts. Nothing the last person sent can go, or show, as the next.
 
 ## Consequences
 
 - Ids are no longer all the server's: a UUID beside a cuid. Both are
   opaque strings, ordered by `(createdAt, id)` as before.
-- Two sends of one new id at the same moment (a retry while the first is
-  still on its way) can collide in the database; the second fails as a
-  defect, and its Try Again returns the stored message.
-- Nothing is kept across a reload: a message not sent when the page goes
-  is gone (sending offline stays out of scope).
-- A kept shell one version behind sends no id and is served as before.
+- "That message id is taken" tells whoever sends a known id that a message
+  has it, and nothing more; ids aren't shown to anyone outside their chat, and
+  122 random bits can't be guessed.
+- Nothing is kept across a reload: a message not sent when the page goes is
+  gone (sending offline stays out of scope).
+- A message tried again after others were sent is stored after them, as the
+  new place it shows in says.
+- A kept shell one version behind sends no id and is served as before. The
+  other way round, a shell newer than its server (a rollback) sends an id the
+  old schema refuses: every send says "Not Sent." until the shell updates,
+  which it does on its next load.
+- Words over 4,000 characters, which the server would refuse, stay in the
+  composer with the reason (`tooLong`), rather than becoming a message that
+  can never be sent.

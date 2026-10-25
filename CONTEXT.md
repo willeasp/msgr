@@ -102,7 +102,7 @@ Messages from one sender, each sent within five minutes of the one before, on on
 _Avoid_: Group (that's a kind of chat), thread, cluster
 
 **Not sent**:
-A message the viewer sent that the server didn't get, or refused: it stays at the foot of its history with Try Again, which sends it once whatever became of the last try. Until then it's on its way, with the wristwatch. Neither outlives the page.
+A message the viewer sent that the server refused, or that had no answer within its time (a minute, and longer for a big movie), which may mean it never arrived or that its answer was lost: it stays at the foot of its history with Try Again, which sends it once whatever became of the last try. Until then it's on its way, with the wristwatch. Neither outlives the page.
 _Avoid_: Failed, error, pending (in UI text)
 
 **New messages**:
