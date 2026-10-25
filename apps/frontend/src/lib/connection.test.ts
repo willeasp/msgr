@@ -1,6 +1,13 @@
 import { ServerError, ServerParseError } from '@apollo/client/errors';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { isWorthRetrying, sessionOf, silenceWatch, waitOf } from './connection';
+import {
+  isWorthRetrying,
+  RECONNECTING_AFTER_MS,
+  sessionOf,
+  silenceWatch,
+  untilReconnectingShows,
+  waitOf,
+} from './connection';
 
 const response = (status: number) => new Response('', { status });
 const serverError = (status: number) =>
@@ -135,5 +142,15 @@ describe('silenceWatch', () => {
     watch.asked();
     vi.advanceTimersByTime(5_000);
     expect(silent).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('untilReconnectingShows', () => {
+  it('says nothing of a blip, then that it is reconnecting from two seconds down', () => {
+    expect(RECONNECTING_AFTER_MS).toBe(2000);
+    expect(untilReconnectingShows(1000, 1000)).toBe(2000);
+    expect(untilReconnectingShows(1000, 2500)).toBe(500);
+    expect(untilReconnectingShows(1000, 3000)).toBe(0);
+    expect(untilReconnectingShows(1000, 9000)).toBe(0);
   });
 });

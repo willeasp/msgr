@@ -21,7 +21,7 @@ import {
 import type { Attachment } from '../../../lib/attachment';
 import { firstMedia, isSoundFile, isVideo } from '../../../lib/files';
 import { pictureFromFile } from '../../browser/picture-file';
-import { TypingStatus } from './TypingStatus';
+import { ChatStatus } from './ChatStatus';
 import type { Typists } from '../../hooks/use-typing';
 import styles from './ChatWindow.module.css';
 import { PixelText } from '../PixelText';
@@ -160,7 +160,7 @@ export function ChatWindow({
     <MacWindow
       title={title}
       onClose={onClose}
-      status={<TypingStatus typists={typists} chatId={chatId} />}
+      status={<ChatStatus typists={typists} chatId={chatId} />}
       info={
         chat &&
         // On a phone the names and Add People… are behind Info.

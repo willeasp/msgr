@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { useQuery } from '@apollo/client/react';
+import { useApolloClient, useQuery } from '@apollo/client/react';
 import type { GetChatMessagesQuery } from '../../../lib/__generated__/graphql';
 import {
   arrivedSince,
@@ -14,13 +14,16 @@ import {
   hasEarlier,
   HISTORY_PAGE,
 } from '../../../lib/history';
+import { waitingIn, type Outgoing } from '../../../lib/outbox';
 import { placeMessages } from '../../../lib/runs';
 import { formatDay } from '../../../lib/time';
 import type { KeptMovie } from '../../../lib/movie-wire';
 import type { KeptPicture } from '../../../lib/picture-wire';
 import Button from '../../../sacred/components/Button';
 import { GET_CHAT_MESSAGES } from '../../data/chats';
+import { tryAgain } from '../../data/outbox';
 import { useClock } from '../../hooks/use-clock';
+import { useOutbox } from '../../hooks/use-outbox';
 import { useReading } from '../../hooks/use-reading';
 import { useAwayFromNewest } from '../../hooks/use-signed-in';
 import { DOWN } from '../icons';
@@ -58,6 +61,9 @@ export function MessageList(props: MessageListProps) {
     fetchPolicy: 'cache-and-network',
   });
   const messages = data?.messages ?? [];
+  // What the viewer sent from here that the server hasn't stored yet, at
+  // the foot, until the history holds it (lib/outbox.ts).
+  const waiting = waitingIn(useOutbox(), chatId, messages);
 
   if (loading && !data) {
     return (
@@ -67,7 +73,7 @@ export function MessageList(props: MessageListProps) {
     );
   }
 
-  if (messages.length === 0) {
+  if (messages.length === 0 && waiting.length === 0) {
     return (
       <div className={styles.root}>
         <div className={styles.empty}>
@@ -81,6 +87,7 @@ export function MessageList(props: MessageListProps) {
     <History
       {...props}
       messages={messages}
+      waiting={waiting}
       loadEarlier={(before) =>
         fetchMore({ variables: { chatId, before, limit: HISTORY_PAGE } }).then(
           ({ data }) => {
@@ -194,7 +201,7 @@ function placeIn(away: (newestSeen: string | null) => void) {
       };
     },
     toNewest,
-    /** The history laid out anew, `newestId` its newest. */
+    /** The history laid out anew, `newestId` its newest stored message. */
     laidOut(newestId: string | undefined) {
       newest = newestId;
       keep();
@@ -216,16 +223,24 @@ function History({
   showNames,
   sends,
   messages,
+  waiting,
   loadEarlier,
   onDrawOnIt,
   onDrawOnMovie,
   onGetInfo,
 }: MessageListProps & {
   messages: readonly Message[];
+  /** Sent from here, not stored yet: after the messages. */
+  waiting: readonly Outgoing<Message>[];
   loadEarlier: (before: string) => Promise<readonly Message[]>;
 }) {
-  const newest = messages[messages.length - 1];
-  const newestId = newest?.id;
+  const client = useApolloClient();
+  const shown =
+    waiting.length > 0
+      ? [...messages, ...waiting.map(({ message }) => message)]
+      : messages;
+  const newestId = shown[shown.length - 1]?.id;
+  const newestStored = messages[messages.length - 1]?.id;
   const oldestId = messages[0]?.id;
 
   const log = useRef<HTMLDivElement>(null);
@@ -252,7 +267,7 @@ function History({
   // Read up to what the viewer has seen: away from the end, what arrives
   // waits below, unread, and counts in the chat list.
   useAwayFromNewest(chatId, away !== null);
-  useReading(chatId, away ?? newestId, away === null);
+  useReading(chatId, away ?? newestStored, away === null);
 
   // Before the two below, which scroll it.
   useLayoutEffect(() => {
@@ -263,11 +278,12 @@ function History({
   // Opening, and each send from this window: at the newest.
   useLayoutEffect(() => place.toNewest(), [sends, place]);
 
-  // Something new, a page earlier, the row asking for it: shown at the end;
-  // away from it, the place kept, before anything can see it move.
+  // Something new (sent from here too), a page earlier, the row asking for
+  // it: shown at the end; away from it, the place kept, before anything can
+  // see it move. Leaving the end marks the newest stored as seen.
   useLayoutEffect(
-    () => place.laidOut(newestId),
-    [newestId, oldestId, more, earlier, place]
+    () => place.laidOut(newestStored),
+    [newestId, newestStored, oldestId, more, earlier, place]
   );
 
   // Reaching the top asks for the page before.
@@ -309,21 +325,37 @@ function History({
   }, [earlier, loadEarlier]);
 
   const newer = away === null ? 0 : arrivedSince(messages, away, currentUserId);
-  const placed = placeMessages(messages).map(
-    ({ message, startsDay, startsRun }) => (
-      <Fragment key={message.id}>
-        {startsDay && <DayLine date={message.createdAt} />}
-        <MessageBubble
-          message={message}
-          isCurrentUser={message.sender.id === currentUserId}
-          showMeta={startsRun}
-          showName={showNames}
-          onDrawOnIt={onDrawOnIt}
-          onDrawOnMovie={onDrawOnMovie}
-          onGetInfo={onGetInfo}
-        />
-      </Fragment>
-    )
+  const placed = placeMessages(shown).map(
+    ({ message, startsDay, startsRun }) => {
+      const outgoing = waiting.find((one) => one.message === message);
+      return (
+        <Fragment key={message.id}>
+          {startsDay && <DayLine date={message.createdAt} />}
+          <MessageBubble
+            message={message}
+            isCurrentUser={message.sender.id === currentUserId}
+            showMeta={startsRun}
+            showName={showNames}
+            // What the server hasn't stored has nothing to draw on or
+            // tell of yet.
+            onDrawOnIt={outgoing ? undefined : onDrawOnIt}
+            onDrawOnMovie={outgoing ? undefined : onDrawOnMovie}
+            onGetInfo={outgoing ? undefined : onGetInfo}
+            outgoing={
+              outgoing?.state === 'failed'
+                ? {
+                    state: 'failed',
+                    problem: outgoing.problem,
+                    onTryAgain: () => tryAgain(client, outgoing.message.id),
+                  }
+                : outgoing
+                ? { state: 'sending' }
+                : undefined
+            }
+          />
+        </Fragment>
+      );
+    }
   );
   const silent = Math.max(
     0,

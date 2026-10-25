@@ -123,3 +123,22 @@ export const feedListening = (page: Page) =>
       })
     );
   });
+
+/** A page whose live connection (the socket) can be cut, and kept cut, at will. */
+export async function liveConnection(page: Page) {
+  const connection = { up: true, close: async () => undefined as void };
+  await page.routeWebSocket(/\/graphql$/, (socket) => {
+    if (!connection.up) return void socket.close({ code: 4000 });
+    socket.connectToServer();
+    connection.close = () => socket.close({ code: 4000 });
+  });
+  return {
+    async cut() {
+      connection.up = false;
+      await connection.close();
+    },
+    restore() {
+      connection.up = true;
+    },
+  };
+}

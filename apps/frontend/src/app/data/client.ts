@@ -13,6 +13,33 @@ import { GET_CHATS } from './chats';
 import { ME } from './me';
 import { retryMedia } from './media';
 
+let downSince: number | null = null;
+let everUp = false;
+const connectionListeners = new Set<() => void>();
+
+function liveConnectionIs(up: boolean) {
+  const next = up ? null : downSince ?? (everUp ? Date.now() : null);
+  if (up) everUp = true;
+  if (next === downSince) return;
+  downSince = next;
+  for (const listener of connectionListeners) listener();
+}
+
+/**
+ * Since when the live connection has been down, having been up; null while
+ * it's up, or before it first is (the Connecting screen's wait). What a
+ * chat says "Reconnecting…" from (useReconnecting).
+ */
+export const liveConnection = {
+  downSince: () => downSince,
+  subscribe(listener: () => void) {
+    connectionListeners.add(listener);
+    return () => {
+      connectionListeners.delete(listener);
+    };
+  },
+};
+
 /**
  * The app's one Apollo client. The API lives at the app's own address (Vite
  * proxies it in development), so the httpOnly session cookie authenticates
@@ -55,6 +82,7 @@ export function createApolloClient(): ApolloClient {
       // Events are lost while the socket is down: on its return, catch up.
       connected: (socket, _payload, wasRetry) => {
         open = socket as WebSocket;
+        liveConnectionIs(true);
         if (wasRetry) catchUp();
       },
       ping: (received) => {
@@ -66,6 +94,7 @@ export function createApolloClient(): ApolloClient {
       closed: () => {
         open = null;
         silence.answered();
+        liveConnectionIs(false);
       },
     },
   });

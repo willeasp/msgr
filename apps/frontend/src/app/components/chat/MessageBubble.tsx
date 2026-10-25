@@ -8,8 +8,10 @@ import { formatClock } from '../../../lib/time';
 import type { KeptMovie } from '../../../lib/movie-wire';
 import type { KeptPicture } from '../../../lib/picture-wire';
 import type { KeptSound } from '../../../lib/sound-wire';
+import Button from '../../../sacred/components/Button';
 import { Face, type Person } from '../Face';
 import { PixelText } from '../PixelText';
+import { Wristwatch } from '../Wristwatch';
 import { MessageMovie } from './MessageMovie';
 import { MessagePicture } from './MessagePicture';
 import { MessageSound } from './MessageSound';
@@ -38,6 +40,14 @@ interface MessageBubbleProps {
   onDrawOnMovie?: (movie: KeptMovie) => void;
   /** Opens Get Info on the message: a click on the bubble, or a finger held on it. */
   onGetInfo?: (messageId: string) => void;
+  /** One the viewer sent from here that the server hasn't stored: on its way, or not sent (and why, if it said). */
+  outgoing?:
+    | { readonly state: 'sending' }
+    | {
+        readonly state: 'failed';
+        readonly problem: string | null;
+        readonly onTryAgain: () => void;
+      };
 }
 
 /**
@@ -52,6 +62,7 @@ export const MessageBubble = memo(function MessageBubble({
   onDrawOnIt,
   onDrawOnMovie,
   onGetInfo,
+  outgoing,
 }: MessageBubbleProps) {
   const Bubble = isCurrentUser ? MessageViewer : Message;
   const { picture, movie, sound } = message;
@@ -90,7 +101,10 @@ export const MessageBubble = memo(function MessageBubble({
             <PixelText text={message.sender.name} />
           </span>
         )}
-        {firstLink(content) && <LinkPreviewCard messageId={message.id} />}
+        {/* Once stored: the server previews only what it has. */}
+        {firstLink(content) && !outgoing && (
+          <LinkPreviewCard messageId={message.id} />
+        )}
         {/* What the history keeps in place while the viewer reads it
             (MessageList): the words, whatever comes and goes above them. */}
         <div className={styles.line} data-message>
@@ -132,13 +146,31 @@ export const MessageBubble = memo(function MessageBubble({
               )}
             </Bubble>
           </div>
-          {showMeta && (
-            // The time of day: the day's name heads the history above it.
-            <time className={styles.time} dateTime={message.createdAt}>
-              {formatClock(message.createdAt)}
-            </time>
+          {outgoing?.state === 'sending' ? (
+            // The wristwatch where its time goes, until the server has it.
+            <span className={styles.sending} role="img" aria-label="Sending">
+              <Wristwatch />
+            </span>
+          ) : (
+            showMeta &&
+            !outgoing && (
+              // The time of day: the day's name heads the history above it.
+              <time className={styles.time} dateTime={message.createdAt}>
+                {formatClock(message.createdAt)}
+              </time>
+            )
           )}
         </div>
+        {outgoing?.state === 'failed' && (
+          <div className={styles.notSent} role="alert">
+            <span>
+              Not Sent.{outgoing.problem ? ` ${outgoing.problem}` : ''}
+            </span>
+            <Button theme="SECONDARY" onClick={outgoing.onTryAgain}>
+              Try Again
+            </Button>
+          </div>
+        )}
         {/* Under the bubble, not in it: the viewer's bubbles are inverted. */}
         {((picture && onDrawOnIt) || (movie && onDrawOnMovie)) && (
           <div className={styles.under}>

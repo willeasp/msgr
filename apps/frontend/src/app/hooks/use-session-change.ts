@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { gql } from '../../lib/__generated__';
 import { showBadge } from '../browser/badge';
 import { forgetMedia } from '../data/media';
+import { forgetOutbox } from '../data/outbox';
 import { useForgetBrowser } from './use-notifications';
 
 /**
@@ -17,6 +18,8 @@ export function useSessionChange() {
 
   return async (to: string) => {
     forgetMedia();
+    // What the last person hadn't sent goes with them, unsent.
+    forgetOutbox();
     showBadge(0);
     await client.clearStore();
     navigate(to);
