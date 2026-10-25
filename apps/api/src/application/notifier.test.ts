@@ -77,6 +77,7 @@ describe('notifying about a message', () => {
       });
     await keep(linus, 'one', '2030-01-01T00:01:00Z');
     const two = await keep(ada, 'two', '2030-01-01T00:02:00Z');
+    if (!two) throw new Error('Nothing stored');
 
     await notifier.message(two, chat, ada);
 

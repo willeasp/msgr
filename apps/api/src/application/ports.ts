@@ -91,8 +91,11 @@ export interface MessageRepository {
   findPages(chatIds: readonly ChatId[], page: Page): Promise<Message[]>;
   /** Each message's picture, movie or sound bytes; text alone is left out. */
   findMedia(ids: readonly MessageId[]): Promise<MessageMedia[]>;
-  /** Stores the message and marks its chat as active, atomically. */
-  append(message: NewMessage): Promise<Message>;
+  /**
+   * Stores the message and marks its chat as active, atomically. Null, and
+   * nothing stored, when the id its sender chose is already a message's.
+   */
+  append(message: NewMessage): Promise<Message | null>;
 }
 
 /** Who has read what. Reading a chat up to a message reads every message before it too. */

@@ -4,7 +4,8 @@ import type { InviteCode } from '../../domain/invite.js';
 import { err, ok } from '../../domain/result.js';
 import { UserId } from '../../domain/user.js';
 import { toUser, userFields } from './user.repository.js';
-import { Prisma, type PrismaClient } from './client.js';
+import type { PrismaClient } from './client.js';
+import { isUniqueViolation } from './unique-violation.js';
 
 /** Rows hold a hash of the code, so a leaked database cannot sign anyone up. */
 const hashOf = (code: InviteCode) =>
@@ -70,7 +71,3 @@ export function prismaInviteRepository(db: PrismaClient): InviteRepository {
     },
   };
 }
-
-const isUniqueViolation = (error: unknown): boolean =>
-  error instanceof Prisma.PrismaClientKnownRequestError &&
-  error.code === 'P2002';

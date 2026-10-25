@@ -252,9 +252,7 @@ export function createInMemoryRepositories(): {
         const record = chats.get(input.chatId);
         if (!record) throw new Error(`Unknown chat ${input.chatId}`);
         requireUser(input.senderId);
-        if (input.id && messageById(input.id)) {
-          throw new Error(`Duplicate message id ${input.id}`);
-        }
+        if (input.id && messageById(input.id)) return null;
         const message = keep(input.id ?? MessageId(nextId()), input);
         const part = mediaPartOf(input);
         const bytes =

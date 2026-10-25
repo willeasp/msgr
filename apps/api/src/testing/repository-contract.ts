@@ -12,6 +12,7 @@ import {
   MessageId,
   type Message,
   type MessageContent,
+  type NewMessage,
 } from '../domain/message.js';
 import type { PushSubscription } from '../domain/push.js';
 import { UNREAD_LIMIT, type Read, type UnreadTotal } from '../domain/read.js';
@@ -57,16 +58,28 @@ export function repositoryContract(
   const newest = (limit: number, offset = 0) =>
     ({ limit, kind: 'newest', offset } as const);
 
+  /** What `append` stored: a test that expects it stored fails here if it wasn't. */
+  const stored = (message: Message | null): Message => {
+    if (!message) throw new Error('Nothing stored');
+    return message;
+  };
+
+  /** Appends a message the test expects stored. */
+  const appended = (message: NewMessage) =>
+    repositories.messages.append(message).then(stored);
+
   const send = (chat: Chat, sender: User, content: string, createdAt: string) =>
-    repositories.messages.append({
-      chatId: chat.id,
-      senderId: sender.id,
-      content: content as MessageContent,
-      picture: null,
-      movie: null,
-      sound: null,
-      createdAt: new Date(createdAt),
-    });
+    repositories.messages
+      .append({
+        chatId: chat.id,
+        senderId: sender.id,
+        content: content as MessageContent,
+        picture: null,
+        movie: null,
+        sound: null,
+        createdAt: new Date(createdAt),
+      })
+      .then(stored);
 
   const pairOf = (a: User, b: User) => {
     const pair = directPair(a.id, b.id);
@@ -434,16 +447,18 @@ export function repositoryContract(
       const grace = await fixtures.user({ name: 'Grace' });
       const chat = await repositories.chats.saveDirect(pairOf(ada, grace));
       const chosen = MessageId('3f0e1c2a-9b4d-4c8e-a1f2-0123456789ab');
-      const message = await repositories.messages.append({
-        id: chosen,
-        chatId: chat.id,
-        senderId: ada.id,
-        content: 'mine' as MessageContent,
-        picture: null,
-        movie: null,
-        sound: null,
-        createdAt: new Date('2030-01-01T00:00:00Z'),
-      });
+      const message = stored(
+        await repositories.messages.append({
+          id: chosen,
+          chatId: chat.id,
+          senderId: ada.id,
+          content: 'mine' as MessageContent,
+          picture: null,
+          movie: null,
+          sound: null,
+          createdAt: new Date('2030-01-01T00:00:00Z'),
+        })
+      );
       const theirs = await send(chat, grace, 'theirs', '2030-01-01T00:01:00Z');
 
       expect(message.id).toBe(chosen);
@@ -453,12 +468,37 @@ export function repositoryContract(
       ]);
     });
 
+    it('says so when the id a sender chose is taken, storing nothing', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const chat = await repositories.chats.saveDirect(pairOf(ada, grace));
+      const id = MessageId('3f0e1c2a-9b4d-4c8e-a1f2-0123456789ab');
+      const append = (content: string) =>
+        repositories.messages.append({
+          id,
+          chatId: chat.id,
+          senderId: ada.id,
+          content: content as MessageContent,
+          picture: null,
+          movie: null,
+          sound: null,
+          createdAt: new Date('2030-01-01T00:00:00Z'),
+        });
+
+      const first = stored(await append('first'));
+
+      expect(await append('again')).toBeNull();
+      expect(
+        await repositories.messages.findPages([chat.id], newest(5))
+      ).toEqual([first]);
+    });
+
     it('stores pictures, alone or with text, and reads them back unchanged', async () => {
       const ada = await fixtures.user({ name: 'Ada' });
       const grace = await fixtures.user({ name: 'Grace' });
       const chat = await repositories.chats.saveDirect(pairOf(ada, grace));
       const text = await send(chat, ada, 'look', '2030-01-01T00:00:00Z');
-      const alone = await repositories.messages.append({
+      const alone = await appended({
         chatId: chat.id,
         senderId: grace.id,
         content: null,
@@ -467,7 +507,7 @@ export function repositoryContract(
         sound: null,
         createdAt: new Date('2030-01-01T00:01:00Z'),
       });
-      const captioned = await repositories.messages.append({
+      const captioned = await appended({
         chatId: chat.id,
         senderId: ada.id,
         content: 'a tall one' as MessageContent,
@@ -501,7 +541,7 @@ export function repositoryContract(
       const ada = await fixtures.user({ name: 'Ada' });
       const grace = await fixtures.user({ name: 'Grace' });
       const chat = await repositories.chats.saveDirect(pairOf(ada, grace));
-      const alone = await repositories.messages.append({
+      const alone = await appended({
         chatId: chat.id,
         senderId: grace.id,
         content: null,
@@ -510,7 +550,7 @@ export function repositoryContract(
         sound: null,
         createdAt: new Date('2030-01-01T00:01:00Z'),
       });
-      const captioned = await repositories.messages.append({
+      const captioned = await appended({
         chatId: chat.id,
         senderId: ada.id,
         content: 'a short one' as MessageContent,
@@ -553,7 +593,7 @@ export function repositoryContract(
       const ada = await fixtures.user({ name: 'Ada' });
       const grace = await fixtures.user({ name: 'Grace' });
       const chat = await repositories.chats.saveDirect(pairOf(ada, grace));
-      const alone = await repositories.messages.append({
+      const alone = await appended({
         chatId: chat.id,
         senderId: grace.id,
         content: null,
@@ -562,7 +602,7 @@ export function repositoryContract(
         sound: exampleSound(60),
         createdAt: new Date('2030-01-01T00:01:00Z'),
       });
-      const captioned = await repositories.messages.append({
+      const captioned = await appended({
         chatId: chat.id,
         senderId: ada.id,
         content: 'a short one' as MessageContent,
@@ -605,7 +645,7 @@ export function repositoryContract(
       const grace = await fixtures.user({ name: 'Grace' });
       const chat = await repositories.chats.saveDirect(pairOf(ada, grace));
       const text = await send(chat, ada, 'hi', '2030-01-01T00:00:00Z');
-      const picture = await repositories.messages.append({
+      const picture = await appended({
         chatId: chat.id,
         senderId: grace.id,
         content: null,
@@ -614,7 +654,7 @@ export function repositoryContract(
         sound: null,
         createdAt: new Date('2030-01-01T00:01:00Z'),
       });
-      const movie = await repositories.messages.append({
+      const movie = await appended({
         chatId: chat.id,
         senderId: ada.id,
         content: null,
@@ -623,7 +663,7 @@ export function repositoryContract(
         sound: null,
         createdAt: new Date('2030-01-01T00:02:00Z'),
       });
-      const sound = await repositories.messages.append({
+      const sound = await appended({
         chatId: chat.id,
         senderId: grace.id,
         content: null,

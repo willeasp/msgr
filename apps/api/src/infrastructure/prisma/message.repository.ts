@@ -11,6 +11,7 @@ import type { PictureSize } from '../../domain/picture.js';
 import type { SoundLength } from '../../domain/sound.js';
 import { UserId } from '../../domain/user.js';
 import { Prisma, type PrismaClient } from './client.js';
+import { isUniqueViolation } from './unique-violation.js';
 
 /** A kept message: its media's sizes, never their bytes (`findMedia`). */
 const messageFields = {
@@ -118,19 +119,26 @@ export function prismaMessageRepository(db: PrismaClient): MessageRepository {
         sound: sound?.coded ?? null,
         soundFrames: sound?.frames ?? null,
       };
-      const [row] = await db.$transaction([
-        db.message.create({
-          // The sender's chosen id, or Prisma's own when there's none.
-          data: { id, chatId, senderId, createdAt, ...body },
-          select: messageFields,
-        }),
-        db.chat.update({
-          where: { id: chatId },
-          data: { updatedAt: createdAt },
-          select: { id: true },
-        }),
-      ]);
-      return toMessage(row);
+      try {
+        const [row] = await db.$transaction([
+          db.message.create({
+            // The sender's chosen id, or Prisma's own when there's none.
+            data: { id, chatId, senderId, createdAt, ...body },
+            select: messageFields,
+          }),
+          db.chat.update({
+            where: { id: chatId },
+            data: { updatedAt: createdAt },
+            select: { id: true },
+          }),
+        ]);
+        return toMessage(row);
+      } catch (error) {
+        // The id the sender chose is a message's already: theirs, sent
+        // before, or the same send a moment ago.
+        if (id && isUniqueViolation(error)) return null;
+        throw error;
+      }
     },
   };
 }

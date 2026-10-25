@@ -38,7 +38,7 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
     chatId: string,
     body: MessageBody,
     id: MessageId | undefined
-  ): Promise<Result<Message, NotFound>> {
+  ): Promise<Result<Message, InvalidInput | NotFound>> {
     const chat = visibleTo(await loaders.chat.load(ChatId(chatId)), viewer.id);
     if (!chat.ok) return chat;
 
@@ -49,6 +49,16 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
       senderId: viewer.id,
       createdAt: clock(),
     });
+    if (!message) {
+      // The id the sender chose is stored already: sent before, its answer
+      // lost on the way back, or the same send a moment ago. The same
+      // message again, stored and delivered once; anyone else's, refused.
+      const sent = id && (await loaders.message.load(id));
+      if (!sent) throw new Error(`Message ${id} is taken, but not there`);
+      return sent.senderId === viewer.id && sent.chatId === chat.value.id
+        ? ok(sent)
+        : err(invalidInput('id', 'That message id is taken'));
+    }
     await events.publish(message, chat.value.participantIds);
     // Not awaited: the sender needn't wait for push services.
     void notifier.message(message, chat.value, viewer);
@@ -173,21 +183,6 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
         sound.value
       );
       if (!body.ok) return body;
-      if (id.value) {
-        // Sent before, its answer lost on the way back: the same message
-        // again, stored and delivered once. The id is no one else's to use.
-        const sent = await loaders.message.load(id.value);
-        if (sent) {
-          if (sent.senderId !== viewer.id || sent.chatId !== input.chatId) {
-            return err(invalidInput('id', 'That message id is taken'));
-          }
-          const chat = visibleTo(
-            await loaders.chat.load(sent.chatId),
-            viewer.id
-          );
-          return chat.ok ? ok(sent) : chat;
-        }
-      }
       return post(viewer, input.chatId, body.value, id.value);
     },
 
