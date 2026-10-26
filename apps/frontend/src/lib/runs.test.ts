@@ -37,6 +37,22 @@ describe('placeMessages', () => {
     ]);
   });
 
+  it('gives a run’s first its own time, so the time it shows is the one its run keeps room for, and starts again each day', () => {
+    const placed = placeMessages([
+      message('a', 'ada', at(20, 23, 58)),
+      message('b', 'ada', at(21, 0, 1)),
+      message('c', 'ada', at(21, 0, 2)),
+    ]);
+    for (const { message, startsRun, runStartedAt } of placed) {
+      if (startsRun) expect(runStartedAt).toBe(message.createdAt);
+    }
+    expect(placed.map(({ runStartedAt }) => runStartedAt)).toEqual([
+      at(20, 23, 58),
+      at(21, 0, 1),
+      at(21, 0, 1),
+    ]);
+  });
+
   it('starts the first message’s day and run', () => {
     expect(shape([message('a', 'ada', at(21, 9, 0))])).toEqual(['a day run']);
     expect(placeMessages([])).toEqual([]);

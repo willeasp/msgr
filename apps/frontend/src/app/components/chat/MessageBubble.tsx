@@ -73,6 +73,8 @@ export const MessageBubble = memo(function MessageBubble({
   const Bubble = isCurrentUser ? MessageViewer : Message;
   const { picture, movie, sound } = message;
   const content = message.content ?? '';
+  // The run's time, which its first shows: the same as its own.
+  const clock = formatClock(runStartedAt);
   const { open } = useModals();
   // A picture or movie opens full screen, in a window of its own.
   const shown: Shown | null = picture
@@ -208,7 +210,7 @@ export const MessageBubble = memo(function MessageBubble({
           </div>
           {/* The time's room, as wide as the run's time, kept by every
               message of the run so the run lines up with its first. */}
-          <span className={styles.slot} data-time={formatClock(runStartedAt)}>
+          <span className={styles.slot} data-time={clock}>
             {outgoing?.state === 'sending' ? (
               // The wristwatch where its time goes, until the server has it.
               <span className={styles.sending} role="img" aria-label="Sending">
@@ -219,7 +221,7 @@ export const MessageBubble = memo(function MessageBubble({
               !outgoing && (
                 // The time of day: the day's name heads the history above it.
                 <time className={styles.time} dateTime={message.createdAt}>
-                  {formatClock(message.createdAt)}
+                  {clock}
                 </time>
               )
             )}

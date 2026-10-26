@@ -79,14 +79,10 @@
 }
 
 /* The wristwatch where the time goes, while it's on its way, beside the
-   bubble. */
+   bubble (always the viewer's, on the right of the slot). */
 .sending {
   display: flex;
   align-self: center;
-  justify-self: start;
-}
-
-.own .sending {
   justify-self: end;
 }
 

@@ -14,6 +14,7 @@ import {
   halfInkPicture,
   joinChannel,
   liveConnection,
+  newcomer,
   signIn,
   signInAs,
 } from '../tests/support';
@@ -381,10 +382,8 @@ test('a run’s messages keep the room its time takes beside the first, so the r
   await page.goto('/');
   const name = `phone-${test.info().project.name}-${Date.now().toString(36)}`;
   const chatId = await joinChannel(page, name);
-  const other = await playwright.request.newContext({
-    baseURL: test.info().project.use.baseURL,
-  });
-  await signInAs(other, them().email);
+  // Someone new, by an invite: no login against the throttle.
+  const other = await newcomer(playwright, page.request, 'Writer');
   await graphql(
     other,
     'mutation ($name: String!) { joinChannel(name: $name) { id } }',
@@ -392,13 +391,14 @@ test('a run’s messages keep the room its time takes beside the first, so the r
   );
   const send =
     'mutation ($input: SendMessageInput!) { sendMessage(input: $input) { id } }';
-  const long =
+  const first = 'A first message with words enough to wrap across a phone';
+  const next =
     'A follow-up with words enough to fill a phone from side to side, so it wraps';
   for (const [from, content] of [
-    [other, 'Short'],
-    [other, long],
-    [page.request, 'Mine'],
-    [page.request, `${long}, mine.`],
+    [other, first],
+    [other, next],
+    [page.request, `${first}, mine.`],
+    [page.request, `${next}, mine.`],
   ] as const) {
     await graphql(from, send, { input: { chatId, content } });
   }
@@ -406,18 +406,30 @@ test('a run’s messages keep the room its time takes beside the first, so the r
   await page.goto(`/${chatId}`);
   const log = chatWindow(page, `#${name}`).getByRole('log');
   await expect(log.locator('time')).toHaveCount(2);
-  const theirTime = await box(log.locator('time').first());
-  const myTime = await box(log.locator('time').last());
+  const words = (text: string) => box(log.getByText(text, { exact: true }));
 
-  // Each keeps the room the run's time takes at the history's edge, as the
-  // first does: theirs on the right of their messages, the viewer's on the
-  // left of theirs.
-  const edges = await box(log);
-  const theirs = await box(log.getByText(long, { exact: true }));
-  expect(theirs.height).toBeGreaterThan(theirTime.height * 1.5);
-  expect(theirs.x + theirs.width + theirTime.width).toBeLessThan(
-    edges.x + edges.width
-  );
-  const mine = await box(log.getByText(`${long}, mine.`, { exact: true }));
-  expect(mine.x - myTime.width).toBeGreaterThan(edges.x);
+  // Theirs: the follow-up ends where the first does, short of the first's
+  // time, which sits at the foot of its bubble.
+  const [theirFirst, theirNext] = [await words(first), await words(next)];
+  const theirTime = await box(log.locator('time').first());
+  expect(theirNext.height).toBeGreaterThan(theirTime.height * 1.5);
+  expect(
+    Math.abs(theirNext.x + theirNext.width - (theirFirst.x + theirFirst.width))
+  ).toBeLessThanOrEqual(1);
+  expect(theirFirst.x + theirFirst.width).toBeLessThan(theirTime.x);
+  // The bubble's foot: its words' and its 4 pixels of padding.
+  expect(
+    Math.abs(
+      theirTime.y + theirTime.height - (theirFirst.y + theirFirst.height + 4)
+    )
+  ).toBeLessThanOrEqual(1);
+
+  // The viewer's, mirrored.
+  const [myFirst, myNext] = [
+    await words(`${first}, mine.`),
+    await words(`${next}, mine.`),
+  ];
+  const myTime = await box(log.locator('time').last());
+  expect(Math.abs(myNext.x - myFirst.x)).toBeLessThanOrEqual(1);
+  expect(myFirst.x).toBeGreaterThan(myTime.x + myTime.width);
 });
