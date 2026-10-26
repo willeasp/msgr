@@ -335,7 +335,7 @@ function History({
 
   const newer = away === null ? 0 : arrivedSince(messages, away, currentUserId);
   const placed = placeMessages(shown).map(
-    ({ message, startsDay, startsRun }) => {
+    ({ message, startsDay, startsRun, runStartedAt }) => {
       // Stored, it's as any message, until the history holds it.
       const outgoing = waiting.find(
         (one) => one.message === message && one.state !== 'stored'
@@ -347,6 +347,7 @@ function History({
             message={message}
             isCurrentUser={message.sender.id === currentUserId}
             showMeta={startsRun}
+            runStartedAt={runStartedAt}
             showName={showNames}
             // What the server hasn't stored has nothing to draw on or
             // tell of yet.

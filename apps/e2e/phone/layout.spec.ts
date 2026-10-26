@@ -373,3 +373,51 @@ test('a tap on a picture opens it full screen, the desktop’s pattern around it
   ).toBeVisible();
   await expect(full).toHaveCount(0);
 });
+
+test('a run’s messages keep the room its time takes beside the first, so the run lines up with it', async ({
+  page,
+  playwright,
+}) => {
+  await page.goto('/');
+  const name = `phone-${test.info().project.name}-${Date.now().toString(36)}`;
+  const chatId = await joinChannel(page, name);
+  const other = await playwright.request.newContext({
+    baseURL: test.info().project.use.baseURL,
+  });
+  await signInAs(other, them().email);
+  await graphql(
+    other,
+    'mutation ($name: String!) { joinChannel(name: $name) { id } }',
+    { name }
+  );
+  const send =
+    'mutation ($input: SendMessageInput!) { sendMessage(input: $input) { id } }';
+  const long =
+    'A follow-up with words enough to fill a phone from side to side, so it wraps';
+  for (const [from, content] of [
+    [other, 'Short'],
+    [other, long],
+    [page.request, 'Mine'],
+    [page.request, `${long}, mine.`],
+  ] as const) {
+    await graphql(from, send, { input: { chatId, content } });
+  }
+  await other.dispose();
+  await page.goto(`/${chatId}`);
+  const log = chatWindow(page, `#${name}`).getByRole('log');
+  await expect(log.locator('time')).toHaveCount(2);
+  const theirTime = await box(log.locator('time').first());
+  const myTime = await box(log.locator('time').last());
+
+  // Each keeps the room the run's time takes at the history's edge, as the
+  // first does: theirs on the right of their messages, the viewer's on the
+  // left of theirs.
+  const edges = await box(log);
+  const theirs = await box(log.getByText(long, { exact: true }));
+  expect(theirs.height).toBeGreaterThan(theirTime.height * 1.5);
+  expect(theirs.x + theirs.width + theirTime.width).toBeLessThan(
+    edges.x + edges.width
+  );
+  const mine = await box(log.getByText(`${long}, mine.`, { exact: true }));
+  expect(mine.x - myTime.width).toBeGreaterThan(edges.x);
+});

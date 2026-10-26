@@ -15,6 +15,28 @@ const shape = (messages: ReturnType<typeof message>[]) =>
   );
 
 describe('placeMessages', () => {
+  it('tells each message when its run started, the time the run shows', () => {
+    const messages = [
+      message('a', 'ada', at(21, 9, 0)),
+      message('b', 'ada', at(21, 9, 4)),
+      message('c', 'grace', at(21, 9, 5)),
+      message('d', 'grace', at(21, 9, 6)),
+      message('e', 'grace', at(21, 9, 12)),
+    ];
+    expect(
+      placeMessages(messages).map(({ message, runStartedAt }) => [
+        message.id,
+        runStartedAt,
+      ])
+    ).toEqual([
+      ['a', at(21, 9, 0)],
+      ['b', at(21, 9, 0)],
+      ['c', at(21, 9, 5)],
+      ['d', at(21, 9, 5)],
+      ['e', at(21, 9, 12)],
+    ]);
+  });
+
   it('starts the first message’s day and run', () => {
     expect(shape([message('a', 'ada', at(21, 9, 0))])).toEqual(['a day run']);
     expect(placeMessages([])).toEqual([]);
