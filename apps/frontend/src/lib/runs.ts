@@ -13,6 +13,8 @@ export interface Placed<M> {
   readonly startsDay: boolean;
   /** The first of a run: its sender's face and name, and its time, go with it. */
   readonly startsRun: boolean;
+  /** When its run started, the time beside the first: every message of the run keeps its room, so the run lines up. */
+  readonly runStartedAt: string;
 }
 
 /** Each message of a history, oldest first, with where its day and run start. Days are the device's. */
@@ -22,6 +24,7 @@ export function placeMessages<
     readonly createdAt: string;
   }
 >(messages: readonly M[]): Placed<M>[] {
+  let runStartedAt = '';
   return messages.map((message, index) => {
     const before = messages[index - 1];
     const at = new Date(message.createdAt);
@@ -31,7 +34,8 @@ export function placeMessages<
       !before ||
       before.sender.id !== message.sender.id ||
       at.getTime() - new Date(before.createdAt).getTime() > RUN_GAP_MS;
-    return { message, startsDay, startsRun };
+    if (startsRun) runStartedAt = message.createdAt;
+    return { message, startsDay, startsRun, runStartedAt };
   });
 }
 

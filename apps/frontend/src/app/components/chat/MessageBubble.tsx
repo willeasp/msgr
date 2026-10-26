@@ -35,6 +35,8 @@ interface MessageBubbleProps {
   isCurrentUser: boolean;
   /** The first of a run (lib/runs.ts): it shows the time, and their face if it's someone else's. */
   showMeta: boolean;
+  /** When its run started: the time beside the run's first, whose room every message of the run keeps. */
+  runStartedAt: string;
   /** Name the sender above the run: in groups and channels, not direct chats. */
   showName: boolean;
   /** Opens the paint window on a picture; offered under each one. */
@@ -61,6 +63,7 @@ export const MessageBubble = memo(function MessageBubble({
   message,
   isCurrentUser,
   showMeta,
+  runStartedAt,
   showName,
   onDrawOnIt,
   onDrawOnMovie,
@@ -70,6 +73,8 @@ export const MessageBubble = memo(function MessageBubble({
   const Bubble = isCurrentUser ? MessageViewer : Message;
   const { picture, movie, sound } = message;
   const content = message.content ?? '';
+  // The run's time, which its first shows: the same as its own.
+  const clock = formatClock(runStartedAt);
   const { open } = useModals();
   // A picture or movie opens full screen, in a window of its own.
   const shown: Shown | null = picture
@@ -203,20 +208,24 @@ export const MessageBubble = memo(function MessageBubble({
               )}
             </Bubble>
           </div>
-          {outgoing?.state === 'sending' ? (
-            // The wristwatch where its time goes, until the server has it.
-            <span className={styles.sending} role="img" aria-label="Sending">
-              <Wristwatch />
-            </span>
-          ) : (
-            showMeta &&
-            !outgoing && (
-              // The time of day: the day's name heads the history above it.
-              <time className={styles.time} dateTime={message.createdAt}>
-                {formatClock(message.createdAt)}
-              </time>
-            )
-          )}
+          {/* The time's room, as wide as the run's time, kept by every
+              message of the run so the run lines up with its first. */}
+          <span className={styles.slot} data-time={clock}>
+            {outgoing?.state === 'sending' ? (
+              // The wristwatch where its time goes, until the server has it.
+              <span className={styles.sending} role="img" aria-label="Sending">
+                <Wristwatch />
+              </span>
+            ) : (
+              showMeta &&
+              !outgoing && (
+                // The time of day: the day's name heads the history above it.
+                <time className={styles.time} dateTime={message.createdAt}>
+                  {clock}
+                </time>
+              )
+            )}
+          </span>
         </div>
         {/* Read out as it comes, in the log's polite part, as its message was. */}
         {outgoing?.state === 'notSent' && (

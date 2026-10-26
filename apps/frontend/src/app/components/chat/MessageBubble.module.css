@@ -53,17 +53,37 @@
   font-family: var(--font-family-chrome);
 }
 
-.time {
+/* Beside the bubble, the run's time's room: as wide as that time (an unseen
+   copy of it), whatever it holds, so every message of a run lines up with
+   its first rather than growing into the room its time takes. */
+.slot {
+  display: grid;
   flex-shrink: 0;
-  opacity: 0.6;
+  align-self: stretch;
   white-space: nowrap;
+
+  &::before {
+    content: attr(data-time);
+    grid-area: 1 / 1;
+    visibility: hidden;
+  }
+
+  & > * {
+    grid-area: 1 / 1;
+  }
 }
 
-/* The wristwatch where the time goes, while it's on its way. */
+.time {
+  align-self: end;
+  opacity: 0.6;
+}
+
+/* The wristwatch where the time goes, while it's on its way, beside the
+   bubble (always the viewer's, on the right of the slot). */
 .sending {
   display: flex;
-  flex-shrink: 0;
   align-self: center;
+  justify-self: end;
 }
 
 /* Under a message that didn't go: why, and Try Again. */

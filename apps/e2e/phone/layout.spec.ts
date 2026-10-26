@@ -14,6 +14,7 @@ import {
   halfInkPicture,
   joinChannel,
   liveConnection,
+  newcomer,
   signIn,
   signInAs,
 } from '../tests/support';
@@ -372,4 +373,63 @@ test('a tap on a picture opens it full screen, the desktop’s pattern around it
     page.getByRole('dialog', { name: 'Message Info' })
   ).toBeVisible();
   await expect(full).toHaveCount(0);
+});
+
+test('a run’s messages keep the room its time takes beside the first, so the run lines up with it', async ({
+  page,
+  playwright,
+}) => {
+  await page.goto('/');
+  const name = `phone-${test.info().project.name}-${Date.now().toString(36)}`;
+  const chatId = await joinChannel(page, name);
+  // Someone new, by an invite: no login against the throttle.
+  const other = await newcomer(playwright, page.request, 'Writer');
+  await graphql(
+    other,
+    'mutation ($name: String!) { joinChannel(name: $name) { id } }',
+    { name }
+  );
+  const send =
+    'mutation ($input: SendMessageInput!) { sendMessage(input: $input) { id } }';
+  const first = 'A first message with words enough to wrap across a phone';
+  const next =
+    'A follow-up with words enough to fill a phone from side to side, so it wraps';
+  for (const [from, content] of [
+    [other, first],
+    [other, next],
+    [page.request, `${first}, mine.`],
+    [page.request, `${next}, mine.`],
+  ] as const) {
+    await graphql(from, send, { input: { chatId, content } });
+  }
+  await other.dispose();
+  await page.goto(`/${chatId}`);
+  const log = chatWindow(page, `#${name}`).getByRole('log');
+  await expect(log.locator('time')).toHaveCount(2);
+  const words = (text: string) => box(log.getByText(text, { exact: true }));
+
+  // Theirs: the follow-up ends where the first does, short of the first's
+  // time, which sits at the foot of its bubble.
+  const [theirFirst, theirNext] = [await words(first), await words(next)];
+  const theirTime = await box(log.locator('time').first());
+  expect(theirNext.height).toBeGreaterThan(theirTime.height * 1.5);
+  expect(
+    Math.abs(theirNext.x + theirNext.width - (theirFirst.x + theirFirst.width))
+  ).toBeLessThanOrEqual(1);
+  expect(theirFirst.x + theirFirst.width).toBeLessThan(theirTime.x);
+  // The bubble's foot: its words' and its 4 pixels of padding.
+  expect(
+    Math.abs(
+      theirTime.y + theirTime.height - (theirFirst.y + theirFirst.height + 4)
+    )
+  ).toBeLessThanOrEqual(1);
+
+  // The viewer's, mirrored.
+  const [myFirst, myNext] = [
+    await words(`${first}, mine.`),
+    await words(`${next}, mine.`),
+  ];
+  const myTime = await box(log.locator('time').last());
+  expect(Math.abs(myNext.x - myFirst.x)).toBeLessThanOrEqual(1);
+  expect(myFirst.x).toBeGreaterThan(myTime.x + myTime.width);
 });
