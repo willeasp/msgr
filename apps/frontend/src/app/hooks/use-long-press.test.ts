@@ -28,11 +28,13 @@ afterEach(() => {
 function mount() {
   const clicks = vi.fn();
   const holds = vi.fn();
+  const taps = vi.fn();
   const shown: boolean[] = [];
   const Bubble = () => {
     const { pressed, handlers } = useLongPress({
       onClick: clicks,
       onHold: holds,
+      onTap: taps,
     });
     shown.push(pressed);
     return createElement(
@@ -47,6 +49,7 @@ function mount() {
   return {
     clicks,
     holds,
+    taps,
     pressed: () => shown[shown.length - 1],
   };
 }
@@ -128,7 +131,7 @@ describe('useLongPress', () => {
     expect(bubble.holds).not.toHaveBeenCalled();
   });
 
-  it('opens nothing on a tap', () => {
+  it('opens nothing on a tap, and says it was one', () => {
     const bubble = mount();
     pointer('pointerdown', on('words'));
     wait(80);
@@ -137,7 +140,29 @@ describe('useLongPress', () => {
     wait(HELD_AFTER_MS);
     expect(bubble.clicks).not.toHaveBeenCalled();
     expect(bubble.holds).not.toHaveBeenCalled();
+    expect(bubble.taps).toHaveBeenCalledTimes(1);
     expect(bubble.pressed()).toBe(false);
+  });
+
+  it('takes neither a mouse’s click nor what a held finger sends on lifting for a tap', () => {
+    const bubble = mount();
+    pointer('pointerdown', on('words'), { pointerType: 'mouse' });
+    pointer('pointerup', on('words'), { pointerType: 'mouse' });
+    click(on('words'));
+    expect(bubble.taps).not.toHaveBeenCalled();
+
+    pointer('pointerdown', on('words'));
+    wait(HELD_AFTER_MS);
+    pointer('pointerup', on('words'));
+    click(on('words'));
+    expect(bubble.holds).toHaveBeenCalledTimes(1);
+    expect(bubble.taps).not.toHaveBeenCalled();
+
+    // The next tap is a tap again.
+    pointer('pointerdown', on('words'));
+    pointer('pointerup', on('words'));
+    click(on('words'));
+    expect(bubble.taps).toHaveBeenCalledTimes(1);
   });
 
   it('shows pressed once a finger rests, and holds once, at half a second', () => {
@@ -156,6 +181,7 @@ describe('useLongPress', () => {
     click(on('words'));
     expect(bubble.holds).toHaveBeenCalledTimes(1);
     expect(bubble.clicks).not.toHaveBeenCalled();
+    expect(bubble.taps).not.toHaveBeenCalled();
     expect(bubble.pressed()).toBe(false);
   });
 

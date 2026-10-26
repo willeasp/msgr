@@ -11,6 +11,7 @@ import {
   chatWindow,
   feedListening,
   graphql,
+  halfInkPicture,
   joinChannel,
   liveConnection,
   signIn,
@@ -314,4 +315,61 @@ test('a finger held on a message opens Get Info; a tap, a hold on a link or a sc
   await expect(bubble).toBeInViewport();
   await hold(page, await middle(bubble), 700);
   await expect(info).toBeVisible();
+});
+
+test('a tap on a picture opens it full screen, the desktop’s pattern around it; a tap closes it, and a finger held on it opens Get Info', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const name = `phone-${test.info().project.name}-${Date.now().toString(36)}`;
+  const chatId = await joinChannel(page, name);
+  await graphql(
+    page.request,
+    'mutation ($input: SendMessageInput!) { sendMessage(input: $input) { id } }',
+    { input: { chatId, picture: halfInkPicture() } }
+  );
+  await page.goto(`/${chatId}`);
+  const inChat = chatWindow(page, `#${name}`)
+    .getByRole('log')
+    .getByRole('img', { name: 'Picture' });
+  await expect(inChat).toBeVisible();
+  const full = page.getByRole('dialog', { name: 'Your Picture' });
+  const shown = full.getByRole('img', { name: 'Picture' });
+
+  await inChat.tap();
+  await expect(shown).toBeVisible();
+  // A window filling the screen, the picture nearly its width, the
+  // desktop's pattern above and below it.
+  const screen = page.viewportSize();
+  const window = await box(full);
+  expect(window.width).toBeCloseTo(screen?.width ?? 0, 0);
+  const picture = await box(shown);
+  expect(picture.width).toBeGreaterThan(window.width * 0.9);
+  expect(picture.width).toBeLessThanOrEqual(window.width);
+  expect(picture.width).toBeGreaterThan((await box(inChat)).width);
+  expect(picture.y).toBeGreaterThan(window.y + 100);
+  expect(picture.y + picture.height).toBeLessThan(
+    window.y + window.height - 100
+  );
+  expect(
+    await shown.evaluate(
+      (canvas) =>
+        getComputedStyle(canvas.parentElement ?? canvas).backgroundImage
+    )
+  ).toContain('conic-gradient');
+
+  // A tap on the pattern closes it, and so does Back.
+  await page.touchscreen.tap(window.x + 20, picture.y + picture.height + 40);
+  await expect(full).toHaveCount(0);
+  await inChat.tap();
+  await full.getByRole('button', { name: 'Back' }).tap();
+  await expect(full).toHaveCount(0);
+  await expect(chatWindow(page, `#${name}`)).toBeVisible();
+
+  // A finger held on it is Get Info's, as on any message.
+  await hold(page, await middle(inChat), 700);
+  await expect(
+    page.getByRole('dialog', { name: 'Message Info' })
+  ).toBeVisible();
+  await expect(full).toHaveCount(0);
 });

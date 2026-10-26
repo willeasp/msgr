@@ -16,7 +16,10 @@ import { MessageMovie } from './MessageMovie';
 import { MessagePicture } from './MessagePicture';
 import { MessageSound } from './MessageSound';
 import { LinkPreviewCard } from './LinkPreviewCard';
+import { useModals } from '../../../sacred/components/page/ModalContext';
 import { useLongPress } from '../../hooks/use-long-press';
+import { PictureWindow } from '../dialogs';
+import type { Shown } from './PictureWindow';
 import styles from './MessageBubble.module.css';
 
 interface MessageBubbleProps {
@@ -67,10 +70,33 @@ export const MessageBubble = memo(function MessageBubble({
   const Bubble = isCurrentUser ? MessageViewer : Message;
   const { picture, movie, sound } = message;
   const content = message.content ?? '';
+  const { open } = useModals();
+  // A picture or movie opens full screen, in a window of its own.
+  const shown: Shown | null = picture
+    ? { kind: 'picture', picture }
+    : movie
+    ? { kind: 'movie', movie }
+    : null;
+  const showFull = () => {
+    if (!shown) return;
+    const what = shown.kind === 'picture' ? 'Picture' : 'Movie';
+    open(PictureWindow, {
+      title: isCurrentUser
+        ? `Your ${what}`
+        : `${message.sender.name}’s ${what}`,
+      shown,
+    });
+  };
+  // Not again on the second click of a double-click: it would open twice.
+  const onMedia = (e: React.MouseEvent) =>
+    e.detail <= 1 &&
+    (e.target as Element).closest('[data-full-screen]') !== null;
   // A click, or a finger held on it, opens Get Info; a tap doesn't, so
-  // scrolling past a message never opens a dialog.
+  // scrolling past a message never opens a dialog. A click or a tap on a
+  // picture or movie opens it full screen; a finger held there, Get Info.
   const getInfo = useLongPress({
     onClick: (e) => {
+      if (onMedia(e)) return showFull();
       // A link opens itself, a sound's controls play it, and dragging over
       // the words selects them.
       if ((e.target as Element).closest('a, button, [data-own-clicks]')) {
@@ -80,6 +106,9 @@ export const MessageBubble = memo(function MessageBubble({
       onGetInfo?.(message.id);
     },
     onHold: () => onGetInfo?.(message.id),
+    onTap: (e) => {
+      if (onMedia(e)) showFull();
+    },
   });
 
   return (
@@ -112,11 +141,39 @@ export const MessageBubble = memo(function MessageBubble({
             className={styles.pick}
             data-pressable={onGetInfo ? true : undefined}
             data-pressed={getInfo.pressed || undefined}
-            {...(onGetInfo ? getInfo.handlers : {})}
+            {...(onGetInfo
+              ? getInfo.handlers
+              : // One not yet stored has no Get Info: a click or tap on its
+                // picture is all there is, and a held finger selects its words.
+                shown && {
+                  onClick: (e: React.MouseEvent) => {
+                    if (onMedia(e)) showFull();
+                  },
+                })}
           >
             <Bubble>
-              {picture && <MessagePicture picture={picture} />}
-              {movie && <MessageMovie movie={movie} />}
+              {shown && (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label={
+                    shown.kind === 'picture'
+                      ? 'Show Picture Full Screen'
+                      : 'Show Movie Full Screen'
+                  }
+                  className={styles.media}
+                  data-full-screen
+                  onKeyDown={(e) => {
+                    if (e.key !== 'Enter' && e.key !== ' ') return;
+                    if (e.repeat) return;
+                    e.preventDefault();
+                    showFull();
+                  }}
+                >
+                  {picture && <MessagePicture picture={picture} />}
+                  {movie && <MessageMovie movie={movie} />}
+                </div>
+              )}
               {sound && <MessageSound sound={sound} />}
               {content && (
                 <span

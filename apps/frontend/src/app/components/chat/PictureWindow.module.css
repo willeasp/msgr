@@ -1,0 +1,72 @@
+/* The whole screen, the desktop's pattern over everything: the modal stack
+   centres it, and a click anywhere on it closes the window. */
+.screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100vw;
+  height: 100dvh;
+  background: var(--dither);
+  cursor: pointer;
+}
+
+/* On a desktop, a window around the picture, never bigger than the screen
+   (nor under a notch: a phone turned sideways is as wide as a desktop), and
+   never so narrow that its title has no room. */
+.desktop {
+  padding: max(24px, env(safe-area-inset-top))
+    max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom))
+    max(24px, env(safe-area-inset-left));
+}
+
+.frame {
+  display: flex;
+  min-width: min(32ch, 100%);
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* On a phone, a window that fills the screen, as every window there does,
+   clear of a notch and the home indicator. */
+.phone {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+
+  & .frame {
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+/* Where the picture sits: on paper in a desktop's window, a little apart
+   from its edges; on a phone, the pattern around it, filling the window. */
+.paper,
+.pattern {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  outline: none;
+}
+
+.paper {
+  padding: 16px;
+}
+
+.pattern {
+  background: var(--dither);
+}
+
+/* Ink on paper in a 1-pixel frame, as in the chat, every pixel square. */
+.canvas {
+  display: block;
+  flex-shrink: 0;
+  color: var(--picture-ink);
+  background: var(--picture-paper);
+  box-shadow: 0 0 0 1px var(--ink);
+  image-rendering: pixelated;
+}

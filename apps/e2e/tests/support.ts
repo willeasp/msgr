@@ -1,3 +1,5 @@
+import { deflateRawSync } from 'node:zlib';
+import { byteLength, toBase64 } from '@msgr/media';
 import {
   expect,
   test,
@@ -141,4 +143,18 @@ export async function liveConnection(page: Page) {
       connection.up = true;
     },
   };
+}
+
+/**
+ * A picture as `SendMessageInput.picture` takes it: 160×100, ink on its
+ * left half and paper on its right, its rows raw-DEFLATEd as a browser
+ * sends them.
+ */
+export function halfInkPicture() {
+  const width = 160;
+  const height = 100;
+  const row = byteLength(width, 1);
+  const bytes = new Uint8Array(row * height);
+  for (let y = 0; y < height; y++) bytes.fill(0xff, y * row, y * row + row / 2);
+  return { width, height, bits: toBase64(deflateRawSync(bytes)) };
 }

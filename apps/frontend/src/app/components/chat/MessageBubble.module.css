@@ -107,8 +107,18 @@
 }
 
 /* A picture's caption, a little apart from it. */
-canvas + .content {
+.media + .content {
   margin-top: 4px;
+}
+
+/* A picture or movie: pressed, it opens full screen (PictureWindow). */
+.media {
+  cursor: zoom-in;
+
+  &:focus-visible {
+    outline: 1px dotted currentColor;
+    outline-offset: 2px;
+  }
 }
 
 /* A click opens Get Info; skin.css inverts the bubble while it's pressed. */

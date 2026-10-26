@@ -14,19 +14,22 @@ interface LongPress {
   onClick: (event: React.MouseEvent<HTMLElement>) => void;
   /** A finger held still on it (lib/press.ts). */
   onHold: () => void;
+  /** A finger's tap, never one held or scrolling past: for what opens on a tap, as a picture does. */
+  onTap?: (event: React.MouseEvent<HTMLElement>) => void;
 }
 
 /**
  * Get Info's gesture: a click with a mouse or a pen, a long press with a
- * finger, so a finger scrolling past never opens anything and a tap does
- * nothing. Spread `handlers` on what's pressed; `pressed` says to show it
- * inverted.
+ * finger, so a finger scrolling past never opens anything and a tap opens
+ * Get Info on nothing (a picture opens full screen on one, `onTap`). Spread
+ * `handlers` on what's pressed; `pressed` says to show it inverted.
  */
-export function useLongPress({ onClick, onHold }: LongPress) {
+export function useLongPress({ onClick, onHold, onTap }: LongPress) {
   const press = useRef<Press>(IDLE);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  // Whether the last pointer down was a finger's.
+  // Whether the last pointer down was a finger's, and has been held since.
   const byFinger = useRef(false);
+  const held = useRef(false);
   const [pressed, setPressed] = useState(false);
   useEffect(() => {
     const pending = timers;
@@ -42,7 +45,10 @@ export function useLongPress({ onClick, onHold }: LongPress) {
       timers.current.forEach(clearTimeout);
       timers.current = [];
     }
-    if (after.phase === 'held' && before.phase !== 'held') onHold();
+    if (after.phase === 'held' && before.phase !== 'held') {
+      held.current = true;
+      onHold();
+    }
   };
   const lift = () => {
     if (press.current.phase !== 'idle') step({ type: 'up' });
@@ -51,6 +57,7 @@ export function useLongPress({ onClick, onHold }: LongPress) {
   const handlers = {
     onPointerDown: (event: React.PointerEvent<HTMLElement>) => {
       byFinger.current = event.pointerType === 'touch';
+      held.current = false;
       if (!byFinger.current || !event.isPrimary) return;
       // A link opens itself, and a sound's controls play it.
       if ((event.target as Element).closest('a, button, [data-own-clicks]')) {
@@ -83,6 +90,8 @@ export function useLongPress({ onClick, onHold }: LongPress) {
     },
     onClick: (event: React.MouseEvent<HTMLElement>) => {
       if (!byFinger.current) onClick(event);
+      // The click a finger's lifting may send after a long press isn't a tap.
+      else if (!held.current) onTap?.(event);
     },
   };
   return { pressed, handlers };
