@@ -1,6 +1,6 @@
 # The excellence run
 
-_Roadmap, proposed 2026-10-22; decisions below._
+_Roadmap, proposed 2026-10-22; decisions below. Finished 2026-10-25 with PR 6 (#11 to #23); PR 7 was dropped._
 
 ## Goal
 
@@ -56,15 +56,15 @@ Every PR below follows from these, and each gets a test or a budget in CI so it 
 
 Seven PRs, in this order. Data before UX because the phone's history (anchored scrolling, earlier messages) needs cursor pages and light payloads. Render and toolchain before UX so the new screens are built on the new patterns.
 
-| #   | PR                                | You'll feel                                                   | Size |
-| --- | --------------------------------- | ------------------------------------------------------------- | ---- |
-| 1   | Instant shell, graceful wake      | Opens at once; never signed out by a sleeping server          | M    |
-| 2   | Bytes travel once                 | Chats open fast, even with movies; history goes back past 50  | L    |
-| 3   | Render only what changed          | Typing and messages stop shaking the page; smaller first load | M    |
-| 4   | Own the controls                  | A real caret, autocorrect and selection; dialogs that behave  | L    |
-| 5   | A phone's layout                  | Full-screen chats, back swipe, composer on the keyboard       | L    |
-| 6   | A messenger's manners             | Unread counts and badges, days and runs, instant sends        | M    |
-| 7   | Lean server, tidy code, true docs | Faster wakes; the codebase reads as one                       | M    |
+| #   | PR                                              | You'll feel                                                   | Size |
+| --- | ----------------------------------------------- | ------------------------------------------------------------- | ---- |
+| 1   | Instant shell, graceful wake                    | Opens at once; never signed out by a sleeping server          | M    |
+| 2   | Bytes travel once                               | Chats open fast, even with movies; history goes back past 50  | L    |
+| 3   | Render only what changed                        | Typing and messages stop shaking the page; smaller first load | M    |
+| 4   | Own the controls                                | A real caret, autocorrect and selection; dialogs that behave  | L    |
+| 5   | A phone's layout                                | Full-screen chats, back swipe, composer on the keyboard       | L    |
+| 6   | A messenger's manners                           | Unread counts and badges, days and runs, instant sends        | M    |
+| 7   | ~~Lean server, tidy code, true docs~~ (dropped) | Faster wakes; the codebase reads as one                       | M    |
 
 ### 1. Instant shell, graceful wake
 
