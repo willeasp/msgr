@@ -111,8 +111,9 @@ keyboard, notifications, layout) is checked here.
       callout menu appears. With a mouse, a click opens it as before.
 - [ ] **Full screen:** tap a picture: it opens full screen, in a window with
       Back, the desktop's pattern around it, clear of the notch and the home
-      indicator. Turn the phone sideways: it grows to fill the screen that
-      way. Tap anywhere, or Back, to close it. Hold a finger on the picture
+      indicator. Turn the phone sideways: as wide as a desktop, it shows the
+      picture as large as fits in a window on the pattern, clear of the
+      notch. Tap anywhere, or the close box (Back, upright), to close it. Hold a finger on the picture
       instead: Get Info opens, not the picture. A movie keeps looping full
       screen (and stands still with Reduce Motion on). With a mouse, a click
       on a picture opens it in a window on the desktop; a click on its

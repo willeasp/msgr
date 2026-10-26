@@ -21,6 +21,14 @@ describe('fullSize', () => {
     });
   });
 
+  it('keeps whole pixels while they lose a tenth at most, and no more', () => {
+    const square = { width: 10, height: 10 };
+    // 2.2 fits: 2 loses a eleventh.
+    expect(fullSize(square, { width: 22, height: 99 }, 1).width).toBe(20);
+    // 2.25 fits: 2 would lose a ninth.
+    expect(fullSize(square, { width: 22.5, height: 99 }, 1).width).toBe(22.5);
+  });
+
   it('fills a phone’s width exactly when whole pixels would leave it hardly bigger', () => {
     // 1.22 fits; whole pixels at 3× would be 1, no bigger than in the chat.
     const shown = fullSize(photo, { width: 390, height: 824 }, 3);

@@ -34,14 +34,16 @@ export function PictureWindow({
   const { close } = useModals();
   const onTop = useOnTop();
   const isPhone = usePhone();
-  // A click on the close box is a click on the window too: close once.
+  // A click on the close box is a click on the window too: close once, and
+  // only while it's on top (close() takes the topmost dialog away).
   const closed = useRef(false);
   const shut = () => {
-    if (closed.current) return;
+    if (closed.current || !onTop) return;
     closed.current = true;
     close();
   };
   useHotkeys('Escape', shut, { enabled: onTop, enableOnFormTags: true });
+  const pressedOnTop = useRef(false);
 
   const backdrop = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
@@ -72,6 +74,8 @@ export function PictureWindow({
         was?.width === next.width && was.height === next.height ? was : next
       );
     };
+    // Before it's first painted, so it never shows small first.
+    measure();
     const watch = new ResizeObserver(measure);
     for (const part of parts) if (part) watch.observe(part);
     return () => watch.disconnect();
@@ -90,7 +94,15 @@ export function PictureWindow({
     <div
       ref={backdrop}
       className={`${styles.screen} ${isPhone ? styles.phone : styles.desktop}`}
-      onClick={shut}
+      // A click closes it if it was on top when pressed: not the second click
+      // of the double-click that opened it, nor one that closed a dialog
+      // over it as it pressed (as New Chat closes, pressed beside).
+      onPointerDown={() => {
+        pressedOnTop.current = onTop;
+      }}
+      onClick={(e) => {
+        if (e.detail <= 1 && pressedOnTop.current) shut();
+      }}
     >
       <div ref={frame} className={styles.frame}>
         <MacWindow title={title} onClose={shut} fill={isPhone} modal>

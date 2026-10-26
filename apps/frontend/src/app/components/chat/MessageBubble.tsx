@@ -87,7 +87,9 @@ export const MessageBubble = memo(function MessageBubble({
       shown,
     });
   };
+  // Not again on the second click of a double-click: it would open twice.
   const onMedia = (e: React.MouseEvent) =>
+    e.detail <= 1 &&
     (e.target as Element).closest('[data-full-screen]') !== null;
   // A click, or a finger held on it, opens Get Info; a tap doesn't, so
   // scrolling past a message never opens a dialog. A click or a tap on a
@@ -139,7 +141,15 @@ export const MessageBubble = memo(function MessageBubble({
             className={styles.pick}
             data-pressable={onGetInfo ? true : undefined}
             data-pressed={getInfo.pressed || undefined}
-            {...(onGetInfo || shown ? getInfo.handlers : {})}
+            {...(onGetInfo
+              ? getInfo.handlers
+              : // One not yet stored has no Get Info: a click or tap on its
+                // picture is all there is, and a held finger selects its words.
+                shown && {
+                  onClick: (e: React.MouseEvent) => {
+                    if (onMedia(e)) showFull();
+                  },
+                })}
           >
             <Bubble>
               {shown && (
@@ -155,6 +165,7 @@ export const MessageBubble = memo(function MessageBubble({
                   data-full-screen
                   onKeyDown={(e) => {
                     if (e.key !== 'Enter' && e.key !== ' ') return;
+                    if (e.repeat) return;
                     e.preventDefault();
                     showFull();
                   }}

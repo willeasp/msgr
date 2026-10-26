@@ -120,11 +120,10 @@ test('a picture opens full screen in a window of its own, as large as fits, and 
   await inChat.click();
   await expect(full).toBeVisible();
   await expect(shown).toBeVisible();
-  // As large as fits the desktop, its pixels whole: the screen is 1280×720.
+  // As large as fits the 1280×720 desktop, its pixels whole: 6 times, the
+  // window's own parts and the desktop's margin around it.
   const size = await box(shown);
-  expect(size.width).toBeGreaterThan((await box(inChat)).width * 1.5);
-  expect(size.width % 160).toBe(0);
-  expect(size.width / size.height).toBeCloseTo(1.6, 2);
+  expect(size).toMatchObject({ width: 960, height: 600 });
   const viewport = page.viewportSize();
   expect(size.y + size.height).toBeLessThanOrEqual(viewport?.height ?? 0);
   expect(await inkAt(shown, 5, 50)).toBe(true);
@@ -148,6 +147,27 @@ test('a picture opens full screen in a window of its own, as large as fits, and 
   await page.mouse.click(5, 5);
   await expect(full).toHaveCount(0);
 
+  // A double-click opens it once, and leaves it open.
+  await opener.dblclick();
+  await expect(full).toBeVisible();
+  await page.waitForTimeout(300);
+  await expect(page.getByRole('dialog', { name: /Picture$/ })).toHaveCount(1);
+  // A dialog opened over it (New Chat, by its key) closes as it does, by a
+  // press beside it, or Escape, and the picture stays open behind it.
+  await page.keyboard.press('Control+k');
+  const newChat = page.getByRole('dialog', { name: 'New Chat' });
+  await expect(newChat).toBeVisible();
+  await page.mouse.click(5, 5);
+  await expect(newChat).toHaveCount(0);
+  await expect(full).toBeVisible();
+  await page.keyboard.press('Control+k');
+  await expect(newChat).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(newChat).toHaveCount(0);
+  await expect(full).toBeVisible();
+  await page.mouse.click(5, 5);
+  await expect(full).toHaveCount(0);
+
   // A click on the words opens Get Info, as ever, and nothing full screen.
   await log.getByText('The coast').click();
   await expect(
@@ -166,13 +186,14 @@ test('a movie opens full screen, still looping, and its close box closes it', as
 
   await log.getByRole('img', { name: 'Movie' }).click();
   await expect(shown).toBeVisible();
-  // The square slides: what's at its first place changes.
-  await expect
-    .poll(async () => [await inkAt(shown, 4, 30), await inkAt(shown, 60, 30)])
-    .toEqual([false, true]);
-  await expect
-    .poll(async () => [await inkAt(shown, 4, 30), await inkAt(shown, 60, 30)])
-    .toEqual([true, false]);
+  // The square slides: it's at its first place an eighth of each second,
+  // and at its last a quarter, so look often.
+  const square = async () => [
+    await inkAt(shown, 4, 30),
+    await inkAt(shown, 60, 30),
+  ];
+  await expect.poll(square, { intervals: [20] }).toEqual([false, true]);
+  await expect.poll(square, { intervals: [20] }).toEqual([true, false]);
 
   await full.getByRole('button', { name: 'Close Your Movie' }).click();
   await expect(full).toHaveCount(0);

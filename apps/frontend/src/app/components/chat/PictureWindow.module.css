@@ -11,13 +11,18 @@
   cursor: pointer;
 }
 
-/* On a desktop, a window around the picture, never bigger than the screen. */
+/* On a desktop, a window around the picture, never bigger than the screen
+   (nor under a notch: a phone turned sideways is as wide as a desktop), and
+   never so narrow that its title has no room. */
 .desktop {
-  padding: 24px;
+  padding: max(24px, env(safe-area-inset-top))
+    max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom))
+    max(24px, env(safe-area-inset-left));
 }
 
 .frame {
   display: flex;
+  min-width: min(32ch, 100%);
   max-width: 100%;
   max-height: 100%;
 }

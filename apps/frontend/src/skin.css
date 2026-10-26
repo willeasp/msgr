@@ -453,14 +453,19 @@ a:focus {
 /* A message inverts while it's pressed, as a Mac button does, on its way to
    Get Info: theirs goes solid, yours goes hollow. MessageBubble marks it.
    Pressed by a mouse, or held by a finger (useLongPress), never just touched
-   on the way to scrolling past. */
+   on the way to scrolling past; not a picture pressed by a mouse, which opens
+   full screen. */
 @media (pointer: fine) {
-  :root [data-pressable]:active .srcl-Message__bubble {
+  :root
+    [data-pressable]:active:not(:has([data-full-screen]:active))
+    .srcl-Message__bubble {
     background: var(--ink);
     color: var(--paper);
   }
 
-  :root [data-pressable]:active .srcl-MessageViewer__bubble {
+  :root
+    [data-pressable]:active:not(:has([data-full-screen]:active))
+    .srcl-MessageViewer__bubble {
     background: var(--paper);
     color: var(--ink);
     box-shadow: inset 0 0 0 1px var(--ink);

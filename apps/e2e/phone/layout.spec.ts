@@ -338,8 +338,8 @@ test('a tap on a picture opens it full screen, the desktop’s pattern around it
 
   await inChat.tap();
   await expect(shown).toBeVisible();
-  // A window filling the screen, the picture nearly its width, in whole
-  // pixels, the pattern above and below it.
+  // A window filling the screen, the picture nearly its width, the
+  // desktop's pattern above and below it.
   const screen = page.viewportSize();
   const window = await box(full);
   expect(window.width).toBeCloseTo(screen?.width ?? 0, 0);
@@ -351,6 +351,12 @@ test('a tap on a picture opens it full screen, the desktop’s pattern around it
   expect(picture.y + picture.height).toBeLessThan(
     window.y + window.height - 100
   );
+  expect(
+    await shown.evaluate(
+      (canvas) =>
+        getComputedStyle(canvas.parentElement ?? canvas).backgroundImage
+    )
+  ).toContain('conic-gradient');
 
   // A tap on the pattern closes it, and so does Back.
   await page.touchscreen.tap(window.x + 20, picture.y + picture.height + 40);
