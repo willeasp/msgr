@@ -164,6 +164,9 @@ export const NotificationsDialog = dialog(() =>
 export const PaintDialog = dialog(() =>
   import('./chat/PaintDialog').then((m) => m.PaintDialog)
 );
+export const PictureWindow = dialog(() =>
+  import('./chat/PictureWindow').then((m) => m.PictureWindow)
+);
 export const ProfileDialog = dialog(() =>
   import('./ProfileDialog').then((m) => m.ProfileDialog)
 );

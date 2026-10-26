@@ -17,6 +17,8 @@ interface MacWindowProps {
   action?: React.ReactNode;
   /** Stretch to the height of the space it sits in. */
   fill?: boolean;
+  /** Opened over everything, through Sacred's modal stack, rather than placed on a page. */
+  modal?: boolean;
   children: React.ReactNode;
 }
 
@@ -32,13 +34,15 @@ export function MacWindow({
   info,
   action,
   fill = false,
+  modal = false,
   children,
 }: MacWindowProps) {
   const isPhone = usePhone();
 
   return (
     <Window
-      role="region"
+      role={modal ? 'dialog' : 'region'}
+      aria-modal={modal || undefined}
       aria-label={title}
       style={fill ? { height: '100%' } : undefined}
     >

@@ -90,6 +90,10 @@ _Avoid_: New (that's the history's button, New messages), badge count (in code)
 **Get Info**:
 A message's details, as Finder shows a file's: what it holds and how big, where and when it was sent, by whom, and its reads.
 
+**Full screen**:
+A message's picture or movie shown as large as the screen allows, in a window of its own, opened by a click or a tap on it; a click or a tap anywhere closes it.
+_Avoid_: Lightbox, zoom, preview
+
 **Typing**:
 The live notice that a participant is writing a message to a chat, told to its other participants. It lasts a few seconds unless it comes again, and their message ends it. Never stored.
 _Avoid_: Composing, presence
