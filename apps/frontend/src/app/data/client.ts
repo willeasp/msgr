@@ -139,7 +139,12 @@ export function createApolloClient(): ApolloClient {
   function catchUp() {
     mayHaveMissed(client.cache);
     const active = [...client.getObservableQueries('active')];
-    void client.refetchQueries({ include: 'active' });
+    // GIPHY's GIFs aren't events: a search keeps its pages for the visit,
+    // and asking again would spend GIPHY's hourly allowance.
+    for (const query of active) {
+      if (query.queryName !== 'Gifs')
+        void query.refetch().catch(() => undefined);
+    }
     // By name: what Apollo watches is its own copy of the document.
     if (!active.some((query) => query.queryName === 'GetChats')) {
       client

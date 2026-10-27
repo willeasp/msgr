@@ -1,6 +1,11 @@
 import type { Giphy, GiphyFile } from '../application/ports.js';
 import { unavailable } from '../domain/errors.js';
-import { GIF_PAGE, GiphyMedia, readGiphyPage } from '../domain/gif.js';
+import {
+  GIF_PAGE,
+  GifOffset,
+  GiphyMedia,
+  readGiphyPage,
+} from '../domain/gif.js';
 import { err, ok } from '../domain/result.js';
 
 /*
@@ -17,8 +22,10 @@ export interface GiphyOptions {
   readonly api?: string;
   /** How files and answers are fetched; tests pass their own. */
   readonly fetch?: typeof fetch;
+  /** How long GIPHY may take to answer a search, or to start sending a file. */
   readonly timeoutMs?: number;
-  readonly fileTimeoutMs?: number;
+  /** How long a file may stall while it's sent; however slowly it's read meanwhile. */
+  readonly idleMs?: number;
 }
 
 /** GIFs as rated for teenagers and up, as messaging apps commonly ask. */
@@ -33,13 +40,15 @@ const FILE_TYPES = new Set([
   'video/mp4',
 ]);
 const MAX_REDIRECTS = 2;
+/** GIPHY pages what's trending only so far, less far than a search. */
+const TRENDING_MAX_OFFSET = 499;
 
 export function createGiphy({
   apiKey,
   api = 'https://api.giphy.com/v1/gifs',
   fetch: get = fetch,
   timeoutMs = 5000,
-  fileTimeoutMs = 20_000,
+  idleMs = 10_000,
 }: GiphyOptions): Giphy {
   const down = err(unavailable('GIPHY', false));
   return {
@@ -76,7 +85,10 @@ export function createGiphy({
         return down;
       }
       try {
-        const page = readGiphyPage(await response.json());
+        const page = readGiphyPage(
+          await response.json(),
+          words ? GifOffset.MAX : TRENDING_MAX_OFFSET
+        );
         return page ? ok(page) : down;
       } catch {
         return down;
@@ -86,14 +98,21 @@ export function createGiphy({
     async file(url) {
       let at = url;
       for (let hops = 0; ; hops++) {
+        // A deadline for the answer to start; once it has, only for stalls.
+        const stop = new AbortController();
+        const deadline = setTimeout(() => stop.abort(), timeoutMs);
         let response: Response;
         try {
           response = await get(at, {
+            // As sent: a length passed on must be the bytes passed on.
+            headers: { 'accept-encoding': 'identity' },
             redirect: 'manual',
-            signal: AbortSignal.timeout(fileTimeoutMs),
+            signal: stop.signal,
           });
         } catch {
           return null;
+        } finally {
+          clearTimeout(deadline);
         }
         const location = response.headers.get('location');
         if (response.status >= 300 && response.status < 400 && location) {
@@ -107,7 +126,9 @@ export function createGiphy({
           .split(';')[0]
           ?.trim()
           .toLowerCase();
-        const length = Number(response.headers.get('content-length') ?? NaN);
+        const length = response.headers.has('content-encoding')
+          ? NaN
+          : Number(response.headers.get('content-length') ?? NaN);
         if (
           response.status !== 200 ||
           !response.body ||
@@ -121,7 +142,7 @@ export function createGiphy({
         return {
           type,
           length: Number.isInteger(length) ? length : null,
-          body: upTo(response.body, MAX_FILE_BYTES),
+          body: upTo(response.body, MAX_FILE_BYTES, idleMs),
         } satisfies GiphyFile;
       }
     },
@@ -136,22 +157,38 @@ const resolve = (location: string, base: string) => {
   }
 };
 
-/** The bytes as they come, failing past `max`; stopping early lets go of the rest. */
-async function* upTo(
+/**
+ * The bytes as they come, failing past `max`, or when GIPHY sends nothing for
+ * `idleMs` while more is wanted. Cancelling it lets go of GIPHY's answer.
+ */
+function upTo(
   body: ReadableStream<Uint8Array>,
-  max: number
-): AsyncGenerator<Uint8Array> {
+  max: number,
+  idleMs: number
+): ReadableStream<Uint8Array> {
   const reader = body.getReader();
   let size = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) return;
-      size += value.byteLength;
-      if (size > max) throw new Error('GIPHY sent more than it said');
-      yield value;
-    }
-  } finally {
-    await reader.cancel().catch(() => undefined);
-  }
+  const fail = (controller: ReadableStreamDefaultController, why: string) => {
+    void reader.cancel().catch(() => undefined);
+    controller.error(new Error(why));
+  };
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const stalled = new Promise<'stalled'>((resolve) => {
+        timer = setTimeout(() => resolve('stalled'), idleMs);
+      });
+      const read = await Promise.race([reader.read(), stalled]).catch(
+        () => 'failed' as const
+      );
+      clearTimeout(timer);
+      if (read === 'stalled') return fail(controller, 'GIPHY stalled');
+      if (read === 'failed') return fail(controller, 'GIPHY stopped');
+      if (read.done) return controller.close();
+      size += read.value.byteLength;
+      if (size > max) return fail(controller, 'GIPHY sent too much');
+      controller.enqueue(read.value);
+    },
+    cancel: (reason) => reader.cancel(reason),
+  });
 }

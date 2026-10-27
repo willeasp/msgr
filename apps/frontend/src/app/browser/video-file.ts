@@ -1,5 +1,5 @@
 import { fitWithin, MOVIE_FPS, type Frames } from '@msgr/media';
-import { makeMovie } from '../../lib/movie';
+import { makeMovie } from '../../lib/movie-making';
 import { firstPart, type Part } from '../../lib/trim';
 
 /** A movie's size for this video: shrunk to fit 320 on its long side. */
@@ -242,11 +242,18 @@ export async function movieFromAddress(
   try {
     video.src = made;
     const playable = await new Promise<boolean>((done) => {
+      const finish = (ok: boolean) => {
+        clearTimeout(timer);
+        signal.removeEventListener('abort', stop);
+        done(ok);
+      };
+      const stop = () => finish(false);
+      // One that never loads, or is stopped first, lets go all the same.
+      const timer = setTimeout(stop, 10_000);
+      signal.addEventListener('abort', stop);
       video.onloadedmetadata = () =>
-        done(Number.isFinite(video.duration) && video.videoWidth > 0);
-      video.onerror = () => done(false);
-      // One that never loads lets go all the same.
-      setTimeout(() => done(false), 10_000);
+        finish(Number.isFinite(video.duration) && video.videoWidth > 0);
+      video.onerror = stop;
     });
     if (signal.aborted) return null;
     if (!playable) throw new Unmade('This browser can’t play that GIF.');

@@ -60,6 +60,38 @@ const history = {
   },
 };
 
+/** A page of GIFs as the cache holds it: its GIFs by reference. */
+interface GifPage {
+  readonly gifs: readonly Reference[];
+  readonly next: string | null;
+}
+
+/**
+ * GIPHY's GIFs for a search, as they've been paged: a first page starts
+ * them, and the page after the last one held joins them, each GIF once. A
+ * page after any other (asked twice, or for a search since changed) changes
+ * nothing.
+ */
+const gifPages = {
+  keyArgs: ['search'],
+  merge(
+    existing: GifPage | undefined,
+    incoming: GifPage,
+    { args, readField }: FieldFunctionOptions
+  ): GifPage | undefined {
+    if (!args?.['after']) return incoming;
+    if (!existing || existing.next !== args['after']) return existing;
+    const held = new Set(existing.gifs.map((gif) => readField('id', gif)));
+    return {
+      ...incoming,
+      gifs: [
+        ...existing.gifs,
+        ...incoming.gifs.filter((gif) => !held.has(readField('id', gif))),
+      ],
+    };
+  },
+};
+
 /**
  * Says events may have been missed (the socket was down, the page away):
  * every history held is whole only up to its newest message now, until a
@@ -85,12 +117,13 @@ export function mayHaveMissed(cache: ApolloCache) {
  * the other person's name, so it is read from them rather than kept twice:
  * when they rename themselves, every title that shows them follows. A
  * message's picture, movie and sound are merged, however little of them a
- * query reads, and a chat's history is one list however it was paged.
+ * query reads, and a chat's history is one list however it was paged, as
+ * are a search's GIFs.
  */
 export const createCache = () =>
   new InMemoryCache({
     typePolicies: {
-      Query: { fields: { messages: history } },
+      Query: { fields: { messages: history, gifs: gifPages } },
       // The admin page has no id: the menu bar asks only whether it's there
       // (GetMe), the page reads its storage, and neither may wipe the other.
       Admin: { merge: true },

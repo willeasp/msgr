@@ -12,6 +12,7 @@ import {
   fakeGiphy,
   feedListening,
   graphql,
+  liveConnection,
   newcomer,
   signInAs,
   type GifSearch,
@@ -73,7 +74,7 @@ const page = (
   },
 });
 
-/** Trending, and Wave over two pages; nothing else. */
+/** Trending, Wave over two pages, and three Cats; nothing else. */
 const giphy = ({ search, after }: GifSearch) =>
   !search
     ? page('Trending', 0, 24, '24')
@@ -81,6 +82,8 @@ const giphy = ({ search, after }: GifSearch) =>
     ? after
       ? page('Wave', 24, 4, null)
       : page('Wave', 0, 24, '24')
+    : search === 'cat'
+    ? page('Cat', 0, 3, null)
     : page('None', 0, 0, null);
 
 /** Whether the canvas shows its ink at (x, y) of its own pixels. */
@@ -241,6 +244,73 @@ test('says when GIPHY can’t answer or finds nothing, and making a movie can be
   await expect(
     window.getByRole('button', { name: 'Draw on movie' })
   ).toHaveCount(0);
+});
+
+test('More joins only the search it was asked for, and a search keeps its pages through a reconnect without asking GIPHY again', async ({
+  page: viewer,
+  playwright,
+}) => {
+  let release = () => undefined as void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  const searches = await fakeGiphy(viewer, async (search) => {
+    if (search.after) await held;
+    return giphy(search);
+  });
+  const connection = await liveConnection(viewer);
+  const window = await chat(viewer, playwright);
+  await attach(window, 'GIF…');
+  const dialog = viewer.getByRole('dialog', { name: 'GIF for Frank Moss' });
+  const field = dialog.getByLabel('Search');
+
+  await field.fill('wave');
+  const waves = dialog.getByRole('group', { name: 'GIFs for wave' });
+  await expect(waves.getByRole('button', { name: /^Wave / })).toHaveCount(24);
+  await waves.getByRole('button', { name: 'More GIFs' }).click();
+  await expect(waves.getByText('Fetching…')).toBeVisible();
+
+  // Another search before the page comes: it shows only its own GIFs.
+  await field.fill('cat');
+  const cats = dialog.getByRole('group', { name: 'GIFs for cat' });
+  await expect(cats.getByRole('button', { name: /^Cat / })).toHaveCount(3);
+  const landed = viewer.waitForResponse(
+    (response) =>
+      (
+        response.request().postDataJSON() as {
+          variables?: GifSearch;
+        } | null
+      )?.variables?.after === '24'
+  );
+  release();
+  await landed;
+  await viewer.waitForTimeout(300);
+  await expect(cats.getByRole('button')).toHaveCount(3);
+  await expect(cats.getByRole('button', { name: 'More GIFs' })).toHaveCount(0);
+
+  // Back to wave, from what's kept: the page it asked for joined it.
+  await field.fill('wave');
+  await expect(waves.getByRole('button', { name: /^Wave / })).toHaveCount(28);
+  expect(searches).toEqual([
+    { search: null },
+    { search: 'wave' },
+    { search: 'wave', after: '24' },
+    { search: 'cat' },
+  ]);
+
+  // The connection drops and comes back: the chat catches up, the GIFs
+  // stay as they were, and GIPHY isn't asked again.
+  await connection.cut();
+  const caughtUp = viewer.waitForRequest(
+    (request) =>
+      request.url().endsWith('/graphql') &&
+      (request.postDataJSON() as { operationName?: string } | null)
+        ?.operationName === 'GetChatMessages',
+    { timeout: 20_000 }
+  );
+  connection.restore();
+  await caughtUp;
+  await viewer.waitForTimeout(500);
+  await expect(waves.getByRole('button', { name: /^Wave / })).toHaveCount(28);
+  expect(searches).toHaveLength(4);
 });
 
 test('GIF… isn’t offered while the server has no key for GIPHY', async ({

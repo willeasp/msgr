@@ -844,20 +844,42 @@ describe('GIPHY’s files', () => {
   });
 
   it('cuts short a file that fails on the way, rather than pass it as whole', async () => {
+    let sent = 0;
     vi.spyOn(giphy, 'file').mockResolvedValueOnce({
       type: 'video/mp4',
       length: null,
-      body: (async function* () {
-        yield new TextEncoder().encode('half a movie');
-        throw new Error('GIPHY stopped');
-      })(),
+      // Half a movie, then GIPHY stops.
+      body: new ReadableStream({
+        pull(controller) {
+          if (sent++ === 0) {
+            controller.enqueue(new TextEncoder().encode('half a movie'));
+          } else controller.error(new Error('GIPHY stopped'));
+        },
+      }),
     });
 
-    const response = await fetchAs(
+    // However far it got, the browser never takes it for the whole file.
+    const whole = await fetchAs(
       `/giphy/media?url=${encodeURIComponent(wave.movie)}`,
       cookie
+    )
+      .then((response) => response.text())
+      .then(
+        () => true,
+        () => false
+      );
+    expect(whole).toBe(false);
+  });
+
+  it('fetches nothing for a HEAD, which would send none of it', async () => {
+    const file = vi.spyOn(giphy, 'file');
+
+    const response = await fetch(
+      `${site}/giphy/media?url=${encodeURIComponent(wave.movie)}`,
+      { method: 'HEAD', headers: { cookie } }
     );
-    expect(response.status).toBe(200);
-    await expect(response.text()).rejects.toThrow();
+
+    expect(response.status).toBe(404);
+    expect(file).not.toHaveBeenCalled();
   });
 });

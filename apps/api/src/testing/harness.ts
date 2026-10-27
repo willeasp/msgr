@@ -65,9 +65,7 @@ export const fakeGiphy = (gifs: readonly Gif[] = []): Giphy => ({
             ? 'video/mp4'
             : 'image/gif',
           length: url.length,
-          body: (async function* () {
-            yield new TextEncoder().encode(url);
-          })(),
+          body: new Blob([url]).stream(),
         }
       : null,
 });

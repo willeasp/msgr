@@ -36,7 +36,8 @@ export function serveGiphy(
   const routes = Router({ strict: true, caseSensitive: true });
   routes.get(PATH, async (req, res) => {
     const { url } = req.query;
-    if (typeof url !== 'string') return missing(res);
+    // A HEAD would fetch a whole file to send none of it.
+    if (req.method !== 'GET' || typeof url !== 'string') return missing(res);
     const { viewer, services } = await createContext(deps, {
       token: sessionOf(req),
       cookie: noCookie,
@@ -55,9 +56,7 @@ export function serveGiphy(
     // A file cut short (GIPHY stopped, or sent more than it said) ends the
     // response early, which the app takes for a failure; one the browser
     // stops asking for stops being fetched.
-    await pipeline(Readable.from(file.body, { objectMode: false }), res).catch(
-      () => res.destroy()
-    );
+    await pipeline(Readable.fromWeb(file.body), res).catch(() => res.destroy());
   });
   app.use(routes);
   app.use('/giphy', (_req: Request, res: Response) => missing(res));

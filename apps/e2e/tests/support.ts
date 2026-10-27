@@ -190,7 +190,7 @@ export type GifSearch = { search?: string | null; after?: string | null };
  */
 export async function fakeGiphy(
   page: Page,
-  answer: (search: GifSearch) => unknown,
+  answer: (search: GifSearch) => unknown | Promise<unknown>,
   { hold }: { hold?: Promise<unknown> } = {}
 ): Promise<GifSearch[]> {
   const searches: GifSearch[] = [];
@@ -201,7 +201,8 @@ export async function fakeGiphy(
     } | null;
     if (body?.operationName !== 'Gifs') return route.fallback();
     searches.push(body.variables ?? {});
-    await route.fulfill({ json: answer(body.variables ?? {}) });
+    const json = await answer(body.variables ?? {});
+    await route.fulfill({ json }).catch(() => undefined);
   });
   const still = fixture('half.gif');
   const movie = fixture('square.webm');

@@ -141,8 +141,14 @@ function readGif(raw: unknown): Gif | null {
   return { id, title: title.slice(0, MAX_TITLE), still, movie };
 }
 
-/** GIPHY's answer to a search or for what's trending, or null if it isn't one. */
-export function readGiphyPage(json: unknown): GifPage | null {
+/**
+ * GIPHY's answer to a search or for what's trending, or null if it isn't
+ * one; no page is next past `maxOffset`, the furthest GIPHY pages that list.
+ */
+export function readGiphyPage(
+  json: unknown,
+  maxOffset: number = GifOffset.MAX
+): GifPage | null {
   const answer = record(json);
   const data = answer?.['data'];
   const pagination = record(answer?.['pagination']);
@@ -155,7 +161,7 @@ export function readGiphyPage(json: unknown): GifPage | null {
   return {
     gifs: data.map(readGif).filter((gif): gif is Gif => gif !== null),
     next:
-      given > 0 && (total === null || next < total) && next <= GifOffset.MAX
+      given > 0 && (total === null || next < total) && next <= maxOffset
         ? (next as GifOffset)
         : null,
   };

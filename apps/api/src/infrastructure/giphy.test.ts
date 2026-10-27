@@ -98,6 +98,29 @@ describe('searching GIPHY', () => {
     expect(asked[0]?.init?.signal).toBeInstanceOf(AbortSignal);
   });
 
+  it('pages what’s trending only as far as GIPHY does, less far than a search', async () => {
+    const at = (offset: number) => ({
+      ...page,
+      pagination: { total_count: 10_000, count: 24, offset },
+    });
+    const { fetch } = answering(
+      Response.json(at(456)),
+      Response.json(at(480)),
+      Response.json(at(480))
+    );
+    const giphy = createGiphy({ apiKey: KEY, fetch });
+
+    expect(await giphy.search(null, offset('456'))).toMatchObject({
+      value: { next: 480 },
+    });
+    expect(await giphy.search(null, offset('480'))).toMatchObject({
+      value: { next: null },
+    });
+    expect(await giphy.search(words('cat'), offset('480'))).toMatchObject({
+      value: { next: 504 },
+    });
+  });
+
   it('says GIPHY is busy when its hourly allowance is spent', async () => {
     const { fetch } = answering(new Response('slow down', { status: 429 }));
 
@@ -247,5 +270,60 @@ describe('fetching GIPHY’s files', () => {
 
     expect(file?.length).toBeNull();
     await expect(read(file?.body)).rejects.toThrow();
+  });
+
+  it('stops a file GIPHY stops sending, however slowly it was read before', async () => {
+    let sent = 0;
+    const stalling = new ReadableStream<Uint8Array>({
+      // Two chunks, then nothing more.
+      pull: (controller) =>
+        sent++ < 2 ? controller.enqueue(new Uint8Array(10)) : undefined,
+    });
+    const { fetch } = answering(
+      new Response(stalling, { headers: { 'content-type': 'video/mp4' } })
+    );
+    const file = await createGiphy({ apiKey: KEY, fetch, idleMs: 50 }).file(
+      movie
+    );
+    const reader = file?.body.getReader();
+
+    expect((await reader?.read())?.value).toHaveLength(10);
+    // A slow reader isn't a stall: only GIPHY's own silence is.
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    expect((await reader?.read())?.value).toHaveLength(10);
+    await expect(reader?.read()).rejects.toThrow('GIPHY stalled');
+  });
+
+  it('gives up on a file GIPHY doesn’t start sending in time', async () => {
+    const fetch = vi.fn(
+      (_: unknown, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) =>
+          init?.signal?.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError'))
+          )
+        )
+    ) as unknown as typeof globalThis.fetch;
+
+    expect(
+      await createGiphy({ apiKey: KEY, fetch, timeoutMs: 50 }).file(movie)
+    ).toBeNull();
+  });
+
+  it('asks for a file as it is, and passes on no length for one GIPHY compressed anyway', async () => {
+    const { fetch, asked } = answering(
+      new Response('gzipped?', {
+        headers: {
+          'content-type': 'image/gif',
+          'content-encoding': 'gzip',
+          'content-length': '3',
+        },
+      })
+    );
+    const file = await createGiphy({ apiKey: KEY, fetch }).file(movie);
+
+    expect(new Headers(asked[0]?.init?.headers).get('accept-encoding')).toBe(
+      'identity'
+    );
+    expect(file?.length).toBeNull();
   });
 });

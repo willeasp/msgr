@@ -250,11 +250,15 @@ export interface Giphy {
   file(url: GiphyMedia): Promise<GiphyFile | null>;
 }
 
-/** A still or a movie of a GIF, as GIPHY sends it: its type, its length if known, and its bytes as they come. */
+/**
+ * A still or a movie of a GIF, as GIPHY sends it: its type, its length if
+ * known, and its bytes as they come. Whoever takes it reads the body or
+ * cancels it, so GIPHY's answer is let go either way.
+ */
 export interface GiphyFile {
   readonly type: string;
   readonly length: number | null;
-  readonly body: AsyncIterable<Uint8Array>;
+  readonly body: ReadableStream<Uint8Array>;
 }
 
 /** A fresh, unguessable invite code. */

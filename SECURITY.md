@@ -54,7 +54,8 @@ profile changes, though anyone signed in can read a name and avatar.
 
 **Movies.** A video is cut, shrunk and dithered to 1 bit on the sender's device;
 only those frames are uploaded, never the video or its sound or metadata, and the
-page reads the file from disk as it plays, never whole into memory. The server
+page reads a picked file from disk as it plays, never whole into memory (a GIF's
+MP4, at most 8 MB, is fetched whole first). The server
 takes a movie's stated size (1 to 320 a side, 1 to 48 frames) only as a claim:
 it refuses a payload longer than any honest movie of that size before decoding
 it. Decoding reads exactly the frames the size says, whatever the bytes, so it
@@ -103,8 +104,10 @@ address; the API key (`GIPHY_API_KEY`) stays on the server and is never
 logged. Only someone signed in can search or fetch. The file address
 `/giphy/media?url=…` fetches only from GIPHY's own media hosts over https,
 every redirect checked the same way (`GiphyMedia.parse`), only stills (GIF,
-JPEG, PNG, WebP) and MP4s, at most 8 MB, streamed through and never kept, so it
-can't be used to reach anything else. The browser makes the movie from it, as
+JPEG, PNG, WebP) and MP4s, at most 8 MB, asked for uncompressed, streamed through
+and never kept, so it can't be used to reach anything else. GIPHY has 5 seconds
+to start answering and may then go quiet for at most 10; a slow reader is no
+reason to stop. The browser makes the movie from it, as
 from a video file; the server never decodes it. Without a key, GIFs are off.
 
 **Privacy between users.** Only a chat's participants can read it; to anyone

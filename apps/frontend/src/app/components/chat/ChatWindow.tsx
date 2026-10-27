@@ -30,6 +30,9 @@ import { usePhone } from '../../hooks/use-phone';
 import { INFO } from '../icons';
 import { PixelIcon } from '../PixelIcon';
 
+/** The photo decoder, loaded the first time a photo comes, not with the app. */
+const pictureDecoder = () => import('../../browser/picture-file');
+
 interface ChatWindowProps {
   chatId: string;
   currentUserId: string | undefined;
@@ -107,10 +110,7 @@ export function ChatWindow({
       });
       return;
     }
-    // Its decoder loads the first time a photo comes, not with the app.
-    const decoder = await import('../../browser/picture-file').catch(
-      () => null
-    );
+    const decoder = await pictureDecoder().catch(() => null);
     const bits = decoder && (await decoder.pictureFromFile(file));
     if (!decoder) {
       setAttachError('Pictures can’t be opened just now. Reload Msgr.');

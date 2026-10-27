@@ -3,7 +3,7 @@ import { useQuery } from '@apollo/client/react';
 import { blank, type Bits, type Frames } from '@msgr/media';
 import { gql } from '../../../lib/__generated__';
 import type { GifsQuery } from '../../../lib/__generated__/graphql';
-import { makingLabel, withNextPage } from '../../../lib/gifs';
+import { makingLabel } from '../../../lib/gifs';
 import { isBlankMovie } from '../../../lib/movie';
 import Button from '../../../sacred/components/Button';
 import Input from '../../../sacred/components/Input';
@@ -112,30 +112,29 @@ export function GifDialog({ title, onDone }: GifDialogProps) {
     return () => clearTimeout(timer);
   }, [typed, search]);
 
-  const { data, previousData, loading, error, fetchMore, refetch } = useQuery(
-    GIFS,
-    {
-      variables: { search: search || null },
-      // A search already made this visit isn't made again.
-      fetchPolicy: 'cache-first',
-    }
-  );
-  // While the next search is on its way, the last one's GIFs stay.
-  const page = data?.gifs ?? (loading ? previousData?.gifs : undefined);
-  const [more, setMore] = useState<'idle' | 'fetching' | 'failed'>('idle');
+  const { data, loading, error, fetchMore, refetch } = useQuery(GIFS, {
+    variables: { search: search || null },
+    // A search already made this visit isn't made again, nor its pages
+    // (lib/cache.ts keeps them, and catchUp leaves them be).
+    fetchPolicy: 'cache-first',
+  });
+  // This search's GIFs alone: while it's on its way, it's said so.
+  const page = data?.gifs;
+  // More, asked for this search: the next page joins only the search it was
+  // asked for, however the field changes meanwhile (lib/cache.ts).
+  const [more, setMore] = useState<{
+    readonly search: string;
+    readonly failed: boolean;
+  } | null>(null);
+  const moreNow = more?.search === search ? more : null;
   const showMore = (after: string) => {
-    setMore('fetching');
-    fetchMore({
-      variables: { after },
-      updateQuery: (held, { fetchMoreResult }) => ({
-        gifs:
-          held.gifs && fetchMoreResult.gifs
-            ? withNextPage(held.gifs, fetchMoreResult.gifs)
-            : held.gifs,
-      }),
-    }).then(
-      () => setMore('idle'),
-      () => setMore('failed')
+    const asked = search;
+    const settled = (next: typeof more) =>
+      setMore((now) => (now?.search === asked ? next : now));
+    setMore({ search: asked, failed: false });
+    fetchMore({ variables: { after } }).then(
+      () => settled(null),
+      () => settled({ search: asked, failed: true })
     );
   };
 
@@ -147,6 +146,9 @@ export function GifDialog({ title, onDone }: GifDialogProps) {
   const make = (gif: Gif) => {
     const v = video.current;
     if (!v || making) return;
+    // Played inside the tap, iOS lets it play later, once its GIF is in,
+    // even in Low Power Mode; with nothing to play yet, this alone fails.
+    void v.play().catch(() => undefined);
     setProblem(null);
     const controller = new AbortController();
     abort.current = controller;
@@ -221,12 +223,12 @@ export function GifDialog({ title, onDone }: GifDialogProps) {
             <div className={styles.more}>
               <Button
                 theme="SECONDARY"
-                isDisabled={more === 'fetching' || !!making}
+                isDisabled={(!!moreNow && !moreNow.failed) || !!making}
                 onClick={() => page.next && showMore(page.next)}
               >
-                {more === 'fetching' ? 'Fetching…' : 'More GIFs'}
+                {moreNow && !moreNow.failed ? 'Fetching…' : 'More GIFs'}
               </Button>
-              {more === 'failed' && <Muted>Those couldn’t be fetched.</Muted>}
+              {moreNow?.failed && <Muted>Those couldn’t be fetched.</Muted>}
             </div>
           )}
           {!page &&
@@ -242,7 +244,13 @@ export function GifDialog({ title, onDone }: GifDialogProps) {
             ) : data?.gifs === null ? (
               <Muted>GIFs are off on this server.</Muted>
             ) : null)}
-          {page?.gifs.length === 0 && <Muted>No GIFs for “{search}”.</Muted>}
+          {page?.gifs.length === 0 && (
+            <Muted>
+              {search
+                ? `No GIFs for “${search}”.`
+                : 'Nothing’s trending on GIPHY just now.'}
+            </Muted>
+          )}
         </div>
         {/* What's being made, read from the GIF under a dithered cover:
             browsers read the frames of a video they show. */}

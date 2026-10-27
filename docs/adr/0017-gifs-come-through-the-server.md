@@ -24,9 +24,11 @@ let the page reach GIPHY's hosts. The page talks to this server alone
   `SERVICE_UNAVAILABLE`.
 - **And fetches GIPHY's files** at `/giphy/media?url=…`, for whoever is signed
   in: only from GIPHY's own media hosts, over https, redirects included
-  (`GiphyMedia.parse`), only stills and MP4s, up to 8 MB, streamed through as
-  they come and kept by the browser a day for that session. Nothing else is
-  fetched, and nothing is kept on the server.
+  (`GiphyMedia.parse`), only stills and MP4s, up to 8 MB, asked for
+  uncompressed and streamed through as they come (GIPHY has 5 s to start and
+  may go quiet for 10, however slowly the browser reads), and kept by the
+  browser a day for that session. Only GET: a HEAD would fetch a file to send
+  none of it. Nothing else is fetched, and nothing is kept on the server.
 - **A GIF becomes a movie on the device**, exactly as a video file does
   (`movieFrom`): the MP4 GIPHY makes of it, 200 pixels on its short side, is
   fetched whole, played from the device, read at 8 frames a second from its
@@ -37,13 +39,18 @@ let the page reach GIPHY's hosts. The page talks to this server alone
   result's still, its middle square, in black and white, 64 pixels at 2× (84
   at 1× on a phone).
 - **Searches are few**: one after typing pauses half a second, each kept for
-  the visit, More only when asked.
+  the visit with its pages (`cache-first`, and catching up after a reconnect
+  leaves it be), More only when asked, joining only the search it was asked
+  for. What's trending pages to 499, a search to 4,999, as far as GIPHY does.
 
 ## Consequences
 
 - GIPHY never learns who searched, nor the key; the CSP is unchanged.
 - The free instance carries every still and MP4 (tens of kB a still, a few
   hundred a movie). It never decodes them.
+- Nothing limits one person's searches but the dialog's manners: someone
+  scripting the API could spend the key's hour for everyone. Among invited
+  friends that's left to them.
 - A GIF longer than six seconds is cut at six, and one that loops faster than
   8 frames a second steps more coarsely, as any movie does.
 - GIPHY's own movie is what's dithered, so a GIF GIPHY can't make an MP4 of
