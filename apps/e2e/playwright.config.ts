@@ -77,6 +77,8 @@ export default defineConfig({
       // The seed's Erin, whom no other spec signs in as.
       ADMIN_EMAILS: 'erin@example.com',
       STORAGE_LIMIT_MB: '512',
+      // So GIFs are on; GIPHY is never reached (support.ts's fakeGiphy).
+      GIPHY_API_KEY: 'e2eNotARealKey',
     },
   },
 });

@@ -97,6 +97,16 @@ server. Pictures must be JPEG, PNG, WebP, GIF or AVIF of at most 4 megapixels,
 checked from the header before `sharp` decodes them, and reach browsers only as
 a 64×64 dithered bitmap.
 
+**GIFs.** Our server, not the browser, searches GIPHY and fetches the GIFs it
+finds, so GIPHY sees neither who searched nor what for, only our server's
+address; the API key (`GIPHY_API_KEY`) stays on the server and is never
+logged. Only someone signed in can search or fetch. The file address
+`/giphy/media?url=…` fetches only from GIPHY's own media hosts over https,
+every redirect checked the same way (`GiphyMedia.parse`), only stills (GIF,
+JPEG, PNG, WebP) and MP4s, at most 8 MB, streamed through and never kept, so it
+can't be used to reach anything else. The browser makes the movie from it, as
+from a video file; the server never decodes it. Without a key, GIFs are off.
+
 **Privacy between users.** Only a chat's participants can read it; to anyone
 else it answers exactly as if it didn't exist. The channel directory shows
 names and participant counts, never messages or members. Who has read a
@@ -135,6 +145,8 @@ time: logging out removes it, and signing in moves it to whoever signed in.
 - **Linked sites see our server.** A page in a link is fetched by the server
   when someone first sees it, which tells that site the link was shared
   (from Render's address, with no cookies or personal data).
+- **GIPHY sees our server's searches.** It can tell what's searched for, and
+  when, from Render's address, though not by whom.
 - **Read receipts can't be turned off.** Having a chat open on a visible page
   marks it read, and everyone in the chat can see when, a channel's members
   included. Typing is told to them as it happens, though never stored.

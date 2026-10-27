@@ -150,4 +150,21 @@ describe('parseConfig', () => {
       error: ['STORAGE_LIMIT_MB must be a positive number of megabytes'],
     });
   });
+
+  it("turns GIFs on with GIPHY's key, and off without one", () => {
+    expect(parseConfig({})).toMatchObject({ value: { giphyKey: null } });
+    expect(parseConfig({ GIPHY_API_KEY: '  ' })).toMatchObject({
+      value: { giphyKey: null },
+    });
+    expect(parseConfig({ GIPHY_API_KEY: ' AbC123xyz ' })).toMatchObject({
+      value: { giphyKey: 'AbC123xyz' },
+    });
+    // Never pasted into an address with anything after it.
+    expect(parseConfig({ GIPHY_API_KEY: 'abc&rating=r' })).toEqual({
+      ok: false,
+      error: [
+        'GIPHY_API_KEY must be the key GIPHY’s dashboard shows: letters and digits',
+      ],
+    });
+  });
 });

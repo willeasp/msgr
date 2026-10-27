@@ -8,6 +8,7 @@ import { createPubSubProfileEvents } from './infrastructure/profile-events.js';
 import { createPubSubTypingEvents } from './infrastructure/typing-events.js';
 import { cachedLinkPreviewer } from './infrastructure/cached-link-previewer.js';
 import { randomInviteCodes } from './infrastructure/invite-codes.js';
+import { createGiphy } from './infrastructure/giphy.js';
 import { createLinkPreviewer } from './infrastructure/link-previewer.js';
 import { createBcryptPasswordHasher } from './infrastructure/password-hasher.js';
 import {
@@ -39,6 +40,11 @@ if (!push) {
   console.warn(
     'Push notifications are off: set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY to turn them on.'
   );
+}
+
+const giphyKey = config.value.giphyKey;
+if (!giphyKey) {
+  console.warn('GIFs are off: set GIPHY_API_KEY to turn them on.');
 }
 
 /** Milliseconds since the process started, to see where a wake's time goes. */
@@ -89,6 +95,7 @@ const server = await startServer(
       clock,
     }),
     linkPreviewer: cachedLinkPreviewer(createLinkPreviewer(), clock),
+    giphy: giphyKey ? createGiphy({ apiKey: giphyKey }) : null,
     pictures: zlibPictureCodec,
     pushSender: push ? createWebPushSender(push) : noPushSender,
     pushKey: push?.publicKey ?? null,

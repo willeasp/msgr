@@ -17,7 +17,7 @@ const CURRENT = PREFIX + VERSION;
 /** Which shell is active and which was before it: `{ current, previous }`. */
 const ACTIVE = ['msgr-active', '/msgr-active.json'];
 /** Answered by the server alone, never from the shell: media included. */
-const SERVER = ['/graphql', '/healthz', '/media/', '/avatars/'];
+const SERVER = ['/graphql', '/healthz', '/media/', '/avatars/', '/giphy/'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

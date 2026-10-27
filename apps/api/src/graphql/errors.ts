@@ -23,6 +23,13 @@ export function toGraphQLError(error: DomainError): GraphQLError {
         'Too many attempts. Wait a few minutes and try again.',
         { extensions: { code: 'TOO_MANY_REQUESTS' } }
       );
+    case 'Unavailable':
+      return new GraphQLError(
+        error.busy
+          ? `${error.service} has had all the searches it allows this hour. Try again later.`
+          : `${error.service} can’t be reached just now. Try again in a while.`,
+        { extensions: { code: 'SERVICE_UNAVAILABLE' } }
+      );
   }
 }
 

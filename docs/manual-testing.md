@@ -164,8 +164,8 @@ keyboard, notifications, layout) is checked here.
       own bubbles and in the theme's ink in Dark and the tints. A message of one
       to three emoji shows them big. Copying a message gives the real emoji.
 - [ ] **Attach:** the button beside Send opens a menu of Picture…, Movie…,
-      Sound… and Draw…, above it, by mouse, touch or keyboard (arrows, Return,
-      Esc).
+      Sound…, GIF… (only with `GIPHY_API_KEY` set) and Draw…, above it, by
+      mouse, touch or keyboard (arrows, Return, Esc).
 - [ ] **Drawing:** Attach → Draw… opens "Drawing for _chat_". Try each tool: the pencil
       (starting on black, it draws white), the brush and the paint bucket in a
       few patterns, and the eraser. Undo (⌘Z or Ctrl+Z) steps back through
@@ -187,6 +187,17 @@ keyboard, notifications, layout) is checked here.
       other window like a GIF with nothing to press, at its own shape, 2× (1×
       on a phone), repaints in a new theme, and the chat list says "Movie".
       On an iPhone, try one from the camera roll in Safari.
+- [ ] **GIFs** (with a GIPHY key in `apps/api/.env`): Attach → GIF… shows
+      what's trending, each still dithered square, four a row (three on a
+      phone, at 1×, with no keyboard until Search is tapped). Type "cat": it
+      searches once you pause, not for every letter. More GIFs adds the next 24. Pick one: the cover says Fetching, Reading and Dithering frame by
+      frame, Stop or Esc stops it with the GIFs still there, and otherwise it
+      closes and the movie sits above the message box, looping, to draw on or
+      send like any movie (its first 6 s, at most). Without a key, or with a
+      wrong one, nothing is offered or "GIPHY can't be reached" shows with Try
+      Again. In the browser's network tools, nothing goes to giphy.com: only
+      `/graphql` and `/giphy/media?url=…`. On an iPhone, pick one in Safari, in
+      Low Power Mode too.
 - [ ] **Sounds:** Attach → Sound… then Record: the browser asks for the microphone
       once; speak for a few seconds and Stop (it stops by itself at a
       minute). Choose File… a song (MP3, M4A, and a WAV), and drop one on the

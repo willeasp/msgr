@@ -1,0 +1,150 @@
+.search {
+  margin-top: calc(var(--line) * 0.5);
+}
+
+/* The GIFs, and what's being made laid over them. */
+.results {
+  position: relative;
+  margin-top: calc(var(--line) * 0.5);
+}
+
+/* Little MacPaint documents in rows of four, at 2× (rows of as many as fit,
+   at 1×, on a phone), scrolling within the dialog. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, calc(var(--side) * 2px));
+  grid-auto-rows: max-content;
+  gap: 8px;
+  align-content: start;
+  justify-content: center;
+  height: min(50dvh, calc(var(--side) * 2px * 3 + 16px + 4px));
+  min-height: calc(var(--line) * 4);
+  /* Room for the focus ring. */
+  padding: 2px;
+  overflow-y: auto;
+  --side: 64;
+
+  @media (max-width: 760px) {
+    grid-template-columns: repeat(auto-fill, calc(var(--side) * 1px));
+    width: auto;
+    height: min(45dvh, calc(var(--side) * 1px * 3 + 16px + 4px));
+    --side: 84;
+  }
+
+  /* What's said instead of GIFs, and More, across the whole row. */
+  & > :not(.gif) {
+    grid-column: 1 / -1;
+  }
+}
+
+.gif {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 1px dotted var(--ink);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+
+  /* Inverted while pressed: inversion is the only highlight. */
+  &:active:not(:disabled) .still {
+    filter: invert(1);
+  }
+}
+
+.still {
+  display: block;
+  width: calc(var(--width) * 2px);
+  height: auto;
+  aspect-ratio: 1;
+  color: var(--picture-ink);
+  background: var(--picture-paper);
+  box-shadow: 0 0 0 1px var(--ink);
+  image-rendering: pixelated;
+
+  @media (max-width: 760px) {
+    width: calc(var(--width) * 1px);
+  }
+}
+
+.more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2ch;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.status {
+  display: grid;
+  gap: calc(var(--line) * 0.5);
+  justify-items: start;
+
+  & p {
+    margin: 0;
+  }
+}
+
+.idle {
+  display: none;
+}
+
+/* Over the GIFs while one is made into a movie: the GIF plays underneath,
+   for its frames to be read, and only the pattern shows. */
+.making {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.video {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.busy {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  background: var(--dither);
+  font-family: var(--font-family-chrome);
+
+  & span {
+    padding: 0 1ch;
+    background: var(--paper);
+    box-shadow: 0 0 0 1px var(--ink);
+  }
+}
+
+.problem {
+  margin-top: calc(var(--line) * 0.5);
+  padding: 0 1ch;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* GIPHY's mark where its GIFs are found, and the buttons. */
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 2ch;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.giphy {
+  margin-top: var(--line);
+  font-family: var(--font-family-chrome);
+}

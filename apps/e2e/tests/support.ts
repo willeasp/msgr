@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { deflateRawSync } from 'node:zlib';
 import { byteLength, toBase64 } from '@msgr/media';
 import {
@@ -157,4 +159,63 @@ export function halfInkPicture() {
   const bytes = new Uint8Array(row * height);
   for (let y = 0; y < height; y++) bytes.fill(0xff, y * row, y * row + row / 2);
   return { width, height, bits: toBase64(deflateRawSync(bytes)) };
+}
+
+const fixture = (name: string) =>
+  readFileSync(fileURLToPath(new URL(`../fixtures/${name}`, import.meta.url)));
+
+/** One of GIPHY's files at the server's address for it, as the server gives them. */
+const giphyAddress = (path: string) =>
+  `/giphy/media?url=${encodeURIComponent(
+    `https://media.giphy.com/media/${path}`
+  )}`;
+
+/** A GIF as the server finds it on GIPHY: its still is half ink, its movie a square sliding across. */
+export const fakeGif = (id: string, title: string) => ({
+  __typename: 'Gif',
+  id,
+  title,
+  still: giphyAddress(`${id}/100_s.gif`),
+  movie: giphyAddress(`${id}/200.mp4`),
+});
+
+export type GifSearch = { search?: string | null; after?: string | null };
+
+/**
+ * GIPHY, as the server would pass it on: the app's searches answered by
+ * `answer` (data or errors, as GraphQL sends them), and each GIF's files
+ * served, its still a GIF 200×100 with a black left half, its movie
+ * `square.webm`, at once unless `hold` says to wait. The searches made are
+ * returned, in order. The e2e never reaches GIPHY, whose key here is fake.
+ */
+export async function fakeGiphy(
+  page: Page,
+  answer: (search: GifSearch) => unknown,
+  { hold }: { hold?: Promise<unknown> } = {}
+): Promise<GifSearch[]> {
+  const searches: GifSearch[] = [];
+  await page.route('**/graphql', async (route) => {
+    const body = route.request().postDataJSON() as {
+      operationName?: string;
+      variables?: GifSearch;
+    } | null;
+    if (body?.operationName !== 'Gifs') return route.fallback();
+    searches.push(body.variables ?? {});
+    await route.fulfill({ json: answer(body.variables ?? {}) });
+  });
+  const still = fixture('half.gif');
+  const movie = fixture('square.webm');
+  await page.route(/\/giphy\/media\?url=/, async (route) => {
+    const isMovie = decodeURIComponent(route.request().url()).includes('.mp4');
+    if (isMovie) await hold;
+    // One stopped while it was held is no longer asked for.
+    await route
+      .fulfill(
+        isMovie
+          ? { body: movie, contentType: 'video/webm' }
+          : { body: still, contentType: 'image/gif' }
+      )
+      .catch(() => undefined);
+  });
+  return searches;
 }

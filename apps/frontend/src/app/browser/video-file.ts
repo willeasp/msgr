@@ -1,5 +1,6 @@
-import { fitWithin, MOVIE_FPS } from '@msgr/media';
-import type { Part } from '../../lib/trim';
+import { fitWithin, MOVIE_FPS, type Frames } from '@msgr/media';
+import { makeMovie } from '../../lib/movie';
+import { firstPart, type Part } from '../../lib/trim';
 
 /** A movie's size for this video: shrunk to fit 320 on its long side. */
 export const movieSize = (video: HTMLVideoElement) =>
@@ -175,5 +176,87 @@ export async function thumbnailStrip(
   } finally {
     thumbs.removeAttribute('src');
     thumbs.load();
+  }
+}
+
+/** How far making a movie has got. */
+export interface Making {
+  readonly stage: 'Fetching' | 'Reading' | 'Dithering';
+  readonly done: number;
+  readonly of: number;
+}
+
+/**
+ * Reads the part of the video and dithers it into a movie, a frame at a
+ * time; null if stopped first.
+ */
+export async function movieFrom(
+  video: HTMLVideoElement,
+  part: Part,
+  signal: AbortSignal,
+  progress: (making: Making) => void
+): Promise<Frames | null> {
+  const size = movieSize(video);
+  // iOS draws nothing from a video that has never played; a play() inside
+  // the click fixes that.
+  await video.play().catch(() => undefined);
+  video.pause();
+  progress({ stage: 'Reading', done: 0, of: 0 });
+  const grey = await captureGrey(video, part, size, {
+    signal,
+    onFrame: (done, of) => progress({ stage: 'Reading', done, of }),
+  });
+  const count = grey.length / (size.width * size.height);
+  const steps = makeMovie(grey, size.width, size.height, count);
+  for (;;) {
+    if (signal.aborted) return null;
+    const step = steps.next();
+    if (step.done) return step.value;
+    progress({ stage: 'Dithering', done: step.value, of: count });
+    // Lets the page paint between frames.
+    await new Promise((resolve) => setTimeout(resolve));
+  }
+}
+
+/** Why a movie couldn't be made of a video at an address: it couldn't be fetched, or played. */
+export class Unmade extends Error {}
+
+/**
+ * A movie of the video at `url` (one of this server's), from its start for
+ * as long as a movie may be, read in `video`, which must be on the page:
+ * browsers read the frames of a video they show. The video is fetched
+ * whole first, so it plays from the device. Null if stopped first.
+ */
+export async function movieFromAddress(
+  video: HTMLVideoElement,
+  url: string,
+  signal: AbortSignal,
+  progress: (making: Making) => void
+): Promise<Frames | null> {
+  progress({ stage: 'Fetching', done: 0, of: 0 });
+  const response = await fetch(url, { signal }).catch(() => null);
+  const blob = response?.ok ? await response.blob().catch(() => null) : null;
+  if (signal.aborted) return null;
+  if (!blob) throw new Unmade('That GIF couldn’t be fetched. Try again.');
+  const made = URL.createObjectURL(blob);
+  try {
+    video.src = made;
+    const playable = await new Promise<boolean>((done) => {
+      video.onloadedmetadata = () =>
+        done(Number.isFinite(video.duration) && video.videoWidth > 0);
+      video.onerror = () => done(false);
+      // One that never loads lets go all the same.
+      setTimeout(() => done(false), 10_000);
+    });
+    if (signal.aborted) return null;
+    if (!playable) throw new Unmade('This browser can’t play that GIF.');
+    return await movieFrom(video, firstPart(video.duration), signal, progress);
+  } finally {
+    video.onloadedmetadata = null;
+    video.onerror = null;
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    URL.revokeObjectURL(made);
   }
 }

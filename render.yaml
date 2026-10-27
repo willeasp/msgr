@@ -25,3 +25,6 @@ services:
       # The database plan's storage allowance, for the admin page's "left".
       - key: STORAGE_LIMIT_MB
         sync: false
+      # GIPHY's API key, for Attach → GIF…; without it GIFs are off.
+      - key: GIPHY_API_KEY
+        sync: false

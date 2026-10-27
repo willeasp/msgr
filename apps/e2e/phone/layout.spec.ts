@@ -9,6 +9,8 @@ import {
   anotherPerson,
   chatsWindow,
   chatWindow,
+  fakeGif,
+  fakeGiphy,
   feedListening,
   graphql,
   halfInkPicture,
@@ -432,4 +434,53 @@ test('a run’s messages keep the room its time takes beside the first, so the r
   const myTime = await box(log.locator('time').last());
   expect(Math.abs(myNext.x - myFirst.x)).toBeLessThanOrEqual(1);
   expect(myFirst.x).toBeGreaterThan(myTime.x + myTime.width);
+});
+
+test('GIF… shows GIPHY’s stills in rows of three at a phone’s size, and a tap makes one a movie', async ({
+  page,
+}) => {
+  await fakeGiphy(page, () => ({
+    data: {
+      gifs: {
+        __typename: 'GifPage',
+        gifs: Array.from({ length: 24 }, (_, i) =>
+          fakeGif(`p${i}`, `Phone ${i}`)
+        ),
+        next: null,
+      },
+    },
+  }));
+  const { chat } = await openChannel(page);
+
+  await chat.getByRole('button', { name: 'Attach', exact: true }).tap();
+  await page.getByRole('menuitem', { name: 'GIF…' }).tap();
+  const dialog = page.getByRole('dialog', { name: /^GIF for #/ });
+  const stills = dialog.getByRole('group', { name: 'Trending GIFs' });
+  // The keyboard waits for a tap on Search: what's trending shows first.
+  await expect(dialog.getByLabel('Search')).not.toBeFocused();
+  await expect(stills.getByRole('button')).toHaveCount(24);
+
+  // Inside the screen, three a row, each at 1×: 84 of its pixels, 84 wide.
+  const screen = page.viewportSize()?.width ?? 0;
+  const dialogBox = await box(dialog);
+  expect(dialogBox.x).toBeGreaterThanOrEqual(0);
+  expect(dialogBox.x + dialogBox.width).toBeLessThanOrEqual(screen);
+  const tops = await stills
+    .getByRole('button')
+    .evaluateAll((buttons) =>
+      buttons.slice(0, 4).map((b) => b.getBoundingClientRect().top)
+    );
+  expect(new Set(tops.slice(0, 3)).size).toBe(1);
+  expect(tops[3]).toBeGreaterThan(tops[0] ?? 0);
+  const still = stills
+    .getByRole('button', { name: 'Phone 0', exact: true })
+    .locator('canvas');
+  expect(await still.evaluate((c: HTMLCanvasElement) => c.width)).toBe(84);
+  expect((await box(still)).width).toBe(84);
+
+  await stills.getByRole('button', { name: 'Phone 1', exact: true }).tap();
+  await expect(dialog).toHaveCount(0);
+  await expect(
+    chat.getByRole('button', { name: 'Draw on movie' })
+  ).toBeVisible();
 });

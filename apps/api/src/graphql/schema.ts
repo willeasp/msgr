@@ -133,6 +133,26 @@ export const typeDefs = /* GraphQL */ `
     thumbnail: String
   }
 
+  """
+  A GIF on GIPHY, to make a movie of on the device and send like any other. Its still and its movie are at this server's addresses: it fetches them from GIPHY, which never sees who asked.
+  """
+  type Gif {
+    id: ID!
+    "What GIPHY calls it; may be empty."
+    title: String!
+    "A still of it to choose it by, about 100 pixels on its short side (GIF, JPEG, PNG or WebP)."
+    still: String!
+    "It as an MP4, 200 pixels on its short side."
+    movie: String!
+  }
+
+  "A page of GIFs from GIPHY."
+  type GifPage {
+    gifs: [Gif!]!
+    "Pass as after for the next page; null on the last."
+    next: String
+  }
+
   "A black-and-white picture, 1 to 320 pixels a side."
   type Picture {
     width: Int!
@@ -293,6 +313,12 @@ export const typeDefs = /* GraphQL */ `
     inviteRedeemable(code: String!): Boolean!
     "The key browsers subscribe to Web Push with (VAPID, base64url); null while push is off. Needs no sign-in."
     pushKey: String
+    "Whether GIFs can be searched: the server has a key for GIPHY. Needs no sign-in."
+    gifsOn: Boolean!
+    """
+    GIFs on GIPHY for the words (at most 50 characters), or what's trending without any, a page at a time from after. Null while GIFs are off. Fails with SERVICE_UNAVAILABLE while GIPHY can't answer, its hourly allowance spent or down.
+    """
+    gifs(search: String, after: String): GifPage
     "The admin page, if the viewer is one of the server's admins (ADMIN_EMAILS); null for everyone else, signed in or not."
     admin: Admin
   }

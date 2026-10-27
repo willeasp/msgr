@@ -14,18 +14,18 @@ import { MessageInput } from './MessageInput';
 import { MessageList } from './MessageList';
 import {
   ChatInfoDialog,
+  GifDialog,
   PaintDialog,
   SoundDialog,
   TrimDialog,
 } from '../dialogs';
 import type { Attachment } from '../../../lib/attachment';
 import { firstMedia, isSoundFile, isVideo } from '../../../lib/files';
-import { pictureFromFile } from '../../browser/picture-file';
 import { ChatStatus } from './ChatStatus';
 import type { Typists } from '../../hooks/use-typing';
 import styles from './ChatWindow.module.css';
 import { PixelText } from '../PixelText';
-import { useChatOnScreen } from '../../hooks/use-signed-in';
+import { useChatOnScreen, useSignedIn } from '../../hooks/use-signed-in';
 import { usePhone } from '../../hooks/use-phone';
 import { INFO } from '../icons';
 import { PixelIcon } from '../PixelIcon';
@@ -59,6 +59,7 @@ export function ChatWindow({
   // While this window is up, its chat's messages neither beep nor notify.
   useChatOnScreen(chatId);
   const { open } = useModals();
+  const { gifsOn } = useSignedIn();
   const isPhone = usePhone();
   // The picture, movie or sound going with the next message: drawn,
   // recorded, or made from a file.
@@ -82,6 +83,12 @@ export function ChatWindow({
       file,
       onDone: (codes) => attach({ kind: 'sound', codes }),
     });
+  // From GIPHY, made a movie of on this device.
+  const findGif = () =>
+    open(GifDialog, {
+      title: `GIF for ${title}`,
+      onDone: (movie) => attach({ kind: 'movie', movie, drawing: null }),
+    });
   const attachFile = async (file: File) => {
     if (isSoundFile(file)) {
       makeSound(file);
@@ -100,8 +107,14 @@ export function ChatWindow({
       });
       return;
     }
-    const bits = await pictureFromFile(file);
-    if (!bits) {
+    // Its decoder loads the first time a photo comes, not with the app.
+    const decoder = await import('../../browser/picture-file').catch(
+      () => null
+    );
+    const bits = decoder && (await decoder.pictureFromFile(file));
+    if (!decoder) {
+      setAttachError('Pictures can’t be opened just now. Reload Msgr.');
+    } else if (!bits) {
       setAttachError('That file isn’t a picture this browser can open.');
     } else if (isBlank(bits)) {
       setAttachError('That picture comes out blank: nothing in it is dark.');
@@ -221,6 +234,7 @@ export function ChatWindow({
           onDraw={() => draw()}
           onEdit={edit}
           onSound={() => makeSound()}
+          onGif={gifsOn ? findGif : undefined}
           onAttachFile={(file) => void attachFile(file)}
           onDetach={detach}
           onSend={() => setSends((count) => count + 1)}

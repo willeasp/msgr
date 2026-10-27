@@ -13,12 +13,14 @@ import {
   toBase64,
 } from '@msgr/media';
 import type { MessageEvents } from '../application/ports.js';
+import { GiphyMedia } from '../domain/gif.js';
 import type { User } from '../domain/user.js';
 import { pictureVersion } from '../domain/picture.js';
 import { createPubSubMessageEvents } from '../infrastructure/message-events.js';
 import { examplePicture, pictureInput } from '../testing/pictures.js';
 import {
   createTestApp,
+  fakeGiphy,
   fakeHash,
   TEST_JWT_SECRET,
 } from '../testing/harness.js';
@@ -61,6 +63,7 @@ const testConfig = {
   push: null,
   admins: [],
   storageLimit: null,
+  giphyKey: null,
 };
 
 describe('server', () => {
@@ -692,6 +695,7 @@ describe("a defect's own words", () => {
       push: null,
       admins: [],
       storageLimit: null,
+      giphyKey: null,
     });
     try {
       const token = await app.deps.tokens.issue(ada.id);
@@ -756,6 +760,7 @@ describe("a defect's own words", () => {
       push: null,
       admins: [],
       storageLimit: null,
+      giphyKey: null,
     });
     try {
       const response = await fetch(
@@ -770,5 +775,89 @@ describe("a defect's own words", () => {
       logged.mockRestore();
       await server.stop();
     }
+  });
+});
+
+describe('GIPHY’s files', () => {
+  const at = (path: string) =>
+    GiphyMedia.parse(`https://media.giphy.com/media/${path}`) as GiphyMedia;
+  const wave = {
+    id: 'wave1',
+    title: 'Wave',
+    still: at('wave1/100_s.gif'),
+    movie: at('wave1/200.mp4?cid=c&ct=g'),
+  };
+  const giphy = fakeGiphy([wave]);
+  const app = createTestApp({ giphy });
+  let server: Server;
+  let site: string;
+  let cookie: string;
+
+  beforeAll(async () => {
+    const ada = await app.fixtures.user({ name: 'Ada' });
+    cookie = `token=${await app.deps.tokens.issue(ada.id)}`;
+    server = await startServer(app.deps, {
+      ...testConfig,
+      staticDir: builtApp(),
+    });
+    site = server.url.replace(/\/graphql$/, '');
+  });
+
+  afterAll(() => server.stop());
+
+  const fetchAs = (path: string, as?: string) =>
+    fetch(`${site}${path}`, { headers: as ? { cookie: as } : {} });
+
+  it('streams one to whoever is signed in, kept a day for their session alone', async () => {
+    const movie = await fetchAs(
+      `/giphy/media?url=${encodeURIComponent(wave.movie)}`,
+      cookie
+    );
+
+    expect(movie.status).toBe(200);
+    expect(movie.headers.get('content-type')).toBe('video/mp4');
+    expect(movie.headers.get('cache-control')).toBe('private, max-age=86400');
+    expect(movie.headers.get('vary')).toMatch(/cookie/i);
+    // Served as this server's own: the page's rules hold for it too.
+    expect(movie.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(await movie.text()).toBe(wave.movie);
+  });
+
+  it('serves nothing else: no session, another address, nothing GIPHY has', async () => {
+    for (const [path, as] of [
+      [`/giphy/media?url=${encodeURIComponent(wave.movie)}`, undefined],
+      [
+        `/giphy/media?url=${encodeURIComponent('https://evil.com/x.gif')}`,
+        cookie,
+      ],
+      [`/giphy/media?url=${encodeURIComponent(at('other/200.mp4'))}`, cookie],
+      ['/giphy/media', cookie],
+      [`/giphy/media?url=a&url=b`, cookie],
+      [`/giphy/media/?url=${encodeURIComponent(wave.movie)}`, cookie],
+      [`/GIPHY/media?url=${encodeURIComponent(wave.movie)}`, cookie],
+      ['/giphy/anything', cookie],
+    ] as const) {
+      const response = await fetchAs(path, as);
+      expect(response.status, path).toBe(404);
+      expect(response.headers.get('cache-control')).toBe('no-store');
+    }
+  });
+
+  it('cuts short a file that fails on the way, rather than pass it as whole', async () => {
+    vi.spyOn(giphy, 'file').mockResolvedValueOnce({
+      type: 'video/mp4',
+      length: null,
+      body: (async function* () {
+        yield new TextEncoder().encode('half a movie');
+        throw new Error('GIPHY stopped');
+      })(),
+    });
+
+    const response = await fetchAs(
+      `/giphy/media?url=${encodeURIComponent(wave.movie)}`,
+      cookie
+    );
+    expect(response.status).toBe(200);
+    await expect(response.text()).rejects.toThrow();
   });
 });
