@@ -30,6 +30,13 @@ export const MessageId = Object.assign(
   }
 );
 
+/**
+ * That a sender's chosen id is a stored message's they can't have, or
+ * another sender's upload's: they must choose another.
+ */
+export const idTaken = (): InvalidInput =>
+  invalidInput('id', 'That message id is taken');
+
 interface Sent {
   readonly id: MessageId;
   readonly chatId: ChatId;
@@ -38,7 +45,7 @@ interface Sent {
 }
 
 /** A picture, a movie or a sound, as P, M or S: one of them, never two. */
-type Attached<P, M, S> =
+export type Attached<P, M, S> =
   | { readonly picture: P; readonly movie: null; readonly sound: null }
   | { readonly picture: null; readonly movie: M; readonly sound: null }
   | { readonly picture: null; readonly movie: null; readonly sound: S };
@@ -116,7 +123,7 @@ export type MediaPart = 'picture' | 'movie' | 'sound';
 
 /** Which part of the message has bytes of its own; null for text alone. */
 export const mediaPartOf = (
-  message: Body<object, object, object>
+  message: Body<object, object, object> | Attached<object, object, object>
 ): MediaPart | null =>
   message.picture
     ? 'picture'

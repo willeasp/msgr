@@ -1,4 +1,5 @@
 import {
+  raw,
   Router,
   type ErrorRequestHandler,
   type Express,
@@ -17,6 +18,7 @@ import {
 } from '../domain/picture.js';
 import type { Result } from '../domain/result.js';
 import type { SoundLength } from '../domain/sound.js';
+import { MAX_UPLOAD_BYTES, type RawUpload } from '../domain/upload.js';
 import type { User, UserId } from '../domain/user.js';
 import { createContext, noCookie } from './context.js';
 
@@ -107,11 +109,15 @@ export async function mediaBytes(
  * never changes, and an avatar's address changes with it, so whoever may see
  * them keeps them a year, but only for the session that fetched them. Anything
  * else is a 404, whether missing, not theirs, or asked for without a session.
+ *
+ * And takes a message's picture, movie or sound, put to its address before
+ * the message is sent (ADR 0018), from this site alone (`isOurs`).
  */
 export function serveMedia(
   app: Express,
   deps: Dependencies,
-  sessionOf: (req: Request) => string | undefined
+  sessionOf: (req: Request) => string | undefined,
+  isOurs: (origin: string | undefined) => boolean
 ): void {
   const viewing = (req: Request) =>
     createContext(deps, {
@@ -130,6 +136,29 @@ export function serveMedia(
     send(res, await services.messages.media(viewer, messageId, part));
   });
 
+  routes.put('/media/:messageId/:part', async (req, res) => {
+    const { messageId, part } = req.params;
+    if (!isId(messageId) || !isMediaPart(part)) return missing(res);
+    if (!isOurs(req.headers.origin)) return empty(res, 403);
+    // Asked before reading a byte: the session, then the length.
+    const { viewer, services } = await viewing(req);
+    if (!viewer) return empty(res, 401);
+    const put = await services.messages.upload(
+      viewer,
+      messageId,
+      rawUpload(part, req.query),
+      await bytesOf(req, res)
+    );
+    if (!put.ok) {
+      return void res
+        .set('Cache-Control', 'no-store')
+        .status(422)
+        .type('text/plain')
+        .send(put.error.reason);
+    }
+    empty(res, 204);
+  });
+
   routes.get('/avatars/:userId/:version', async (req, res) => {
     const { userId, version } = req.params;
     if (!isId(userId) || !/^[0-9a-z]{1,16}$/.test(version)) {
@@ -146,9 +175,60 @@ export function serveMedia(
   );
   // A defect's own words never reach a client: see graphql/errors.ts.
   app.use(['/media', '/avatars'], ((error, _req, res, _next) => {
+    // A body too long, or cut short, is the client's: said, not logged.
+    const status = statusOf(error);
+    if (status) return empty(res, status);
     console.error(error);
     res.set('Cache-Control', 'no-store').status(500).end();
   }) satisfies ErrorRequestHandler);
+}
+
+/**
+ * The bytes as they'll be kept, never more than the largest upload: a
+ * longer body is refused (413) before it's read.
+ */
+const readUpload = raw({ type: () => true, limit: MAX_UPLOAD_BYTES });
+const bytesOf = (req: Request, res: Response) =>
+  new Promise<Uint8Array>((done, fail) =>
+    readUpload(req, res, (error?: unknown) =>
+      error
+        ? fail(error)
+        : done(req.body instanceof Uint8Array ? req.body : new Uint8Array())
+    )
+  );
+
+/** An upload's size, from its address's query, for the domain to check. */
+function rawUpload(part: MediaPart, query: Request['query']): RawUpload {
+  const number = (name: string) => {
+    const value = query[name];
+    return typeof value === 'string' && /^\d{1,5}$/.test(value)
+      ? Number(value)
+      : NaN;
+  };
+  switch (part) {
+    case 'picture':
+      return { part, width: number('width'), height: number('height') };
+    case 'movie':
+      return {
+        part,
+        width: number('width'),
+        height: number('height'),
+        frames: number('frames'),
+      };
+    case 'sound':
+      return { part, frames: number('frames') };
+  }
+}
+
+/** The 4xx status of a body the client got wrong (body-parser's errors say), if it is one. */
+function statusOf(error: unknown): number | null {
+  const status =
+    typeof error === 'object' && error !== null && 'status' in error
+      ? error.status
+      : null;
+  return typeof status === 'number' && status >= 400 && status < 500
+    ? status
+    : null;
 }
 
 /** What an id looks like here; anything else can't name a thing. */
@@ -178,5 +258,10 @@ function send(res: Response, bytes: Result<Uint8Array, NotFound>): void {
 }
 
 function missing(res: Response): void {
-  res.set('Cache-Control', 'no-store').status(404).end();
+  empty(res, 404);
+}
+
+/** An answer with nothing in it, kept by nobody. */
+function empty(res: Response, status: number): void {
+  res.set('Cache-Control', 'no-store').status(status).end();
 }

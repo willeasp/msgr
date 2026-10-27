@@ -7,6 +7,13 @@ import { exampleMovie, movieInput } from '../testing/movies.js';
 import { examplePicture, pictureInput } from '../testing/pictures.js';
 import { exampleSound, soundInput } from '../testing/sounds.js';
 import {
+  movieUpload,
+  pictureUpload,
+  soundUpload,
+  type Put,
+} from '../testing/uploads.js';
+import { UPLOAD_KEPT_MS } from '../domain/upload.js';
+import {
   createTestApp,
   expectOk,
   fakeBrowser,
@@ -432,6 +439,292 @@ describe('sending a sound', () => {
         error: { type: 'InvalidInput', field: 'sound' },
       });
     }
+  });
+});
+
+describe('sending what was put ahead of it', () => {
+  const CHOSEN = '3f0e1c2a-9b4d-4c8e-a1f2-0123456789ab';
+  const put = (
+    services: Awaited<ReturnType<typeof team>>['services'],
+    sender: User,
+    { raw, bytes }: Put,
+    id = CHOSEN
+  ) => services().messages.upload(sender, id, raw, bytes);
+
+  it('stores a picture, movie or sound put under its id, alone or with text, and delivers it live', async () => {
+    const { services, ada, grace, chat } = await team();
+    const toGrace = services().messages.feed(grace);
+    const ids = [
+      '3f0e1c2a-9b4d-4c8e-a1f2-000000000001',
+      '3f0e1c2a-9b4d-4c8e-a1f2-000000000002',
+      '3f0e1c2a-9b4d-4c8e-a1f2-000000000003',
+    ] as const;
+    const [pictureId, movieId, soundId] = ids;
+
+    expect(await put(services, ada, pictureUpload(), pictureId)).toEqual(
+      ok(true)
+    );
+    expectOk(await put(services, ada, movieUpload(), movieId));
+    expectOk(await put(services, ada, soundUpload(), soundId));
+    const delivered = nextEvent(toGrace);
+    const picture = expectOk(
+      await services().messages.send(ada, {
+        id: pictureId,
+        chatId: chat.id,
+        uploaded: 'picture',
+      })
+    );
+    const movie = expectOk(
+      await services().messages.send(ada, {
+        id: movieId,
+        chatId: chat.id,
+        content: ' look ',
+        uploaded: 'movie',
+      })
+    );
+    const sound = expectOk(
+      await services().messages.send(ada, {
+        id: soundId,
+        chatId: chat.id,
+        uploaded: 'sound',
+      })
+    );
+
+    expect(picture).toEqual({
+      id: pictureId,
+      chatId: chat.id,
+      senderId: ada.id,
+      content: null,
+      picture: {
+        width: examplePicture().width,
+        height: examplePicture().height,
+      },
+      movie: null,
+      sound: null,
+      createdAt: expect.any(Date),
+    });
+    expect(movie).toMatchObject({ content: 'look', movie: { frames: 3 } });
+    expect(sound).toMatchObject({ content: null, sound: { frames: 26 } });
+    // The bytes the server keeps, as if they'd come inside the message.
+    expect(
+      await services().messages.media(grace, pictureId, 'picture')
+    ).toEqual(ok(examplePicture().deflated));
+    expect(await services().messages.media(grace, movieId, 'movie')).toEqual(
+      ok(exampleMovie().coded)
+    );
+    expect(await services().messages.media(grace, soundId, 'sound')).toEqual(
+      ok(exampleSound().coded)
+    );
+    expect(await delivered).toEqual(picture);
+  });
+
+  it('checks what was put as any message’s, before keeping it', async () => {
+    const { services, ada, chat } = await team();
+    const blank = pictureUpload(8, 1, 5);
+    const noise = { ...movieUpload(), bytes: new Uint8Array([1, 2, 3]) };
+    const silence = soundUpload(0.5, 0);
+    const huge = { ...pictureUpload(), bytes: new Uint8Array(200_000) };
+
+    for (const [upload, id, field] of [
+      [blank, CHOSEN, 'picture'],
+      [noise, CHOSEN, 'movie'],
+      [silence, CHOSEN, 'sound'],
+      [huge, CHOSEN, 'picture'],
+      [
+        { ...pictureUpload(), raw: { part: 'picture', width: NaN, height: 7 } },
+        CHOSEN,
+        'picture',
+      ],
+      [pictureUpload(), 'not-a-uuid', 'id'],
+      [pictureUpload(), 'cmh0aaaaa0000aaaaaaaaaaaa', 'id'],
+    ] as const) {
+      expect(await put(services, ada, upload, id)).toMatchObject({
+        ok: false,
+        error: { type: 'InvalidInput', field },
+      });
+    }
+    expect(
+      await services().messages.send(ada, {
+        id: CHOSEN,
+        chatId: chat.id,
+        uploaded: 'picture',
+      })
+    ).toMatchObject({ ok: false, error: { field: 'uploaded' } });
+  });
+
+  it('takes the last put under an id, so putting it again is always safe', async () => {
+    const { services, ada, chat } = await team();
+    expectOk(await put(services, ada, pictureUpload()));
+    expectOk(await put(services, ada, soundUpload()));
+
+    expect(
+      await services().messages.send(ada, {
+        id: CHOSEN,
+        chatId: chat.id,
+        uploaded: 'picture',
+      })
+    ).toMatchObject({ ok: false, error: { field: 'uploaded' } });
+    expect(
+      expectOk(
+        await services().messages.send(ada, {
+          id: CHOSEN,
+          chatId: chat.id,
+          uploaded: 'sound',
+        })
+      )
+    ).toMatchObject({ sound: { frames: 26 } });
+  });
+
+  it('answers a send again, its upload put again, with the message stored and delivered once', async () => {
+    const { services, ada, grace, chat } = await team();
+    const toGrace = services().messages.feed(grace);
+    const delivered = nextEvent(toGrace);
+    const send = () =>
+      services().messages.send(ada, {
+        id: CHOSEN,
+        chatId: chat.id,
+        uploaded: 'picture',
+      });
+    expectOk(await put(services, ada, pictureUpload()));
+    const first = expectOk(await send());
+
+    // Its answer lost: Try Again puts it again, then sends it again.
+    expect(await put(services, ada, pictureUpload())).toEqual(ok(true));
+    expect(expectOk(await send())).toEqual(first);
+    // Nothing of it is left to send twice.
+    expect(
+      await services().messages.send(ada, {
+        id: CHOSEN,
+        chatId: chat.id,
+        content: 'again',
+      })
+    ).toEqual(ok(first));
+    expect(
+      expectOk(await services().messages.list(grace, { chatId: chat.id }))
+    ).toEqual([first]);
+    expect(await delivered).toEqual(first);
+    expect(await nextEvent(toGrace)).toBe('nothing');
+  });
+
+  it("refuses an id that's someone else's upload or message, or their own message with another part", async () => {
+    const { services, ada, grace, chat } = await team();
+    const OTHER = '3f0e1c2a-9b4d-4c8e-a1f2-0000000000ff';
+    const taken = {
+      ok: false,
+      error: {
+        type: 'InvalidInput',
+        field: 'id',
+        reason: 'That message id is taken',
+      },
+    };
+    expectOk(await put(services, grace, pictureUpload()));
+    expectOk(await put(services, grace, pictureUpload(), OTHER));
+    expectOk(
+      await services().messages.send(grace, {
+        id: OTHER,
+        chatId: chat.id,
+        uploaded: 'picture',
+      })
+    );
+
+    // Grace's upload.
+    expect(await put(services, ada, pictureUpload())).toMatchObject(taken);
+    expect(
+      await services().messages.send(ada, {
+        id: CHOSEN,
+        chatId: chat.id,
+        uploaded: 'picture',
+      })
+    ).toMatchObject(taken);
+    // Grace's message.
+    expect(await put(services, ada, pictureUpload(), OTHER)).toMatchObject(
+      taken
+    );
+    // Her own, with a sound rather than its picture.
+    expect(await put(services, grace, soundUpload(), OTHER)).toMatchObject(
+      taken
+    );
+    // And Grace's upload is still hers to send.
+    expectOk(
+      await services().messages.send(grace, {
+        id: CHOSEN,
+        chatId: chat.id,
+        uploaded: 'picture',
+      })
+    );
+  });
+
+  it('refuses a send naming an upload without its id, beside another, or in someone else’s chat', async () => {
+    const { services, ada, linus, chat } = await team();
+    expectOk(await put(services, ada, pictureUpload()));
+    expectOk(
+      await put(
+        services,
+        linus,
+        movieUpload(),
+        '3f0e1c2a-9b4d-4c8e-a1f2-0000000000aa'
+      )
+    );
+
+    for (const [sender, input, error] of [
+      [ada, { uploaded: 'picture' }, { field: 'id' }],
+      [
+        ada,
+        { id: CHOSEN, uploaded: 'picture', picture: pictureInput() },
+        { field: 'uploaded' },
+      ],
+      [
+        linus,
+        { id: '3f0e1c2a-9b4d-4c8e-a1f2-0000000000aa', uploaded: 'movie' },
+        { type: 'NotFound', entity: 'Chat' },
+      ],
+    ] as const) {
+      expect(
+        await services().messages.send(sender, { chatId: chat.id, ...input })
+      ).toMatchObject({ ok: false, error });
+    }
+    // Ada's upload is still there to send.
+    expectOk(
+      await services().messages.send(ada, {
+        id: CHOSEN,
+        chatId: chat.id,
+        uploaded: 'picture',
+      })
+    );
+  });
+
+  it('forgets an upload an hour after it was put, when anyone puts another', async () => {
+    let now = new Date('2030-01-01T00:00:00.000Z').getTime();
+    const app = createTestApp({ clock: () => new Date(now) });
+    const ada = await app.fixtures.user({ name: 'Ada' });
+    const grace = await app.fixtures.user({ name: 'Grace' });
+    const chat = await app.fixtures.groupChat('Team', [ada, grace]);
+    const send = (id: string) =>
+      app.services().messages.send(ada, {
+        id,
+        chatId: chat.id,
+        uploaded: 'picture',
+      });
+    const KEPT = '3f0e1c2a-9b4d-4c8e-a1f2-0000000000bb';
+    expectOk(await put(app.services, ada, pictureUpload()));
+    now += UPLOAD_KEPT_MS / 2;
+    expectOk(await put(app.services, ada, pictureUpload(), KEPT));
+
+    now += UPLOAD_KEPT_MS / 2 + 1;
+    expectOk(
+      await put(
+        app.services,
+        grace,
+        soundUpload(),
+        '3f0e1c2a-9b4d-4c8e-a1f2-0000000000cc'
+      )
+    );
+
+    expect(await send(CHOSEN)).toMatchObject({
+      ok: false,
+      error: { field: 'uploaded', reason: 'Upload it before sending it' },
+    });
+    expectOk(await send(KEPT));
   });
 });
 

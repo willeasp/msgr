@@ -5,6 +5,7 @@ import {
   isSilent,
   isValidFrameCount,
   LONGEST_SOUND,
+  MAX_SOUND_FRAMES,
   maxSoundCodedLength,
 } from '@msgr/media';
 import type { Brand } from './brand.js';
@@ -39,28 +40,49 @@ export interface RawSound {
 
 const fail = (reason: string) => err(invalidInput('sound', reason));
 
+/** A sound as it goes up on its own (ADR 0018): its codes from `encodeSound`. */
+export interface SoundBytes {
+  readonly frames: number;
+  readonly coded: Uint8Array;
+}
+
+const lengthFail = () =>
+  fail(`Sound must be up to ${LONGEST_SOUND} seconds long`);
+
 export const Sound = {
+  /** The most the longest sound's bytes may be: more is never one. */
+  MAX_BYTES: maxSoundCodedLength(MAX_SOUND_FRAMES),
+
   parse(raw: RawSound): Result<Sound, InvalidInput> {
     const { frames } = raw;
-    if (!isValidFrameCount(frames)) {
-      return fail(`Sound must be up to ${LONGEST_SOUND} seconds long`);
-    }
-    // Refuse more than any honest sound before decoding a byte. Decoding
-    // does a fixed amount of work for the length, whatever the bytes say.
+    if (!isValidFrameCount(frames)) return lengthFail();
+    // Refuse more than any honest sound before decoding a byte.
     const max = maxSoundCodedLength(frames);
     if (raw.bits.length > 4 * Math.ceil(max / 3)) {
       return fail('Sound is too large for its length');
     }
     const coded = fromBase64(raw.bits);
     if (!coded) return fail('Sound must be base64');
+    return Sound.parseBytes({ frames, coded });
+  },
+
+  parseBytes(raw: SoundBytes): Result<Sound, InvalidInput> {
+    const { frames, coded } = raw;
+    if (!isValidFrameCount(frames)) return lengthFail();
+    // Refuse more than any honest sound before decoding a byte. Decoding
+    // does a fixed amount of work for the length, whatever the bytes say.
+    if (coded.length > maxSoundCodedLength(frames)) {
+      return fail('Sound is too large for its length');
+    }
     const codes = decodeSound(coded, frames);
     // As for movies: any bytes decode to some sound, so only exactly what
     // encodeSound makes of the codes is taken.
-    if (!sameBytes(encodeSound(codes), coded)) {
+    const kept = encodeSound(codes);
+    if (!sameBytes(kept, coded)) {
       return fail('Sound is not coded as encodeSound codes it');
     }
     if (isSilent(codes)) return fail('Sound must not be silent');
-    return ok({ frames, coded } as Sound);
+    return ok({ frames, coded: kept } as Sound);
   },
 };
 

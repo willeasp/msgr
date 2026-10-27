@@ -72,21 +72,48 @@ export interface RawPicture {
 
 const fail = (reason: string) => err(invalidInput('picture', reason));
 
+/** A picture as it goes up on its own (ADR 0018): its bits raw-DEFLATEd. */
+export interface PictureBytes {
+  readonly width: number;
+  readonly height: number;
+  readonly deflated: Uint8Array;
+}
+
+/** Noise barely compresses, but never to twice its size. */
+const maxDeflated = (size: number) => 2 * size + 64;
+
 export const Picture = {
+  /** The largest picture's bytes may be, raw-DEFLATEd: more is never one. */
+  MAX_BYTES: maxDeflated(byteLength(MAX_SIDE, MAX_SIDE)),
+
   parse(raw: RawPicture, codec: PictureCodec): Result<Picture, InvalidInput> {
     const { width, height } = raw;
     if (!isValidSize(width, height)) {
       return fail(`Picture must be 1 to ${MAX_SIDE} pixels a side`);
     }
-    const size = byteLength(width, height);
-    // Noise barely compresses, but never to twice its size: refuse more
-    // before decoding a byte of it.
-    if (raw.bits.length > 4 * Math.ceil((2 * size + 64) / 3)) {
+    // Refuse more before decoding a byte of it.
+    const max = maxDeflated(byteLength(width, height));
+    if (raw.bits.length > 4 * Math.ceil(max / 3)) {
       return fail('Picture is too large for its size');
     }
     const deflated = fromBase64(raw.bits);
     if (!deflated) return fail('Picture must be base64');
-    const bytes = codec.inflate(deflated, size);
+    return Picture.parseBytes({ width, height, deflated }, codec);
+  },
+
+  parseBytes(
+    raw: PictureBytes,
+    codec: PictureCodec
+  ): Result<Picture, InvalidInput> {
+    const { width, height } = raw;
+    if (!isValidSize(width, height)) {
+      return fail(`Picture must be 1 to ${MAX_SIDE} pixels a side`);
+    }
+    const size = byteLength(width, height);
+    if (raw.deflated.length > maxDeflated(size)) {
+      return fail('Picture is too large for its size');
+    }
+    const bytes = codec.inflate(raw.deflated, size);
     if (bytes?.length !== size) return fail('Picture does not match its size');
     const bits = { width, height, bytes };
     // Ink past the right edge would never show, nor count against "blank".

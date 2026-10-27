@@ -20,6 +20,7 @@ model User {
   invitesSent       Invite[]           @relation("InvitesSent")
   invite            Invite?            @relation("InviteUsed")
   pushSubscriptions PushSubscription[]
+  uploads           Upload[]
   readMarks         ReadMark[]
   readPoints        ReadPoint[]
   createdAt         DateTime           @default(now())
@@ -75,6 +76,30 @@ model Message {
   @@index([chatId, createdAt, id])
   /// Someone's newest message in a chat, which reads all before it, at once.
   @@index([senderId, chatId, createdAt, id])
+}
+
+/// A message's picture, movie or sound, put by its sender ahead of the
+/// message (ADR 0018), under the id the message will have: exactly one is
+/// set, with its size, as on a message (enforced by a CHECK constraint). The
+/// message takes it as it's stored; one whose message never comes is
+/// forgotten an hour after it was put.
+model Upload {
+  /// The id its message will have, chosen by its sender.
+  id            String   @id
+  uploaderId    String
+  uploader      User     @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  picture       Bytes?
+  pictureWidth  Int?     @db.SmallInt
+  pictureHeight Int?     @db.SmallInt
+  movie         Bytes?
+  movieWidth    Int?     @db.SmallInt
+  movieHeight   Int?     @db.SmallInt
+  movieFrames   Int?     @db.SmallInt
+  sound         Bytes?
+  soundFrames   Int?     @db.SmallInt
+  createdAt     DateTime
+
+  @@index([createdAt])
 }
 
 /// How far someone had read a chat, and when: they read it up to and

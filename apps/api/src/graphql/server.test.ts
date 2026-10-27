@@ -16,8 +16,10 @@ import type { MessageEvents } from '../application/ports.js';
 import { GiphyMedia } from '../domain/gif.js';
 import type { User } from '../domain/user.js';
 import { pictureVersion } from '../domain/picture.js';
+import { MAX_UPLOAD_BYTES } from '../domain/upload.js';
 import { createPubSubMessageEvents } from '../infrastructure/message-events.js';
 import { examplePicture, pictureInput } from '../testing/pictures.js';
+import { movieUpload } from '../testing/uploads.js';
 import {
   createTestApp,
   fakeGiphy,
@@ -38,6 +40,27 @@ const socketWith = (headers: Record<string, string>) =>
   };
 
 const SCRIPT = 'console.log("msgr")';
+
+let largest: Uint8Array | undefined;
+/** The largest movie a message can carry, noise in every frame, coded. */
+const largestMovie = () => (largest ??= codeLargestMovie());
+function codeLargestMovie() {
+  const size = byteLength(MAX_SIDE, MAX_SIDE) * MAX_FRAMES;
+  // xorshift32: noise the coder can't foretell, so it codes to its full size.
+  let seed = 2463534242;
+  const bytes = Uint8Array.from({ length: size }, () => {
+    seed ^= seed << 13;
+    seed ^= seed >>> 17;
+    seed ^= seed << 5;
+    return seed & 0xff;
+  });
+  return encodeMovie({
+    width: MAX_SIDE,
+    height: MAX_SIDE,
+    count: MAX_FRAMES,
+    bytes,
+  });
+}
 
 /** A built frontend: an index page, a file, and a hashed asset compressed ahead of time. */
 function builtApp() {
@@ -129,29 +152,13 @@ describe('server', () => {
     expect(logout.headers.get('clear-site-data')).toBe('"cache"');
   });
 
-  it('takes the largest movie a message can carry, noise in every frame', async () => {
+  it('takes the largest movie a message can carry, noise in every frame, as a shell one version behind sends it', async () => {
     const notes = await app.fixtures.groupChat('Notes', [ada]);
-    const size = byteLength(MAX_SIDE, MAX_SIDE) * MAX_FRAMES;
-    // xorshift32: noise the coder can't foretell, so it codes to its full size.
-    let seed = 2463534242;
-    const bytes = Uint8Array.from({ length: size }, () => {
-      seed ^= seed << 13;
-      seed ^= seed >>> 17;
-      seed ^= seed << 5;
-      return seed & 0xff;
-    });
     const movie = {
       width: MAX_SIDE,
       height: MAX_SIDE,
       frames: MAX_FRAMES,
-      bits: toBase64(
-        encodeMovie({
-          width: MAX_SIDE,
-          height: MAX_SIDE,
-          count: MAX_FRAMES,
-          bytes,
-        })
-      ),
+      bits: toBase64(largestMovie()),
     };
     const response = await fetch(server.url, {
       method: 'POST',
@@ -168,6 +175,159 @@ describe('server', () => {
 
     expect(await response.json()).toEqual({
       data: { sendMessage: { movie: { frames: MAX_FRAMES } } },
+    });
+  });
+
+  describe("a message's picture, movie or sound, put to its address before it's sent", () => {
+    const ID = '3f0e1c2a-9b4d-4c8e-a1f2-0123456789ab';
+    const site = () => server.url.replace(/\/graphql$/, '');
+    const cookieOf = async (user: User) =>
+      `token=${await app.deps.tokens.issue(user.id)}`;
+    const put = (
+      path: string,
+      body: Uint8Array,
+      headers: Record<string, string> = {}
+    ) =>
+      fetch(`${site()}${path}`, {
+        method: 'PUT',
+        headers: {
+          'content-type': 'application/octet-stream',
+          origin: APP_ORIGIN,
+          ...headers,
+        },
+        body,
+      });
+    const sendUploaded = async (cookie: string, chatId: string, id: string) =>
+      (
+        await fetch(server.url, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', cookie },
+          body: JSON.stringify({
+            query:
+              'mutation ($input: SendMessageInput!) { sendMessage(input: $input) { id movie { frames url } } }',
+            variables: { input: { id, chatId, uploaded: 'MOVIE' } },
+          }),
+        })
+      ).json();
+
+    it('takes the largest movie raw, then the message that names it, and serves it at that address', async () => {
+      const notes = await app.fixtures.groupChat('Notes', [ada]);
+      const cookie = await cookieOf(ada);
+      const coded = largestMovie();
+      const path = `/media/${ID}/movie?width=${MAX_SIDE}&height=${MAX_SIDE}&frames=${MAX_FRAMES}`;
+
+      const response = await put(path, coded, { cookie });
+      expect(response.status).toBe(204);
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      // Not there to fetch until its message is stored.
+      expect(
+        (await fetch(`${site()}/media/${ID}/movie`, { headers: { cookie } }))
+          .status
+      ).toBe(404);
+
+      expect(await sendUploaded(cookie, notes.id, ID)).toEqual({
+        data: {
+          sendMessage: {
+            id: ID,
+            movie: { frames: MAX_FRAMES, url: `/media/${ID}/movie` },
+          },
+        },
+      });
+      const served = await fetch(`${site()}/media/${ID}/movie`, {
+        headers: { cookie },
+      });
+      // Compared whole, not element by element: it's 0.7 MB.
+      expect(Buffer.from(await served.arrayBuffer()).equals(coded)).toBe(true);
+      // Put again, as Try Again would after a lost answer: nothing changes.
+      expect((await put(path, coded, { cookie })).status).toBe(204);
+      expect(await sendUploaded(cookie, notes.id, ID)).toMatchObject({
+        data: { sendMessage: { id: ID } },
+      });
+    });
+
+    it('says why it refuses what it was given, and refuses before reading what it can’t take', async () => {
+      const cookie = await cookieOf(ada);
+      const other = '3f0e1c2a-9b4d-4c8e-a1f2-0000000000aa';
+      const picture = (query: string) => `/media/${other}/picture${query}`;
+      const ink = new Uint8Array(
+        await new Response(
+          new Blob([new Uint8Array([0x80])])
+            .stream()
+            .pipeThrough(new CompressionStream('deflate-raw'))
+        ).arrayBuffer()
+      );
+
+      const blank = await put(
+        picture('?width=8&height=1'),
+        new Uint8Array([3, 0]),
+        {
+          cookie,
+        }
+      );
+      expect(blank.status).toBe(422);
+      expect(blank.headers.get('cache-control')).toBe('no-store');
+      expect(await blank.text()).toBe('Picture does not match its size');
+      for (const [query, reason] of [
+        ['', 'Picture must be 1 to 320 pixels a side'],
+        ['?width=8&height=x', 'Picture must be 1 to 320 pixels a side'],
+        ['?width=1e3&height=1', 'Picture must be 1 to 320 pixels a side'],
+      ] as const) {
+        const response = await put(picture(query), ink, { cookie });
+        expect([response.status, await response.text()]).toEqual([422, reason]);
+      }
+      expect(
+        await (
+          await put(`/media/not-a-uuid/picture?width=8&height=1`, ink, {
+            cookie,
+          })
+        ).text()
+      ).toBe('A message id is a version 4 UUID');
+
+      for (const [path, headers, status] of [
+        // No session.
+        [picture('?width=8&height=1'), {}, 401],
+        // Another site.
+        [
+          picture('?width=8&height=1'),
+          { cookie, origin: 'https://evil.example' },
+          403,
+        ],
+        // No part a message has, or no id one can have.
+        [`/media/${other}/anything?width=8&height=1`, { cookie }, 404],
+        ['/media/a%00b/picture?width=8&height=1', { cookie }, 404],
+      ] as const) {
+        expect((await put(path, ink, headers)).status).toBe(status);
+      }
+      expect(
+        (
+          await put(
+            picture('?width=8&height=1'),
+            new Uint8Array(MAX_UPLOAD_BYTES + 1),
+            {
+              cookie,
+            }
+          )
+        ).status
+      ).toBe(413);
+      expect(
+        (await put(picture('?width=8&height=1'), ink, { cookie })).status
+      ).toBe(204);
+    });
+
+    it("refuses an id that's taken by someone else's upload", async () => {
+      const grace = await app.fixtures.user({ name: 'Grace' });
+      const taken = '3f0e1c2a-9b4d-4c8e-a1f2-0000000000bb';
+      const { bytes: coded } = movieUpload(13, 7, 3);
+      const path = `/media/${taken}/movie?width=13&height=7&frames=3`;
+      expect(
+        (await put(path, coded, { cookie: await cookieOf(grace) })).status
+      ).toBe(204);
+
+      const response = await put(path, coded, { cookie: await cookieOf(ada) });
+      expect([response.status, await response.text()]).toEqual([
+        422,
+        'That message id is taken',
+      ]);
     });
   });
 

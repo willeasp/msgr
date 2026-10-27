@@ -12,6 +12,7 @@ import type { SoundLength } from '../../domain/sound.js';
 import { UserId } from '../../domain/user.js';
 import { Prisma, type PrismaClient } from './client.js';
 import { isUniqueViolation } from './unique-violation.js';
+import { mediaColumns } from './upload.repository.js';
 
 /** A kept message: its media's sizes, never their bytes (`findMedia`). */
 const messageFields = {
@@ -97,28 +98,8 @@ export function prismaMessageRepository(db: PrismaClient): MessageRepository {
     },
 
     async append(message) {
-      const {
-        id,
-        chatId,
-        senderId,
-        createdAt,
-        content,
-        picture,
-        movie,
-        sound,
-      } = message;
-      const body = {
-        content,
-        picture: picture?.deflated ?? null,
-        pictureWidth: picture?.width ?? null,
-        pictureHeight: picture?.height ?? null,
-        movie: movie?.coded ?? null,
-        movieWidth: movie?.width ?? null,
-        movieHeight: movie?.height ?? null,
-        movieFrames: movie?.frames ?? null,
-        sound: sound?.coded ?? null,
-        soundFrames: sound?.frames ?? null,
-      };
+      const { id, chatId, senderId, createdAt, content } = message;
+      const body = { content, ...mediaColumns(message) };
       try {
         const [row] = await db.$transaction([
           db.message.create({
@@ -131,6 +112,10 @@ export function prismaMessageRepository(db: PrismaClient): MessageRepository {
             data: { updatedAt: createdAt },
             select: { id: true },
           }),
+          // Its upload is in it now, and is no one's to take again.
+          ...(id
+            ? [db.upload.deleteMany({ where: { id, uploaderId: senderId } })]
+            : []),
         ]);
         return toMessage(row);
       } catch (error) {

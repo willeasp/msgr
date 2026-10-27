@@ -215,6 +215,7 @@ export const resolvers: Resolvers = {
     next: ({ next }) => (next === null ? null : String(next)),
   },
 
+  MediaPart: { PICTURE: 'picture', MOVIE: 'movie', SOUND: 'sound' },
   Picture: {
     url: ({ source }) => mediaUrl(source),
     bits: async ({ source }, _, { loaders }) =>

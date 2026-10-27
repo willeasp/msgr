@@ -1,8 +1,10 @@
 import type { ApolloCache, ApolloClient } from '@apollo/client';
 import type { Made } from '../../lib/attachment';
 import { gql } from '../../lib/__generated__';
-import type { GetChatMessagesQuery } from '../../lib/__generated__/graphql';
-import { toWire as movieToWire } from '../../lib/movie-wire';
+import type {
+  GetChatMessagesQuery,
+  MediaPart,
+} from '../../lib/__generated__/graphql';
 import {
   chosenId,
   notSent,
@@ -15,8 +17,12 @@ import {
   withStored,
   type Outbox,
 } from '../../lib/outbox';
-import { toWire as pictureToWire } from '../../lib/picture-wire';
-import { toWire as soundToWire } from '../../lib/sound-wire';
+import {
+  uploadAddress,
+  uploadOf,
+  whyNotUploaded,
+  type Upload,
+} from '../../lib/upload';
 import { recordMessage, recordStored } from './chats';
 import { movies, pictures, sounds } from './media';
 
@@ -25,19 +31,10 @@ const SEND_MESSAGE = gql(`
     $id: ID
     $chatId: ID!
     $content: String
-    $picture: PictureInput
-    $movie: MovieInput
-    $sound: SoundInput
+    $uploaded: MediaPart
   ) {
     sendMessage(
-      input: {
-        id: $id
-        chatId: $chatId
-        content: $content
-        picture: $picture
-        movie: $movie
-        sound: $sound
-      }
+      input: { id: $id, chatId: $chatId, content: $content, uploaded: $uploaded }
     ) {
       id
       content
@@ -312,20 +309,9 @@ async function deliver(
   sentIn.addEventListener('abort', end);
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const variables = {
-      id,
-      chatId,
-      content,
-      picture: made?.kind === 'picture' ? await pictureToWire(made.bits) : null,
-      movie: made?.kind === 'movie' ? movieToWire(made.frames) : null,
-      sound: made?.kind === 'sound' ? soundToWire(made.codes) : null,
-    };
+    const upload = made && (await uploadOf(made));
     if (sentIn.aborted) return;
-    const bytes =
-      (content?.length ?? 0) +
-      (variables.picture?.bits.length ?? 0) +
-      (variables.movie?.bits.length ?? 0) +
-      (variables.sound?.bits.length ?? 0);
+    const bytes = (content?.length ?? 0) + (upload?.bytes.length ?? 0);
     const left = since + sendAllowance(bytes) - Date.now();
     // Its time ran out waiting for its turn: not even asked.
     if (left <= 0) {
@@ -333,9 +319,18 @@ async function deliver(
       return;
     }
     timer = setTimeout(end, left);
+    // Its picture, movie or sound goes up first, on its own (ADR 0018).
+    if (upload) await put(id, upload, giveUp.signal);
     const { data } = await client.mutate({
       mutation: SEND_MESSAGE,
-      variables,
+      variables: {
+        id,
+        chatId,
+        content,
+        // The schema's name for the part (the enum's own values, kept out
+        // of the first load).
+        uploaded: upload && (upload.part.toUpperCase() as MediaPart),
+      },
       // Written to the cache below, by recordMessage alone, and only if
       // the session it was sent in is still the page's.
       fetchPolicy: 'no-cache',
@@ -353,9 +348,37 @@ async function deliver(
     change(stored(outbox, id, sent));
   } catch (error) {
     if (sentIn.aborted) return;
-    change(notSent(outbox, id, whyNotSent(error)));
+    const why = error instanceof NotUploaded ? error.why : whyNotSent(error);
+    change(notSent(outbox, id, why));
   } finally {
     clearTimeout(timer);
     sentIn.removeEventListener('abort', end);
   }
+}
+
+/** That the server didn't take what was put, and why if it said. */
+class NotUploaded extends Error {
+  constructor(readonly why: string | null) {
+    super(why ?? 'Not uploaded');
+  }
+}
+
+/**
+ * Puts a message's picture, movie or sound to its address under the
+ * message's id, done once the server has it. Throws as a fetch does when it
+ * can't be asked, and `NotUploaded` when it's refused.
+ */
+async function put(
+  id: string,
+  upload: Upload,
+  signal: AbortSignal
+): Promise<void> {
+  const response = await fetch(uploadAddress(id, upload), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/octet-stream' },
+    body: upload.bytes,
+    signal,
+  });
+  if (response.ok) return;
+  throw new NotUploaded(whyNotUploaded(response.status, await response.text()));
 }

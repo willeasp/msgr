@@ -1,6 +1,6 @@
 import { byteLength, isValidSize, toBase64, type Bits } from '@msgr/media';
 
-/** A picture as the composer sends it: its bits raw-DEFLATEd, in base64. */
+/** A picture as a profile sends it: its bits raw-DEFLATEd, in base64. */
 export interface WirePicture {
   readonly width: number;
   readonly height: number;
@@ -14,11 +14,16 @@ export interface KeptPicture {
   readonly url: string;
 }
 
-export async function toWire(bits: Bits): Promise<WirePicture> {
-  const deflated = new Blob([bits.bytes])
+/** Its bits raw-DEFLATEd, as the server reads them. */
+export async function deflated(bits: Bits): Promise<Uint8Array<ArrayBuffer>> {
+  const stream = new Blob([bits.bytes])
     .stream()
     .pipeThrough(new CompressionStream('deflate-raw'));
-  const bytes = new Uint8Array(await new Response(deflated).arrayBuffer());
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+export async function toWire(bits: Bits): Promise<WirePicture> {
+  const bytes = await deflated(bits);
   return { width: bits.width, height: bits.height, bits: toBase64(bytes) };
 }
 

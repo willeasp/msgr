@@ -1,8 +1,10 @@
 import { ApolloClient, ApolloLink } from '@apollo/client';
 import { CombinedGraphQLErrors } from '@apollo/client/errors';
 import type { Bits } from '@msgr/media';
+import { inflateRawSync } from 'node:zlib';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MediaPart } from '../../lib/__generated__/graphql';
 import { createCache } from '../../lib/cache';
 import { HISTORY_PAGE } from '../../lib/history';
 import { GET_CHAT_MESSAGES } from './chats';
@@ -23,7 +25,7 @@ interface Asked {
     id: string;
     chatId: string;
     content: string | null;
-    picture: { width: number; height: number } | null;
+    uploaded: MediaPart | null;
   };
   readonly signal: AbortSignal;
   /** Answers with the message stored, at this time. */
@@ -37,13 +39,49 @@ const sender = {
   name: 'Me',
   avatar: null,
 };
+/** What was put to the fake server, ahead of its message. */
+interface Put {
+  readonly url: string;
+  readonly method: string;
+  readonly body: Uint8Array;
+}
+
 let asked: Asked[] = [];
+let puts: Put[] = [];
+/** How the fake server answers the next put: taken, by default. */
+let putAnswer: () => Promise<Response> = async () =>
+  new Response(null, { status: 204 });
 let client: ApolloClient;
+
+/** Each picture put, by the id it's put under: its size, from its address. */
+const putPicture = (id: string) => {
+  const put = [...puts]
+    .reverse()
+    .find(({ url }) => url.includes(`/${id}/picture?`));
+  const query = new URLSearchParams(put?.url.split('?')[1]);
+  return {
+    width: Number(query.get('width')),
+    height: Number(query.get('height')),
+  };
+};
 
 beforeEach(() => {
   vi.useFakeTimers();
   forgetOutbox();
   asked = [];
+  puts = [];
+  putAnswer = async () => new Response(null, { status: 204 });
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, init?: RequestInit) => {
+      puts.push({
+        url,
+        method: init?.method ?? 'GET',
+        body: new Uint8Array(init?.body as Uint8Array),
+      });
+      return putAnswer();
+    })
+  );
   const mutate = vi.fn(
     (options: {
       variables: Asked['variables'];
@@ -54,7 +92,7 @@ beforeEach(() => {
         signal.addEventListener('abort', () =>
           reject(new DOMException('Aborted', 'AbortError'))
         );
-        const { id, chatId, content, picture } = options.variables;
+        const { id, chatId, content, uploaded } = options.variables;
         asked.push({
           variables: options.variables,
           signal,
@@ -64,7 +102,10 @@ beforeEach(() => {
                 sendMessage: answered(
                   {
                     ...stored(id, content, createdAt),
-                    picture: shown(id, picture),
+                    picture: shown(
+                      id,
+                      uploaded === MediaPart.Picture ? putPicture(id) : null
+                    ),
                   },
                   chatId
                 ),
@@ -83,6 +124,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 const stored = (
@@ -128,6 +170,14 @@ const at = (minute: number) =>
 const bits: Bits = { width: 8, height: 2, bytes: Uint8Array.of(0xa5, 0x5a) };
 const say = (content: string, after: Promise<unknown> = Promise.resolve()) =>
   send(client, { chatId: 'team', content, made: null, sender, after });
+const sendPicture = (after: Promise<unknown>) =>
+  send(client, {
+    chatId: 'team',
+    content: null,
+    made: { kind: 'picture', bits },
+    sender,
+    after,
+  });
 const states = () =>
   outgoing.now().map(({ message, state }) => [message.content, state]);
 /** Lets every promise that can settle, settle. */
@@ -357,18 +407,69 @@ describe('the outbox', () => {
     ).toEqual(['Later']);
   });
 
-  it('keeps a picture as it was made under its real address, the answer’s or the feed’s, so it’s never fetched back', async () => {
-    const fetch = vi.fn();
-    vi.stubGlobal('fetch', fetch);
-    const sendPicture = (after: Promise<unknown>) =>
-      send(client, {
-        chatId: 'team',
-        content: null,
-        made: { kind: 'picture', bits },
-        sender,
-        after,
-      });
+  it('puts a picture to its message’s own address first, raw, and the message only names it', async () => {
+    sendPicture(Promise.resolve());
+    const id = outgoing.now()[0]?.message.id ?? '';
+    await vi.waitFor(() => expect(asked).toHaveLength(1));
 
+    expect(puts).toHaveLength(1);
+    expect(puts[0]).toMatchObject({
+      method: 'PUT',
+      url: `/media/${id}/picture?width=8&height=2`,
+    });
+    expect(
+      new Uint8Array(inflateRawSync(puts[0]?.body ?? new Uint8Array()))
+    ).toEqual(bits.bytes);
+    expect(asked[0]?.variables).toEqual({
+      id,
+      chatId: 'team',
+      content: null,
+      uploaded: MediaPart.Picture,
+    });
+    asked[0]?.answer();
+    await settleAll();
+    expect(outgoing.now()[0]).toMatchObject({
+      state: 'stored',
+      message: { picture: { url: `/media/${id}/picture` } },
+    });
+  });
+
+  it('says Not Sent., and why if the server said, when what was put is refused or can’t go; Try Again puts it again', async () => {
+    putAnswer = async () =>
+      new Response('Picture must not be blank', { status: 422 });
+    sendPicture(Promise.resolve());
+    const id = outgoing.now()[0]?.message.id ?? '';
+    await vi.waitFor(() => expect(outgoing.now()[0]?.state).toBe('notSent'));
+    expect(outgoing.now()[0]).toMatchObject({
+      problem: 'Picture must not be blank',
+    });
+    // The message itself was never asked for.
+    expect(asked).toHaveLength(0);
+
+    putAnswer = () => Promise.reject(new TypeError('Failed to fetch'));
+    tryAgain(client, id);
+    await vi.waitFor(() => expect(outgoing.now()[0]?.state).toBe('notSent'));
+    expect(outgoing.now()[0]).toMatchObject({ problem: null });
+
+    putAnswer = async () =>
+      new Response('<html>Bad Gateway</html>', { status: 502 });
+    tryAgain(client, id);
+    await vi.waitFor(() => expect(puts).toHaveLength(3));
+    await vi.waitFor(() => expect(outgoing.now()[0]?.state).toBe('notSent'));
+    expect(outgoing.now()[0]).toMatchObject({ problem: null });
+
+    putAnswer = async () => new Response(null, { status: 204 });
+    tryAgain(client, id);
+    await vi.waitFor(() => expect(asked).toHaveLength(1));
+    expect(puts.map(({ url }) => url)).toEqual(
+      Array(4).fill(`/media/${id}/picture?width=8&height=2`)
+    );
+    asked[0]?.answer();
+    await settleAll();
+    expect(states()).toEqual([[null, 'stored']]);
+  });
+
+  it('keeps a picture as it was made under its real address, the answer’s or the feed’s, so it’s never fetched back', async () => {
     // The feed's copy, before it's even sent.
     sendPicture(new Promise(() => undefined));
     const first = outgoing.now()[0]?.message.id ?? '';
@@ -385,17 +486,17 @@ describe('the outbox', () => {
     const second = outgoing.now()[1]?.message.id ?? '';
     // In line behind the first, which waited for its typing notice.
     await vi.advanceTimersByTimeAsync(2_010);
-    // Compressed off the main thread, in its own time.
+    // Compressed off the main thread, in its own time, and put.
     await vi.waitFor(() =>
-      expect(asked[0]?.variables.picture).toMatchObject({ width: 8, height: 2 })
+      expect(asked[0]?.variables.uploaded).toBe(MediaPart.Picture)
     );
     asked[0]?.answer();
     await settleAll();
     expect(
       pictures.now({ width: 8, height: 2, url: `/media/${second}/picture` })
     ).toEqual({ state: 'here', value: bits });
-    expect(fetch).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
+    // Put, and never fetched.
+    expect(puts.map(({ method }) => method)).toEqual(['PUT']);
   });
 
   it('leaves the cache to recordMessage: the answer isn’t written as the mutation’s own', async () => {

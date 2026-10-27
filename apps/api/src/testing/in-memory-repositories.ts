@@ -18,6 +18,7 @@ import {
 } from '../domain/message.js';
 import type { PushSubscription } from '../domain/push.js';
 import { UNREAD_LIMIT, type Read } from '../domain/read.js';
+import type { Upload } from '../domain/upload.js';
 import { err, ok } from '../domain/result.js';
 import {
   Email,
@@ -53,6 +54,8 @@ export function createInMemoryRepositories(): {
   const messages: Message[] = [];
   // Each message's picture, movie or sound bytes, kept apart as in Postgres.
   const media = new Map<MessageId, MessageMedia>();
+  // What senders put ahead of their messages, under the messages' ids.
+  const uploads = new Map<MessageId, Upload>();
   // Each reader's marks: how far they had read a chat, and when.
   const marks: { messageId: MessageId; readerId: UserId; at: Date }[] = [];
   const messageById = (id: MessageId) =>
@@ -262,7 +265,30 @@ export function createInMemoryRepositories(): {
         }
         messages.push(message);
         record.activeAt = input.createdAt;
+        if (input.id && uploads.get(input.id)?.uploaderId === input.senderId) {
+          uploads.delete(input.id);
+        }
         return message;
+      },
+    },
+
+    uploads: {
+      put: async (upload) => {
+        requireUser(upload.uploaderId);
+        const held = uploads.get(upload.id);
+        if (held && held.uploaderId !== upload.uploaderId) return false;
+        uploads.set(upload.id, upload);
+        return true;
+      },
+      findByIds: async (ids) =>
+        distinct(ids).flatMap((id) => {
+          const upload = uploads.get(id);
+          return upload ? [upload] : [];
+        }),
+      forgetBefore: async (at) => {
+        for (const [id, upload] of uploads) {
+          if (upload.createdAt < at) uploads.delete(id);
+        }
       },
     },
 

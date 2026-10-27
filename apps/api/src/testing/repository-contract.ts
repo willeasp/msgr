@@ -15,6 +15,7 @@ import {
   type NewMessage,
 } from '../domain/message.js';
 import type { PushSubscription } from '../domain/push.js';
+import type { Upload } from '../domain/upload.js';
 import { UNREAD_LIMIT, type Read, type UnreadTotal } from '../domain/read.js';
 import { exampleMovie } from './movies.js';
 import { exampleSound } from './sounds.js';
@@ -778,6 +779,138 @@ export function repositoryContract(
         await repositories.messages.findMedia([text.id, MessageId('missing')])
       ).toEqual([]);
       expect(await repositories.messages.findMedia([])).toEqual([]);
+    });
+  });
+
+  describe('uploads', () => {
+    const id = MessageId('3f0e1c2a-9b4d-4c8e-a1f2-0123456789ab');
+    const none = { picture: null, movie: null, sound: null };
+    const at = (time: string) => new Date(`2030-01-01T${time}Z`);
+    /** Found in any order: in id order, to compare. */
+    const byId = (uploads: readonly Upload[]) =>
+      [...uploads].sort((a, b) => (a.id < b.id ? -1 : 1));
+
+    it('keeps a picture, movie or sound under its id, and finds each back unchanged', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const uploads: Upload[] = [
+        {
+          id,
+          uploaderId: ada.id,
+          createdAt: at('00:00:00'),
+          ...none,
+          picture: examplePicture(),
+        },
+        {
+          id: MessageId('3f0e1c2a-9b4d-4c8e-a1f2-000000000002'),
+          uploaderId: ada.id,
+          createdAt: at('00:00:01'),
+          ...none,
+          movie: exampleMovie(),
+        },
+        {
+          id: MessageId('3f0e1c2a-9b4d-4c8e-a1f2-000000000003'),
+          uploaderId: ada.id,
+          createdAt: at('00:00:02'),
+          ...none,
+          sound: exampleSound(),
+        },
+      ];
+      for (const upload of uploads) {
+        expect(await repositories.uploads.put(upload)).toBe(true);
+      }
+
+      expect(
+        byId(
+          await repositories.uploads.findByIds([
+            ...uploads.map((upload) => upload.id),
+            MessageId('unknown'),
+          ])
+        )
+      ).toEqual(byId(uploads));
+    });
+
+    it("replaces its uploader's own under an id, and never another's", async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const sound = {
+        id,
+        uploaderId: ada.id,
+        createdAt: at('00:00:01'),
+        ...none,
+        sound: exampleSound(),
+      };
+      await repositories.uploads.put({
+        id,
+        uploaderId: ada.id,
+        createdAt: at('00:00:00'),
+        ...none,
+        picture: examplePicture(),
+      });
+
+      expect(await repositories.uploads.put(sound)).toBe(true);
+      expect(
+        await repositories.uploads.put({
+          ...sound,
+          uploaderId: grace.id,
+          createdAt: at('00:00:02'),
+        })
+      ).toBe(false);
+      expect(await repositories.uploads.findByIds([id])).toEqual([sound]);
+    });
+
+    it('forgets every upload put before a moment, and no other', async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const later = MessageId('3f0e1c2a-9b4d-4c8e-a1f2-000000000002');
+      const kept = {
+        id: later,
+        uploaderId: ada.id,
+        createdAt: at('01:00:00'),
+        ...none,
+        picture: examplePicture(),
+      };
+      await repositories.uploads.put({
+        ...kept,
+        id,
+        createdAt: at('00:00:00'),
+      });
+      await repositories.uploads.put(kept);
+
+      await repositories.uploads.forgetBefore(at('01:00:00'));
+
+      expect(await repositories.uploads.findByIds([id, later])).toEqual([kept]);
+    });
+
+    it("is taken by its sender's message as it's stored, and only by theirs", async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const chat = await repositories.chats.saveDirect(pairOf(ada, grace));
+      const graces = MessageId('3f0e1c2a-9b4d-4c8e-a1f2-000000000002');
+      const upload = {
+        uploaderId: ada.id,
+        createdAt: at('00:00:00'),
+        ...none,
+        picture: examplePicture(),
+      };
+      await repositories.uploads.put({ ...upload, id });
+      await repositories.uploads.put({ ...upload, id: graces });
+      const message = (messageId: MessageId, sender: User) =>
+        appended({
+          id: messageId,
+          chatId: chat.id,
+          senderId: sender.id,
+          content: null,
+          ...none,
+          picture: examplePicture(),
+          createdAt: at('00:01:00'),
+        });
+
+      await message(id, ada);
+      await message(graces, grace);
+
+      // Ada's under Grace's message's id stays Ada's, until it's forgotten.
+      expect(await repositories.uploads.findByIds([id, graces])).toEqual([
+        { ...upload, id: graces },
+      ]);
     });
   });
 

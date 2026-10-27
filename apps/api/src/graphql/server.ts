@@ -187,8 +187,8 @@ export async function startServer(
     },
     cors({ origin: config.corsOrigin, credentials: true }),
     // A message's largest honest movie, 48 frames of 320×320, is under 0.95
-    // MB as base64 (domain/movie.ts); a minute's sound is at most 0.4 MB,
-    // and a picture far less.
+    // MB as base64 (domain/movie.ts), which a shell one version behind still
+    // sends here; current ones put it to its own address (ADR 0018).
     express.json({ limit: '1mb' }),
     cookieParser(),
     expressMiddleware(apollo, {
@@ -202,7 +202,8 @@ export async function startServer(
   );
 
   // Pictures', movies' and sounds' bytes, at addresses of their own, and
-  // GIPHY's, fetched for whoever is signed in.
+  // GIPHY's, fetched for whoever is signed in; and a message's, put there
+  // before it's sent.
   app.use(
     ['/media', '/avatars', '/giphy'],
     async (_req, _res, next) => {
@@ -212,7 +213,9 @@ export async function startServer(
     cookieParser()
   );
   const sessionOf = (req: Request) => stringOrUndefined(req.cookies?.[COOKIE]);
-  serveMedia(app, deps, sessionOf);
+  serveMedia(app, deps, sessionOf, (origin) =>
+    isAllowedOrigin(origin, config.corsOrigin)
+  );
   serveGiphy(app, deps, sessionOf);
 
   if (config.staticDir) serveApp(app, resolve(config.staticDir));

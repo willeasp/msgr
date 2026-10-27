@@ -39,16 +39,21 @@ transport. `main.ts` is the only file that picks adapters.
 
 ## How a message travels
 
-1. The composer hands the message to the outbox, which shows it at once and
-   calls `sendMessage` with text, a picture, a movie or a sound, or text with
-   one of them, under an id it chose
-   ([ADR 0016](adr/0016-a-message-is-sent-under-its-own-id.md)): sending it
-   again returns the stored message. `MessageService` parses each (a picture
-   is inflated, a movie or a sound decoded, each checked against its size; see
+1. The composer hands the message to the outbox, which shows it at once,
+   under an id it chose
+   ([ADR 0016](adr/0016-a-message-is-sent-under-its-own-id.md)). A picture, a
+   movie or a sound goes first, its bytes put raw to the address it'll be read
+   from (`PUT /media/:id/:part`,
+   [ADR 0018](adr/0018-media-goes-up-before-its-message.md)), where
+   `MessageService.upload` checks it (a picture is inflated, a movie or a sound
+   decoded, each against its size; see
    [ADR 0007](adr/0007-movies-coded-pixel-by-pixel.md) and
-   [ADR 0008](adr/0008-sounds-squashed-on-purpose.md)), checks the viewer is a
-   participant, stores the message and marks the chat active, in one
-   repository call. From then on the message carries its media's size; the
+   [ADR 0008](adr/0008-sounds-squashed-on-purpose.md)) and keeps it for its
+   uploader. Then the outbox calls `sendMessage` with the text, naming what was
+   put (`uploaded`): sending it again returns the stored message.
+   `MessageService` checks the viewer is a participant, stores the message
+   with the upload's bytes, marks the chat active and forgets the upload, in
+   one repository call. From then on the message carries its media's size; the
    bytes have an address of their own, fetched once by each browser that
    shows them and kept ([ADR 0012](adr/0012-media-has-its-own-address.md)).
 2. It publishes the message to every participant through the in-process
