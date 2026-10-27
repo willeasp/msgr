@@ -1,11 +1,13 @@
 import { graphql, parse, subscribe, type ExecutionResult } from 'graphql';
 import { describe, expect, it, vi } from 'vitest';
 import type { Dependencies } from '../application/ports.js';
+import { GiphyMedia, type Gif } from '../domain/gif.js';
 import type { Url } from '../domain/link.js';
 import type { Email, User } from '../domain/user.js';
 import {
   createTestApp,
   fakeBrowser,
+  fakeGiphy,
   fakeHash,
   fakeLinkPreviewer,
   fakeStorageGauge,
@@ -1233,5 +1235,98 @@ describe('admin', () => {
     });
     expect((await execute(app, storage)).data).toEqual({ admin: null });
     expect(measure).not.toHaveBeenCalled();
+  });
+});
+
+describe('GIFs', () => {
+  const at = (path: string) =>
+    GiphyMedia.parse(
+      `https://media.giphy.com/media/${path}?cid=c&ct=g`
+    ) as GiphyMedia;
+  const wave: Gif = {
+    id: 'wave1',
+    title: 'Wave',
+    still: at('wave1/100_s.gif'),
+    movie: at('wave1/200.mp4'),
+  };
+  const GIFS = `query ($search: String, $after: String) {
+    gifs(search: $search, after: $after) { gifs { id title still movie } next }
+  }`;
+
+  it('says whether they’re on, to anyone', async () => {
+    const { app } = await world();
+    expect((await execute(app, '{ gifsOn }')).data).toEqual({ gifsOn: true });
+    const off = await world({ giphy: null });
+    expect((await execute(off.app, '{ gifsOn }')).data).toEqual({
+      gifsOn: false,
+    });
+  });
+
+  it('finds them for the signed-in, each still and movie at this server’s address', async () => {
+    const { app, ada } = await world({ giphy: fakeGiphy([wave]) });
+
+    const result = await execute(app, GIFS, {
+      as: ada,
+      variables: { search: 'wave' },
+    });
+
+    expect(result.errors).toBeUndefined();
+    expect(result.data).toEqual({
+      gifs: {
+        gifs: [
+          {
+            id: 'wave1',
+            title: 'Wave',
+            still: `/giphy/media?url=${encodeURIComponent(wave.still)}`,
+            movie: `/giphy/media?url=${encodeURIComponent(wave.movie)}`,
+          },
+        ],
+        next: null,
+      },
+    });
+    expect(codeOf(await execute(app, GIFS))).toBe('UNAUTHENTICATED');
+  });
+
+  it('pages on by the cursor it gave', async () => {
+    const many = Array.from({ length: 25 }, (_, i) => ({
+      ...wave,
+      id: `g${i}`,
+    }));
+    const { app, ada } = await world({ giphy: fakeGiphy(many) });
+
+    const first = await execute(app, GIFS, { as: ada });
+    const { next } = (first.data as { gifs: { next: string } }).gifs;
+    expect(next).toBe('24');
+    const second = await execute(app, GIFS, {
+      as: ada,
+      variables: { after: next },
+    });
+    expect(second.data).toMatchObject({
+      gifs: { gifs: [{ id: 'g24' }], next: null },
+    });
+    expect(
+      codeOf(await execute(app, GIFS, { as: ada, variables: { after: 'x' } }))
+    ).toBe('BAD_USER_INPUT');
+  });
+
+  it('is null while they’re off, and says when GIPHY can’t answer', async () => {
+    const off = await world({ giphy: null });
+    expect((await execute(off.app, GIFS, { as: off.ada })).data).toEqual({
+      gifs: null,
+    });
+
+    const giphy = fakeGiphy();
+    const { app, ada } = await world({ giphy });
+    for (const busy of [true, false]) {
+      vi.spyOn(giphy, 'search').mockResolvedValueOnce({
+        ok: false,
+        error: { type: 'Unavailable', service: 'GIPHY', busy },
+      });
+      const result = await execute(app, GIFS, { as: ada });
+      expect(codeOf(result)).toBe('SERVICE_UNAVAILABLE');
+      expect(result.errors?.[0]?.message).toMatch(
+        busy ? /^GIPHY has had all the searches/ : /^GIPHY can’t be reached/
+      );
+    }
   });
 });

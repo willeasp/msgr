@@ -7,6 +7,13 @@ import type {
   DirectChat,
   DirectPair,
 } from '../domain/chat.js';
+import type { Unavailable } from '../domain/errors.js';
+import type {
+  GifOffset,
+  GifPage,
+  GifSearch,
+  GiphyMedia,
+} from '../domain/gif.js';
 import type { Invite, InviteCode } from '../domain/invite.js';
 import type { LinkPreview } from '../domain/link-preview.js';
 import type { Url } from '../domain/link.js';
@@ -232,6 +239,28 @@ export interface LinkPreviewer {
   preview(url: Url): Promise<LinkPreview | null>;
 }
 
+/** GIPHY: its GIFs, a page at a time, and the files they're made of. */
+export interface Giphy {
+  /** A page of GIFs for the words, or of trending ones without, from `offset`. */
+  search(
+    words: GifSearch | null,
+    offset: GifOffset
+  ): Promise<Result<GifPage, Unavailable>>;
+  /** The file at one of GIPHY's addresses, as it arrives; null if GIPHY has none, or none of a kind it may send. */
+  file(url: GiphyMedia): Promise<GiphyFile | null>;
+}
+
+/**
+ * A still or a movie of a GIF, as GIPHY sends it: its type, its length if
+ * known, and its bytes as they come. Whoever takes it reads the body or
+ * cancels it, so GIPHY's answer is let go either way.
+ */
+export interface GiphyFile {
+  readonly type: string;
+  readonly length: number | null;
+  readonly body: ReadableStream<Uint8Array>;
+}
+
 /** A fresh, unguessable invite code. */
 export type InviteCodes = () => InviteCode;
 
@@ -259,6 +288,8 @@ export interface Dependencies {
   readonly inviteCodes: InviteCodes;
   readonly throttle: Throttle;
   readonly linkPreviewer: LinkPreviewer;
+  /** Null while GIFs are off: the server has no GIPHY_API_KEY. */
+  readonly giphy: Giphy | null;
   readonly pictures: PictureCodec;
   readonly pushSender: PushSender;
   /** The VAPID public key browsers subscribe with; null while push is off. */

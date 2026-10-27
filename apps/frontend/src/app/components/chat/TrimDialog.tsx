@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { atkinson, blank, type Bits, type Frames } from '@msgr/media';
-import { makeMovie } from '../../../lib/movie';
 import { firstPart, LONGEST, type Part } from '../../../lib/trim';
 import Button from '../../../sacred/components/Button';
 import { useModals } from '../../../sacred/components/page/ModalContext';
@@ -8,9 +7,9 @@ import { useHotkeys } from '../../../sacred/modules/hotkeys';
 import { DialogButtons, MacDialog } from '../MacDialog';
 import { LONGEST_VIDEO } from '../../../lib/files';
 import {
-  captureGrey,
-  movieSize,
+  movieFrom,
   thumbnailStrip,
+  type Making,
 } from '../../browser/video-file';
 import { Timeline } from './Timeline';
 import styles from './TrimDialog.module.css';
@@ -22,45 +21,6 @@ export interface TrimDialogProps {
   file: File;
   /** Takes the finished movie. */
   onDone: (movie: Frames) => void;
-}
-
-/** How far making a movie has got. */
-interface Making {
-  readonly stage: 'Reading' | 'Dithering';
-  readonly done: number;
-  readonly of: number;
-}
-
-/**
- * Reads the part of the video and dithers it into a movie, a frame at a
- * time; null if stopped first.
- */
-async function movieFrom(
-  video: HTMLVideoElement,
-  part: Part,
-  signal: AbortSignal,
-  progress: (making: Making) => void
-): Promise<Frames | null> {
-  const size = movieSize(video);
-  // iOS draws nothing from a video that has never played; a play() inside
-  // the click fixes that.
-  await video.play().catch(() => undefined);
-  video.pause();
-  progress({ stage: 'Reading', done: 0, of: 0 });
-  const grey = await captureGrey(video, part, size, {
-    signal,
-    onFrame: (done, of) => progress({ stage: 'Reading', done, of }),
-  });
-  const count = grey.length / (size.width * size.height);
-  const steps = makeMovie(grey, size.width, size.height, count);
-  for (;;) {
-    if (signal.aborted) return null;
-    const step = steps.next();
-    if (step.done) return step.value;
-    progress({ stage: 'Dithering', done: step.value, of: count });
-    // Lets the page paint between frames.
-    await new Promise((resolve) => setTimeout(resolve));
-  }
 }
 
 const clock = (s: number) =>

@@ -1,6 +1,7 @@
 import type {
   Clock,
   Dependencies,
+  Giphy,
   InviteCodes,
   LinkPreviewer,
   PasswordHasher,
@@ -8,11 +9,12 @@ import type {
   StorageGauge,
 } from '../application/ports.js';
 import type { StorageUsage } from '../domain/storage.js';
+import { GIF_PAGE, type Gif, type GifOffset } from '../domain/gif.js';
 import type { LinkPreview } from '../domain/link-preview.js';
 import type { Notification, PushSubscription } from '../domain/push.js';
 import { createScope } from '../application/scope.js';
 import type { InviteCode } from '../domain/invite.js';
-import type { Result } from '../domain/result.js';
+import { ok, type Result } from '../domain/result.js';
 import type { PasswordHash } from '../domain/user.js';
 import { createPubSubChatEvents } from '../infrastructure/chat-events.js';
 import { createPubSubProfileEvents } from '../infrastructure/profile-events.js';
@@ -39,6 +41,33 @@ export const fakeLinkPreviewer = (
   previews: readonly LinkPreview[] = []
 ): LinkPreviewer => ({
   preview: async (url) => previews.find((known) => known.url === url) ?? null,
+});
+
+/**
+ * GIPHY with only these GIFs, trending in this order, found by words in
+ * their titles, a page at a time; each file is its own address's text.
+ */
+export const fakeGiphy = (gifs: readonly Gif[] = []): Giphy => ({
+  search: async (words, offset) => {
+    const found = gifs.filter(
+      ({ title }) => !words || title.toLowerCase().includes(words.toLowerCase())
+    );
+    const next = offset + GIF_PAGE;
+    return ok({
+      gifs: found.slice(offset, next),
+      next: next < found.length ? (next as GifOffset) : null,
+    });
+  },
+  file: async (url) =>
+    gifs.some(({ still, movie }) => url === still || url === movie)
+      ? {
+          type: new URL(url).pathname.endsWith('.mp4')
+            ? 'video/mp4'
+            : 'image/gif',
+          length: url.length,
+          body: new Blob([url]).stream(),
+        }
+      : null,
 });
 
 /** The key the test app hands browsers, as a server with push on would. */
@@ -130,6 +159,7 @@ export function createTestApp(overrides: Partial<Dependencies> = {}) {
     inviteCodes: sequentialInviteCodes(),
     throttle: createMemoryThrottle({ limit: 10, windowMs: 60_000, clock }),
     linkPreviewer: fakeLinkPreviewer(),
+    giphy: fakeGiphy(),
     pictures: zlibPictureCodec,
     pushSender: recordingPushSender().sender,
     pushKey: TEST_PUSH_KEY,

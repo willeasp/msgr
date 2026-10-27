@@ -1,6 +1,7 @@
 import { createAdminService, type AdminService } from './admin.service.js';
 import { createAuthService, type AuthService } from './auth.service.js';
 import { createChatService, type ChatService } from './chat.service.js';
+import { createGifService, type GifService } from './gif.service.js';
 import { createInviteService, type InviteService } from './invite.service.js';
 import {
   createLinkPreviewService,
@@ -22,6 +23,7 @@ export interface Services {
   readonly messages: MessageService;
   readonly invites: InviteService;
   readonly linkPreviews: LinkPreviewService;
+  readonly gifs: GifService;
   readonly push: PushService;
   readonly admin: AdminService;
 }
@@ -43,6 +45,7 @@ export function createScope(deps: Dependencies, options: LoaderOptions): Scope {
       messages: createMessageService(deps, loaders),
       invites: createInviteService(deps),
       linkPreviews: createLinkPreviewService(deps, loaders),
+      gifs: createGifService(deps),
       push: createPushService(deps),
       admin: createAdminService(deps),
     },

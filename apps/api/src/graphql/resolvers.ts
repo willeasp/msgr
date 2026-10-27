@@ -13,6 +13,7 @@ import type {
 } from './__generated__/resolvers.js';
 import { requireViewer, startSession } from './context.js';
 import { unwrap } from './errors.js';
+import { giphyAddress } from './gifs.js';
 import { mediaBytes, mediaUrl, servedAvatar, servedParts } from './media.js';
 import { DateTime } from './scalars.js';
 
@@ -44,6 +45,15 @@ export const resolvers: Resolvers = {
       return ctx.services.chats.listChannels();
     },
     pushKey: (_, __, ctx) => ctx.services.push.key(),
+    gifsOn: (_, __, ctx) => ctx.services.gifs.on(),
+    gifs: async (_, { search, after }, ctx) =>
+      unwrap(
+        await ctx.services.gifs.search(
+          requireViewer(ctx),
+          search ?? null,
+          after ?? null
+        )
+      ),
     inviteRedeemable: (_, { code }, ctx) =>
       ctx.services.invites.isRedeemable(code),
     admin: (_, __, ctx) => ctx.viewer && ctx.services.admin.admit(ctx.viewer),
@@ -194,6 +204,15 @@ export const resolvers: Resolvers = {
 
   User: {
     avatar: servedAvatar,
+  },
+
+  Gif: {
+    still: ({ still }) => giphyAddress(still),
+    movie: ({ movie }) => giphyAddress(movie),
+  },
+
+  GifPage: {
+    next: ({ next }) => (next === null ? null : String(next)),
   },
 
   Picture: {

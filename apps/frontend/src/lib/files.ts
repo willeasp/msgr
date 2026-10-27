@@ -40,7 +40,8 @@ export const SOUND_EXTENSIONS = [
 /** For a sound file picker's `accept`. */
 export const SOUND_FILES = SOUND_EXTENSIONS.join(',');
 
-export const isPicture = ({ type }: Named) => type.startsWith('image/');
+export const isPicture = ({ type }: Pick<Named, 'type'>) =>
+  type.startsWith('image/');
 
 export const isVideo = ({ type }: Named) => type.startsWith('video/');
 

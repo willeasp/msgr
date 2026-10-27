@@ -28,6 +28,7 @@ import {
 } from './context.js';
 import { boundedQueries } from './bounded-queries.js';
 import { maskDefect, maskDefects } from './errors.js';
+import { serveGiphy } from './gifs.js';
 import { serveMedia } from './media.js';
 import { oneThingPerMutation } from './one-thing-per-mutation.js';
 import { resolvers } from './resolvers.js';
@@ -200,16 +201,19 @@ export async function startServer(
     })
   );
 
-  // Pictures', movies' and sounds' bytes, at addresses of their own.
+  // Pictures', movies' and sounds' bytes, at addresses of their own, and
+  // GIPHY's, fetched for whoever is signed in.
   app.use(
-    ['/media', '/avatars'],
+    ['/media', '/avatars', '/giphy'],
     async (_req, _res, next) => {
       await ready;
       next();
     },
     cookieParser()
   );
-  serveMedia(app, deps, (req) => stringOrUndefined(req.cookies?.[COOKIE]));
+  const sessionOf = (req: Request) => stringOrUndefined(req.cookies?.[COOKIE]);
+  serveMedia(app, deps, sessionOf);
+  serveGiphy(app, deps, sessionOf);
 
   if (config.staticDir) serveApp(app, resolve(config.staticDir));
 

@@ -426,3 +426,73 @@ describe('a chat’s history in the cache', () => {
     expect(ids(cache, 'b')).toEqual(['2']);
   });
 });
+
+describe('a search’s GIFs in the cache', () => {
+  const GIFS = gql`
+    query Gifs($search: String, $after: String) {
+      gifs(search: $search, after: $after) {
+        gifs {
+          id
+        }
+        next
+      }
+    }
+  `;
+  const page = (ids: string[], next: string | null) => ({
+    gifs: {
+      __typename: 'GifPage',
+      gifs: ids.map((id) => ({ __typename: 'Gif', id })),
+      next,
+    },
+  });
+  const ids = (cache: ReturnType<typeof createCache>, search: string | null) =>
+    cache.readQuery<{ gifs: { gifs: { id: string }[]; next: string | null } }>({
+      query: GIFS,
+      variables: { search },
+    })?.gifs;
+  const write = (
+    cache: ReturnType<typeof createCache>,
+    variables: { search: string | null; after?: string },
+    data: ReturnType<typeof page>
+  ) => cache.writeQuery({ query: GIFS, variables, data });
+
+  it('is the first page, then the next ones as they come, each GIF once, with the last one’s cursor', () => {
+    const cache = createCache();
+    write(cache, { search: 'wave' }, page(['a', 'b'], '2'));
+    write(cache, { search: 'wave', after: '2' }, page(['b', 'c'], '4'));
+
+    expect(ids(cache, 'wave')).toEqual({
+      __typename: 'GifPage',
+      gifs: [
+        { __typename: 'Gif', id: 'a' },
+        { __typename: 'Gif', id: 'b' },
+        { __typename: 'Gif', id: 'c' },
+      ],
+      next: '4',
+    });
+  });
+
+  it('keeps each search apart: a page for one never joins another', () => {
+    const cache = createCache();
+    write(cache, { search: 'wave' }, page(['w0'], '1'));
+    write(cache, { search: 'cat' }, page(['c0'], '1'));
+    write(cache, { search: 'wave', after: '1' }, page(['w1'], null));
+
+    expect(ids(cache, 'cat')?.gifs.map(({ id }) => id)).toEqual(['c0']);
+    expect(ids(cache, 'wave')?.gifs.map(({ id }) => id)).toEqual(['w0', 'w1']);
+    expect(ids(cache, null)).toBeUndefined();
+  });
+
+  it('takes no page but the one after what it holds, and starts again from a first page', () => {
+    const cache = createCache();
+    write(cache, { search: null }, page(['a'], '1'));
+    write(cache, { search: null, after: '1' }, page(['b'], '2'));
+    // The same More answered twice, and a page from some other point.
+    write(cache, { search: null, after: '1' }, page(['b'], '2'));
+    write(cache, { search: null, after: '7' }, page(['x'], '8'));
+    expect(ids(cache, null)?.gifs.map(({ id }) => id)).toEqual(['a', 'b']);
+
+    write(cache, { search: null }, page(['z'], '1'));
+    expect(ids(cache, null)?.gifs.map(({ id }) => id)).toEqual(['z']);
+  });
+});

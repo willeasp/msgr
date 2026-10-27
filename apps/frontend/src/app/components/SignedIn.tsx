@@ -43,7 +43,13 @@ export function SignedIn() {
 
   switch (session.kind) {
     case 'in':
-      return <Live viewer={session.viewer} isAdmin={session.isAdmin} />;
+      return (
+        <Live
+          viewer={session.viewer}
+          isAdmin={session.isAdmin}
+          gifsOn={!!(data ?? previousData)?.gifsOn}
+        />
+      );
     case 'out':
       // Back here after signing in.
       return <Navigate to="/login" replace state={{ from: location }} />;
@@ -54,7 +60,15 @@ export function SignedIn() {
   }
 }
 
-function Live({ viewer, isAdmin }: { viewer: Viewer; isAdmin: boolean }) {
+function Live({
+  viewer,
+  isAdmin,
+  gifsOn,
+}: {
+  viewer: Viewer;
+  isAdmin: boolean;
+  gifsOn: boolean;
+}) {
   const { open } = useModals();
   const [chatOnScreen, showChat] = useState<string | null>(null);
   // A chat on screen scrolled up from its newest isn't being read: only the
@@ -146,6 +160,7 @@ function Live({ viewer, isAdmin }: { viewer: Viewer; isAdmin: boolean }) {
       value={{
         viewer,
         isAdmin,
+        gifsOn,
         typists,
         alertSound: {
           on: alerts.prefs.sound,

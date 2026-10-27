@@ -23,6 +23,8 @@ export interface Config {
   readonly admins: readonly Email[];
   /** The database plan's allowance in bytes, from `STORAGE_LIMIT_MB`; null when unset. */
   readonly storageLimit: number | null;
+  /** GIPHY's API key, from `GIPHY_API_KEY`; null turns GIFs off. */
+  readonly giphyKey: string | null;
 }
 
 const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
@@ -102,6 +104,13 @@ export function parseConfig(
     problems.push('STORAGE_LIMIT_MB must be a positive number of megabytes');
   }
 
+  const giphyKey = env['GIPHY_API_KEY']?.trim() || null;
+  if (giphyKey !== null && !/^[A-Za-z0-9]{1,128}$/.test(giphyKey)) {
+    problems.push(
+      'GIPHY_API_KEY must be the key GIPHY’s dashboard shows: letters and digits'
+    );
+  }
+
   if (problems.length > 0) return err(problems);
   return ok({
     port,
@@ -124,5 +133,6 @@ export function parseConfig(
         : null,
     admins,
     storageLimit: limitMb === null ? null : Math.round(limitMb * 1024 * 1024),
+    giphyKey,
   });
 }

@@ -15,6 +15,8 @@ export interface SpecialItem {
 export interface SignedInValue {
   readonly viewer: Viewer;
   readonly isAdmin: boolean;
+  /** Whether Attach offers GIF…: the server can search GIPHY. */
+  readonly gifsOn: boolean;
   readonly typists: Typists;
   readonly alertSound: { readonly on: boolean; toggle(): void };
   /** Special → Notifications, where this browser can have them. */

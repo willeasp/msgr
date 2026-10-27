@@ -31,6 +31,8 @@ interface MessageInputProps {
   onEdit: (attachment: Attachment) => void;
   /** Opens the sound window, to record or choose a file. */
   onSound: () => void;
+  /** Opens the GIF window, to find one on GIPHY; none while GIFs are off. */
+  onGif?: () => void;
   /** Attaches a photo, video or sound picked, pasted or dropped. */
   onAttachFile: (file: File) => void;
   /** Takes off this attachment, once sent or removed. */
@@ -101,6 +103,7 @@ export function MessageInput({
   onDraw,
   onEdit,
   onSound,
+  onGif,
   onAttachFile,
   onDetach,
   onSend,
@@ -267,6 +270,7 @@ export function MessageInput({
           { label: 'Picture…', onClick: () => pictureRef.current?.click() },
           { label: 'Movie…', onClick: () => movieRef.current?.click() },
           { label: 'Sound…', onClick: onSound },
+          ...(onGif ? [{ label: 'GIF…', onClick: onGif }] : []),
           { label: 'Draw…', onClick: onDraw },
         ]}
       />

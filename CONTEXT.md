@@ -69,8 +69,12 @@ A picture made in the paint window, 256×160 when started blank. Stored and sent
 _Avoid_: Doodle, sketch
 
 **Movie**:
-A black-and-white moving picture in a message: 1 to 320 pixels a side and 1 to 48 frames, played at 8 frames a second and looping, like a GIF, with nothing to pause or wind. Made on the sender's device from up to 6 seconds of a video no longer than 10 minutes, perhaps drawn on. It is never blank.
-_Avoid_: Video (that's the file it's made from), clip, GIF
+A black-and-white moving picture in a message: 1 to 320 pixels a side and 1 to 48 frames, played at 8 frames a second and looping, like a GIF, with nothing to pause or wind. Made on the sender's device from up to 6 seconds of a video no longer than 10 minutes, or from a GIF, perhaps drawn on. It is never blank.
+_Avoid_: Video (that's the file it's made from), clip, GIF (that's what it can be made from)
+
+**GIF**:
+One of GIPHY's, found by searching from Attach → GIF… (or among what's trending), which the sender's device makes into a movie: its first 6 seconds, in black and white. Once sent it's a movie like any other; nothing remembers it came from GIPHY.
+_Avoid_: Sticker, clip
 
 **Sound**:
 Up to a minute of sound in a message, squashed on purpose on the sender's device: 8,000 samples a second in frames of 20 ms, each frame keeping its bands' loudness and each frequency only as a step up, down or nothing, with what's lost played as noise. Recorded, or cut from a sound file of up to 15 minutes. It is never silent. It plays when pressed, one sound on the page at a time.

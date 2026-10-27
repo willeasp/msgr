@@ -144,6 +144,9 @@ export const ChatInfoDialog = dialog(() =>
 export const GetInfoDialog = dialog(() =>
   import('./chat/GetInfoDialog').then((m) => m.GetInfoDialog)
 );
+export const GifDialog = dialog(() =>
+  import('./chat/GifDialog').then((m) => m.GifDialog)
+);
 export const InviteDialog = dialog(() =>
   import('./InviteDialog').then((m) => m.InviteDialog)
 );

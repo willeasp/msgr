@@ -9,7 +9,7 @@ import { ditherPhoto } from '../../lib/photo';
  * picture.
  */
 export async function pictureFromFile(
-  file: File,
+  file: Blob,
   { square }: { square?: number } = {}
 ): Promise<Bits | null> {
   if (!isPicture(file)) return null;
@@ -39,4 +39,20 @@ export async function pictureFromFile(
     width,
     height
   );
+}
+
+/**
+ * The still of a GIF at `url` (one of this server's), its middle square
+ * dithered at `side` pixels a side; null if it can't be fetched or decoded.
+ */
+export async function stillOf(
+  url: string,
+  side: number,
+  signal: AbortSignal
+): Promise<Bits | null> {
+  const response = await fetch(url, { signal }).catch(() => null);
+  const blob = response?.ok ? await response.blob().catch(() => null) : null;
+  return blob && !signal.aborted
+    ? pictureFromFile(blob, { square: side })
+    : null;
 }

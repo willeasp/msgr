@@ -14,6 +14,8 @@ const config: CodegenConfig = {
           AuthPayload: '../../domain/user.js#Session',
           ChannelListing: '../../domain/chat.js#ChannelChat',
           Chat: '../../domain/chat.js#Chat',
+          Gif: '../../domain/gif.js#Gif',
+          GifPage: '../../domain/gif.js#GifPage',
           ChatAdded: '../../domain/chat.js#ChatAdded',
           Invite: '../../domain/invite.js#Invite',
           LinkPreview: '../../domain/link-preview.js#LinkPreview',
