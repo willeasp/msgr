@@ -28,8 +28,6 @@ export interface GiphyOptions {
   readonly idleMs?: number;
 }
 
-/** GIFs as rated for teenagers and up, as messaging apps commonly ask. */
-const RATING = 'pg-13';
 /** A wide GIF's MP4, 200 pixels tall and many seconds long, is rarely 2 MB. */
 export const MAX_FILE_BYTES = 8 * 1024 * 1024;
 const FILE_TYPES = new Set([
@@ -58,7 +56,7 @@ export function createGiphy({
         api_key: apiKey,
         limit: String(GIF_PAGE),
         offset: String(offset),
-        rating: RATING,
+        // No rating: GIPHY then gives GIFs of every rating.
         ...(words && { q: words }),
       }).toString();
       let response: Response;

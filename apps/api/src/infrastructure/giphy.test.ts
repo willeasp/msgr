@@ -79,18 +79,17 @@ describe('searching GIPHY', () => {
     expect(trending?.origin + (trending?.pathname ?? '')).toBe(
       'https://api.giphy.com/v1/gifs/trending'
     );
+    // Exactly these: no rating, so GIFs of every rating.
     expect(Object.fromEntries(trending?.searchParams ?? [])).toEqual({
       api_key: KEY,
       limit: '24',
       offset: '0',
-      rating: 'pg-13',
     });
     expect(search?.pathname).toBe('/v1/gifs/search');
     expect(Object.fromEntries(search?.searchParams ?? [])).toEqual({
       api_key: KEY,
       limit: '24',
       offset: '24',
-      rating: 'pg-13',
       q: 'happy dance',
     });
     // No redirect is followed with the key, and none waits forever.

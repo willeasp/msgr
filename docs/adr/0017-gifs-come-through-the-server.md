@@ -17,10 +17,10 @@ let the page reach GIPHY's hosts. The page talks to this server alone
 ## Decision
 
 - **The server asks GIPHY**, with `GIPHY_API_KEY`, for whoever is signed in:
-  `Query.gifs(search, after)`, 24 at a time, trending without words, rated
-  PG-13 and under. Without a key GIFs are off: `Query.gifsOn` is false, Attach
-  doesn't offer GIF…, and `gifs` is null. GIPHY busy (its hourly allowance
-  spent) or down is an expected failure (`Unavailable`), said as
+  `Query.gifs(search, after)`, 24 at a time, trending without words, of every
+  rating (none is asked for). Without a key GIFs are off: `Query.gifsOn` is
+  false, Attach doesn't offer GIF…, and `gifs` is null. GIPHY busy (its hourly
+  allowance spent) or down is an expected failure (`Unavailable`), said as
   `SERVICE_UNAVAILABLE`.
 - **And fetches GIPHY's files** at `/giphy/media?url=…`, for whoever is signed
   in: only from GIPHY's own media hosts, over https, redirects included
