@@ -214,15 +214,35 @@ export const typeDefs = /* GraphQL */ `
     bits: String!
   }
 
+  "Which part of a message has bytes of its own."
+  enum MediaPart {
+    PICTURE
+    MOVIE
+    SOUND
+  }
+
   "Text, a picture, a movie or a sound, or text with one of them."
   input SendMessageInput {
     "Chosen by the sender (a version 4 UUID), so the message they show at once is the one stored, and sending it again returns it rather than posting it twice."
     id: ID
     chatId: ID!
     content: String
+    """
+    The picture, movie or sound put ahead of the message, raw, to its own address under id: PUT /media/:id/picture?width=&height=, /media/:id/movie?width=&height=&frames= or /media/:id/sound?frames=, which answers 204 once it's checked, or 422 with the reason as text. Needs id.
+    """
+    uploaded: MediaPart
     picture: PictureInput
+      @deprecated(
+        reason: "Put it to its address first, and name it in uploaded."
+      )
     movie: MovieInput
+      @deprecated(
+        reason: "Put it to its address first, and name it in uploaded."
+      )
     sound: SoundInput
+      @deprecated(
+        reason: "Put it to its address first, and name it in uploaded."
+      )
   }
 
   "Everything someone shows others of themselves, saved at once."

@@ -80,6 +80,10 @@ _Avoid_: Sticker, clip
 Up to a minute of sound in a message, squashed on purpose on the sender's device: 8,000 samples a second in frames of 20 ms, each frame keeping its bands' loudness and each frequency only as a step up, down or nothing, with what's lost played as noise. Recorded, or cut from a sound file of up to 15 minutes. It is never silent. It plays when pressed, one sound on the page at a time.
 _Avoid_: Audio, voice message, voice note, clip
 
+**Upload**:
+A message's picture, movie or sound as its sender's device puts it on the server just before sending the message, under the id the message will have. It's its sender's alone: only their message can take it, which it does as it's stored, and nobody can see it before. One whose message never comes is forgotten within an hour.
+_Avoid_: Attachment, draft, blob
+
 **Activity**:
 When a chat last received a message. A viewer's chats are listed most recently active first. Opening a chat, or joining or leaving a channel, is not activity.
 

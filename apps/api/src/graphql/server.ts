@@ -187,8 +187,8 @@ export async function startServer(
     },
     cors({ origin: config.corsOrigin, credentials: true }),
     // A message's largest honest movie, 48 frames of 320×320, is under 0.95
-    // MB as base64 (domain/movie.ts); a minute's sound is at most 0.4 MB,
-    // and a picture far less.
+    // MB as base64 (domain/movie.ts), which a shell one version behind still
+    // sends here; current ones put it to its own address (ADR 0018).
     express.json({ limit: '1mb' }),
     cookieParser(),
     expressMiddleware(apollo, {
@@ -202,7 +202,8 @@ export async function startServer(
   );
 
   // Pictures', movies' and sounds' bytes, at addresses of their own, and
-  // GIPHY's, fetched for whoever is signed in.
+  // GIPHY's, fetched for whoever is signed in; and a message's, put there
+  // before it's sent.
   app.use(
     ['/media', '/avatars', '/giphy'],
     async (_req, _res, next) => {
@@ -212,7 +213,13 @@ export async function startServer(
     cookieParser()
   );
   const sessionOf = (req: Request) => stringOrUndefined(req.cookies?.[COOKIE]);
-  serveMedia(app, deps, sessionOf);
+  serveMedia(
+    app,
+    deps,
+    sessionOf,
+    (origin, host) =>
+      isAllowedOrigin(origin, config.corsOrigin) || isSameHost(origin, host)
+  );
   serveGiphy(app, deps, sessionOf);
 
   if (config.staticDir) serveApp(app, resolve(config.staticDir));
@@ -315,6 +322,20 @@ const filesIn = (dir: string): string[] =>
     .map((entry) =>
       relative(dir, join(entry.parentPath, entry.name)).replaceAll('\\', '/')
     );
+
+/**
+ * Whether a page at `origin` is this server's own, at whatever address it was
+ * reached (a phone on the network trying `npm run dev`). A page on any other
+ * site sends its own origin, never ours.
+ */
+function isSameHost(origin: string | undefined, host: string | undefined) {
+  if (!origin || !host) return false;
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
 
 /** Only a browser sends `Origin`; anything else is not at risk of being tricked. */
 const isAllowedOrigin = (origin: string | undefined, allowed: string) =>

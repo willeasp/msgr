@@ -18,6 +18,7 @@ import {
 } from '../domain/message.js';
 import type { PushSubscription } from '../domain/push.js';
 import { UNREAD_LIMIT, type Read } from '../domain/read.js';
+import type { Upload } from '../domain/upload.js';
 import { err, ok } from '../domain/result.js';
 import {
   Email,
@@ -53,6 +54,8 @@ export function createInMemoryRepositories(): {
   const messages: Message[] = [];
   // Each message's picture, movie or sound bytes, kept apart as in Postgres.
   const media = new Map<MessageId, MessageMedia>();
+  // What senders put ahead of their messages, under the messages' ids.
+  const uploads = new Map<MessageId, Upload>();
   // Each reader's marks: how far they had read a chat, and when.
   const marks: { messageId: MessageId; readerId: UserId; at: Date }[] = [];
   const messageById = (id: MessageId) =>
@@ -262,7 +265,34 @@ export function createInMemoryRepositories(): {
         }
         messages.push(message);
         record.activeAt = input.createdAt;
+        if (input.id && uploads.get(input.id)?.uploaderId === input.senderId) {
+          uploads.delete(input.id);
+        }
         return message;
+      },
+    },
+
+    uploads: {
+      put: async (upload) => {
+        requireUser(upload.uploaderId);
+        const held = uploads.get(upload.id);
+        if (held && held.uploaderId !== upload.uploaderId) return false;
+        uploads.set(upload.id, upload);
+        return true;
+      },
+      findByIds: async (ids) =>
+        distinct(ids).flatMap((id) => {
+          const upload = uploads.get(id);
+          return upload ? [upload] : [];
+        }),
+      forget: async (at, uploaderId, keep) => {
+        const theirs = [...uploads.values()]
+          .filter((upload) => upload.uploaderId === uploaderId)
+          .sort((a, b) => newestFirst(a, b));
+        for (const { id } of theirs.slice(keep)) uploads.delete(id);
+        for (const [id, upload] of uploads) {
+          if (upload.createdAt < at) uploads.delete(id);
+        }
       },
     },
 
@@ -392,6 +422,10 @@ const isBefore = (a: Message, b: Message) =>
   (a.createdAt.getTime() - b.createdAt.getTime() || compare(a.id, b.id)) < 0;
 
 const distinct = <T>(values: readonly T[]): T[] => [...new Set(values)];
+
+/** The one put last first: by time, then by id, as Postgres orders them. */
+const newestFirst = (a: Upload, b: Upload) =>
+  b.createdAt.getTime() - a.createdAt.getTime() || compare(b.id, a.id);
 
 /** Code-point order, matching Postgres' "C" collation. */
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);

@@ -3,6 +3,7 @@ import type { Chat, ChatId } from '../domain/chat.js';
 import type { Message, MessageId } from '../domain/message.js';
 import { Page } from '../domain/page.js';
 import { firstReadFirst, type Read } from '../domain/read.js';
+import type { Upload } from '../domain/upload.js';
 import type { User, UserId } from '../domain/user.js';
 import type { MessageMedia, Repositories } from './ports.js';
 
@@ -18,6 +19,8 @@ export interface Loaders {
   readonly reads: DataLoader<MessageId, Read[]>;
   /** A message's picture, movie or sound bytes; null for text alone. */
   readonly media: DataLoader<MessageId, MessageMedia | null>;
+  /** What was put under a message's id ahead of it, by whoever put it. */
+  readonly upload: DataLoader<MessageId, Upload | null>;
   messages(page: Page): DataLoader<ChatId, Message[]>;
   /** How many messages in each chat `readerId` hasn't read (domain/read.ts). */
   unread(readerId: UserId): DataLoader<ChatId, number>;
@@ -32,7 +35,7 @@ export interface LoaderOptions {
 }
 
 export function createLoaders(
-  { users, chats, messages, reads }: Repositories,
+  { users, chats, messages, uploads, reads }: Repositories,
   { cache }: LoaderOptions
 ): Loaders {
   const pages = new Map<string, DataLoader<ChatId, Message[]>>();
@@ -64,6 +67,7 @@ export function createLoaders(
       },
       { cache }
     ),
+    upload: byId((ids) => uploads.findByIds(ids), cache),
     messages(page) {
       const key = Page.key(page);
       let loader = pages.get(key);

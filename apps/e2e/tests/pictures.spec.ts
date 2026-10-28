@@ -149,10 +149,23 @@ test('pasting or dropping a photo attaches it; a broken one is refused', async (
   await expect(chat.getByRole('alert')).toHaveCount(0);
 });
 
-test('a picture shows the moment it’s sent, drawn from the device; one the server refuses says Not Sent., and Try Again sends it once', async ({
+test('a picture shows the moment it’s sent, drawn from the device, and goes up before its message; one the server refuses says Not Sent., and Try Again sends it once', async ({
   browser,
 }) => {
   const page = await anotherPerson(browser);
+  // What went to the server, in order: each put, and each send's variables.
+  const went: (string | Record<string, unknown>)[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'PUT') {
+      return void went.push(new URL(request.url()).pathname);
+    }
+    if (!request.url().endsWith('/graphql')) return;
+    const body = request.postDataJSON() as {
+      operationName?: string;
+      variables?: Record<string, unknown>;
+    } | null;
+    if (body?.operationName === 'SendMessage') went.push(body.variables ?? {});
+  });
   await page.goto('/login');
   await signIn(page, 'charlie@example.com');
   await chatsWindow(page).getByText('Test User', { exact: true }).click();
@@ -197,4 +210,36 @@ test('a picture shows the moment it’s sent, drawn from the device; one the ser
   await page.waitForTimeout(500);
   await expect(pictures).toHaveCount(before + 1);
   await expect(again).toHaveCount(0);
+
+  // Its bytes went up raw, to its own address, each time before its message,
+  // which only named them.
+  const put = expect.stringMatching(/^\/media\/[0-9a-f-]{36}\/picture$/);
+  const named = {
+    id: expect.any(String),
+    chatId: expect.any(String),
+    content: 'once',
+    uploaded: 'PICTURE',
+  };
+  expect(went).toEqual([put, named, put, named]);
+  const id = (went[1] as { id: string }).id;
+  expect(went[0]).toBe(`/media/${id}/picture`);
+
+  // What's put can be refused too, and says why.
+  await page.route('**/media/**', (route) =>
+    route.request().method() === 'PUT'
+      ? route.fulfill({ status: 422, body: 'Picture must not be blank' })
+      : route.fallback()
+  );
+  await give(field, 'paste', await photo(page));
+  await field.press('Enter');
+  await expect(chat.getByText('Picture must not be blank')).toBeVisible();
+  await expect(pictures).toHaveCount(before + 2);
+  expect(went).toHaveLength(5);
+  await page.unroute('**/media/**');
+  await again.click();
+  await expect(chat.getByText(/^Not Sent\./)).toHaveCount(0);
+  await expect(
+    chat.getByRole('log').getByRole('img', { name: 'Sending' })
+  ).toHaveCount(0);
+  await expect(pictures).toHaveCount(before + 2);
 });

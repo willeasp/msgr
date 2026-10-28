@@ -30,6 +30,7 @@ import type { Result } from '../domain/result.js';
 import type { StorageUsage } from '../domain/storage.js';
 import type { PictureCodec } from '../domain/picture.js';
 import type { Typing } from '../domain/typing.js';
+import type { Upload } from '../domain/upload.js';
 import type {
   Credentials,
   Email,
@@ -99,10 +100,30 @@ export interface MessageRepository {
   /** Each message's picture, movie or sound bytes; text alone is left out. */
   findMedia(ids: readonly MessageId[]): Promise<MessageMedia[]>;
   /**
-   * Stores the message and marks its chat as active, atomically. Null, and
-   * nothing stored, when the id its sender chose is already a message's.
+   * Stores the message, marks its chat as active and forgets its sender's
+   * upload under its id, if any, atomically. Null, and nothing changed, when
+   * the id its sender chose is already a message's.
    */
   append(message: NewMessage): Promise<Message | null>;
+}
+
+/**
+ * Pictures, movies and sounds put by their senders ahead of their messages
+ * (ADR 0018), each under its message's id. A message takes its own as it's
+ * stored (`MessageRepository.append`).
+ */
+export interface UploadRepository {
+  /**
+   * Keeps the upload, replacing its uploader's own under that id. False, and
+   * nothing kept, when another uploader's upload has the id.
+   */
+  put(upload: Upload): Promise<boolean>;
+  findByIds(ids: readonly MessageId[]): Promise<Upload[]>;
+  /**
+   * Forgets every upload put before `at`, and every one of `uploaderId`'s
+   * but the `keep` they put last.
+   */
+  forget(at: Date, uploaderId: UserId, keep: number): Promise<void>;
 }
 
 /** Who has read what. Reading a chat up to a message reads every message before it too. */
@@ -176,6 +197,7 @@ export interface Repositories {
   readonly users: UserRepository;
   readonly chats: ChatRepository;
   readonly messages: MessageRepository;
+  readonly uploads: UploadRepository;
   readonly reads: ReadRepository;
   readonly invites: InviteRepository;
   readonly pushSubscriptions: PushSubscriptionRepository;

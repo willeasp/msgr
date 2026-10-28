@@ -31,6 +31,10 @@ const config: CodegenConfig = {
           User: '../../domain/user.js#User',
         },
         mapperTypeSuffix: 'Model',
+        // As the domain names them (MediaPart): the schema's enum resolver maps them.
+        enumValues: {
+          MediaPart: { PICTURE: 'picture', MOVIE: 'movie', SOUND: 'sound' },
+        },
         scalars: { DateTime: 'Date' },
         strictScalars: true,
         useTypeImports: true,
