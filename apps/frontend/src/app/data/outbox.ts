@@ -327,9 +327,7 @@ async function deliver(
         id,
         chatId,
         content,
-        // The schema's name for the part (the enum's own values, kept out
-        // of the first load).
-        uploaded: upload && (upload.part.toUpperCase() as MediaPart),
+        uploaded: upload && (UPLOADED[upload.part] as MediaPart),
       },
       // Written to the cache below, by recordMessage alone, and only if
       // the session it was sent in is still the page's.
@@ -355,6 +353,16 @@ async function deliver(
     sentIn.removeEventListener('abort', end);
   }
 }
+
+/**
+ * The schema's name for each part, checked against its enum's values,
+ * which stay out of the first load.
+ */
+const UPLOADED = {
+  picture: 'PICTURE',
+  movie: 'MOVIE',
+  sound: 'SOUND',
+} as const satisfies Record<Upload['part'], `${MediaPart}`>;
 
 /** That the server didn't take what was put, and why if it said. */
 class NotUploaded extends Error {

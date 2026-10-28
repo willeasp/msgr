@@ -23,6 +23,7 @@ import { typingRecipients, type Typing } from '../domain/typing.js';
 import {
   Upload,
   UPLOAD_KEPT_MS,
+  UPLOADS_KEPT_EACH,
   type Media,
   type RawUpload,
 } from '../domain/upload.js';
@@ -212,9 +213,12 @@ export function createMessageService(deps: Dependencies, loaders: Loaders) {
         createdAt: now,
         ...media.value,
       });
-      // Whatever was put and never sent, by anyone, goes in time.
-      await repositories.uploads.forgetBefore(
-        new Date(now.getTime() - UPLOAD_KEPT_MS)
+      // Whatever was put and never sent goes in time, and nobody holds
+      // more than a few.
+      await repositories.uploads.forget(
+        new Date(now.getTime() - UPLOAD_KEPT_MS),
+        viewer.id,
+        UPLOADS_KEPT_EACH
       );
       return kept ? ok(true) : err(idTaken());
     },

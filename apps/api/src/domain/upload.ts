@@ -29,6 +29,14 @@ export type RawUpload =
 /** How long an upload whose message never comes is kept. */
 export const UPLOAD_KEPT_MS = 60 * 60 * 1000;
 
+/**
+ * How many uploads one person may have waiting for their messages: their
+ * newest. A page sends one message at a time per chat, so this many are
+ * never waiting at once, and nobody can fill the database with ones nobody
+ * sees.
+ */
+export const UPLOADS_KEPT_EACH = 10;
+
 /** The most an upload's bytes may be: the largest movie's. */
 export const MAX_UPLOAD_BYTES = Math.max(
   Picture.MAX_BYTES,

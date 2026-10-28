@@ -292,6 +292,8 @@ describe('server', () => {
           { cookie, origin: 'https://evil.example' },
           403,
         ],
+        // A sandboxed page, which has no origin to name.
+        [picture('?width=8&height=1'), { cookie, origin: 'null' }, 403],
         // No part a message has, or no id one can have.
         [`/media/${other}/anything?width=8&height=1`, { cookie }, 404],
         ['/media/a%00b/picture?width=8&height=1', { cookie }, 404],
@@ -311,6 +313,15 @@ describe('server', () => {
       ).toBe(413);
       expect(
         (await put(picture('?width=8&height=1'), ink, { cookie })).status
+      ).toBe(204);
+      // The page at whatever address it reached this server by is ours too.
+      expect(
+        (
+          await put(picture('?width=8&height=1'), ink, {
+            cookie,
+            origin: site(),
+          })
+        ).status
       ).toBe(204);
     });
 

@@ -285,7 +285,11 @@ export function createInMemoryRepositories(): {
           const upload = uploads.get(id);
           return upload ? [upload] : [];
         }),
-      forgetBefore: async (at) => {
+      forget: async (at, uploaderId, keep) => {
+        const theirs = [...uploads.values()]
+          .filter((upload) => upload.uploaderId === uploaderId)
+          .sort((a, b) => newestFirst(a, b));
+        for (const { id } of theirs.slice(keep)) uploads.delete(id);
         for (const [id, upload] of uploads) {
           if (upload.createdAt < at) uploads.delete(id);
         }
@@ -418,6 +422,10 @@ const isBefore = (a: Message, b: Message) =>
   (a.createdAt.getTime() - b.createdAt.getTime() || compare(a.id, b.id)) < 0;
 
 const distinct = <T>(values: readonly T[]): T[] => [...new Set(values)];
+
+/** The one put last first: by time, then by id, as Postgres orders them. */
+const newestFirst = (a: Upload, b: Upload) =>
+  b.createdAt.getTime() - a.createdAt.getTime() || compare(b.id, a.id);
 
 /** Code-point order, matching Postgres' "C" collation. */
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);

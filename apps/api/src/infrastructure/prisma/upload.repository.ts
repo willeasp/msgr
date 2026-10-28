@@ -36,7 +36,8 @@ export function prismaUploadRepository(db: PrismaClient): UploadRepository {
       const { id, uploaderId, createdAt } = upload;
       const media = mediaColumns(upload);
       // Replaces only its uploader's own: another's keeps the id, and
-      // nothing comes back.
+      // nothing comes back. Its time is UTC whatever the session's zone,
+      // as Prisma writes it everywhere else.
       const kept = await db.$queryRaw<{ id: string }[]>`
         INSERT INTO "Upload" (
           "id", "uploaderId", "createdAt",
@@ -44,9 +45,14 @@ export function prismaUploadRepository(db: PrismaClient): UploadRepository {
           "movie", "movieWidth", "movieHeight", "movieFrames",
           "sound", "soundFrames"
         ) VALUES (
-          ${id}, ${uploaderId}, ${createdAt},
-          ${media.picture}, ${media.pictureWidth}::smallint, ${media.pictureHeight}::smallint,
-          ${media.movie}, ${media.movieWidth}::smallint, ${media.movieHeight}::smallint, ${media.movieFrames}::smallint,
+          ${id}, ${uploaderId},
+          ${createdAt.toISOString()}::timestamptz AT TIME ZONE 'UTC',
+          ${media.picture}, ${media.pictureWidth}::smallint, ${
+        media.pictureHeight
+      }::smallint,
+          ${media.movie}, ${media.movieWidth}::smallint, ${
+        media.movieHeight
+      }::smallint, ${media.movieFrames}::smallint,
           ${media.sound}, ${media.soundFrames}::smallint
         )
         ON CONFLICT ("id") DO UPDATE SET
@@ -72,8 +78,16 @@ export function prismaUploadRepository(db: PrismaClient): UploadRepository {
       return rows.map(toUpload);
     },
 
-    async forgetBefore(at) {
-      await db.upload.deleteMany({ where: { createdAt: { lt: at } } });
+    async forget(at, uploaderId, keep) {
+      await db.$executeRaw`
+        DELETE FROM "Upload"
+        WHERE "createdAt" < ${at.toISOString()}::timestamptz AT TIME ZONE 'UTC'
+          OR "id" IN (
+            SELECT "id" FROM "Upload"
+            WHERE "uploaderId" = ${uploaderId}
+            ORDER BY "createdAt" DESC, "id" DESC
+            OFFSET ${keep}
+          )`;
     },
   };
 }

@@ -12,7 +12,7 @@ import {
   soundUpload,
   type Put,
 } from '../testing/uploads.js';
-import { UPLOAD_KEPT_MS } from '../domain/upload.js';
+import { UPLOAD_KEPT_MS, UPLOADS_KEPT_EACH } from '../domain/upload.js';
 import {
   createTestApp,
   expectOk,
@@ -691,6 +691,31 @@ describe('sending what was put ahead of it', () => {
         uploaded: 'picture',
       })
     );
+  });
+
+  it(`keeps only each person's ${UPLOADS_KEPT_EACH} newest uploads waiting`, async () => {
+    const { services, ada, grace, chat } = await team();
+    const idOf = (n: number) =>
+      `3f0e1c2a-9b4d-4c8e-a1f2-${String(n).padStart(12, '0')}`;
+    expectOk(await put(services, grace, pictureUpload(), idOf(999)));
+    for (let n = 0; n <= UPLOADS_KEPT_EACH; n++) {
+      expectOk(await put(services, ada, pictureUpload(), idOf(n)));
+    }
+    const send = (sender: User, n: number) =>
+      services().messages.send(sender, {
+        id: idOf(n),
+        chatId: chat.id,
+        uploaded: 'picture',
+      });
+
+    // Her first went when she put one too many; the rest, and Grace's, wait.
+    expect(await send(ada, 0)).toMatchObject({
+      ok: false,
+      error: { field: 'uploaded' },
+    });
+    expectOk(await send(ada, 1));
+    expectOk(await send(ada, UPLOADS_KEPT_EACH));
+    expectOk(await send(grace, 999));
   });
 
   it('forgets an upload an hour after it was put, when anyone puts another', async () => {

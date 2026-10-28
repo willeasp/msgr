@@ -20,6 +20,8 @@ CREATE TABLE "Upload" (
 
 CREATE INDEX "Upload_createdAt_idx" ON "Upload"("createdAt");
 
+CREATE INDEX "Upload_uploaderId_createdAt_idx" ON "Upload"("uploaderId", "createdAt");
+
 ALTER TABLE "Upload" ADD CONSTRAINT "Upload_uploaderId_fkey" FOREIGN KEY ("uploaderId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Exactly one of a picture, a movie and a sound, with its size, as a

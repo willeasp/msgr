@@ -51,10 +51,12 @@ bodies are capped at 1 MB, just above the largest honest movie as base64, and
 the socket refuses anything but a subscription. A message's picture, movie or
 sound is put raw to its own address before the message
 ([ADR 18](adr/0018-media-goes-up-before-its-message.md)): only by someone signed
-in, from this site's `Origin`, read only up to the largest honest movie (about
-0.7 MB, a longer body refused before it's read), checked exactly as one inside a
-message, and kept as an upload only its uploader's message can take. Nobody can
-fetch an upload, and one never sent is forgotten within an hour. Avatars are pictures too, parsed the same way and
+in, never from another site's page (a browser's `Origin` must be this site's),
+read only up to the largest honest movie (about 0.7 MB, a longer body refused
+before it's read), checked exactly as one inside a message, and kept as an
+upload only its uploader's message can take. Nobody can fetch an upload, one
+never sent is forgotten within an hour, and nobody keeps more than ten waiting,
+so uploads no chat shows can't fill the database. Avatars are pictures too, parsed the same way and
 held to exactly 64×64. Only people who share a chat with someone are sent their
 profile changes, though anyone signed in can read a name and avatar.
 

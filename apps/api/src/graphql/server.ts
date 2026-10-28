@@ -213,8 +213,12 @@ export async function startServer(
     cookieParser()
   );
   const sessionOf = (req: Request) => stringOrUndefined(req.cookies?.[COOKIE]);
-  serveMedia(app, deps, sessionOf, (origin) =>
-    isAllowedOrigin(origin, config.corsOrigin)
+  serveMedia(
+    app,
+    deps,
+    sessionOf,
+    (origin, host) =>
+      isAllowedOrigin(origin, config.corsOrigin) || isSameHost(origin, host)
   );
   serveGiphy(app, deps, sessionOf);
 
@@ -318,6 +322,20 @@ const filesIn = (dir: string): string[] =>
     .map((entry) =>
       relative(dir, join(entry.parentPath, entry.name)).replaceAll('\\', '/')
     );
+
+/**
+ * Whether a page at `origin` is this server's own, at whatever address it was
+ * reached (a phone on the network trying `npm run dev`). A page on any other
+ * site sends its own origin, never ours.
+ */
+function isSameHost(origin: string | undefined, host: string | undefined) {
+  if (!origin || !host) return false;
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
 
 /** Only a browser sends `Origin`; anything else is not at risk of being tricked. */
 const isAllowedOrigin = (origin: string | undefined, allowed: string) =>

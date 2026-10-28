@@ -119,8 +119,11 @@ export interface UploadRepository {
    */
   put(upload: Upload): Promise<boolean>;
   findByIds(ids: readonly MessageId[]): Promise<Upload[]>;
-  /** Forgets every upload put before `at`. */
-  forgetBefore(at: Date): Promise<void>;
+  /**
+   * Forgets every upload put before `at`, and every one of `uploaderId`'s
+   * but the `keep` they put last.
+   */
+  forget(at: Date, uploaderId: UserId, keep: number): Promise<void>;
 }
 
 /** Who has read what. Reading a chat up to a message reads every message before it too. */

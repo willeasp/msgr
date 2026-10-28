@@ -858,26 +858,32 @@ export function repositoryContract(
       expect(await repositories.uploads.findByIds([id])).toEqual([sound]);
     });
 
-    it('forgets every upload put before a moment, and no other', async () => {
+    it('forgets every upload put before a moment, and all but the newest few of one person', async () => {
       const ada = await fixtures.user({ name: 'Ada' });
-      const later = MessageId('3f0e1c2a-9b4d-4c8e-a1f2-000000000002');
-      const kept = {
-        id: later,
-        uploaderId: ada.id,
-        createdAt: at('01:00:00'),
+      const grace = await fixtures.user({ name: 'Grace' });
+      const upload = (n: number, uploader: User, time: string): Upload => ({
+        id: MessageId(`3f0e1c2a-9b4d-4c8e-a1f2-${String(n).padStart(12, '0')}`),
+        uploaderId: uploader.id,
+        createdAt: at(time),
         ...none,
         picture: examplePicture(),
-      };
-      await repositories.uploads.put({
-        ...kept,
-        id,
-        createdAt: at('00:00:00'),
       });
-      await repositories.uploads.put(kept);
+      const uploads = [
+        upload(1, grace, '00:00:00'),
+        upload(2, grace, '01:00:00'),
+        upload(3, ada, '01:00:00'),
+        upload(4, ada, '01:00:01'),
+        // At the same moment as the one before, and after it by id.
+        upload(5, ada, '01:00:01'),
+        upload(6, ada, '01:00:02'),
+      ];
+      for (const each of uploads) await repositories.uploads.put(each);
 
-      await repositories.uploads.forgetBefore(at('01:00:00'));
+      await repositories.uploads.forget(at('01:00:00'), ada.id, 2);
 
-      expect(await repositories.uploads.findByIds([id, later])).toEqual([kept]);
+      expect(
+        byId(await repositories.uploads.findByIds(uploads.map(({ id }) => id)))
+      ).toEqual([uploads[1], uploads[4], uploads[5]]);
     });
 
     it("is taken by its sender's message as it's stored, and only by theirs", async () => {

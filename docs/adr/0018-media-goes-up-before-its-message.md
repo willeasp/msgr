@@ -48,15 +48,19 @@ could be said, or checked, apart from the message.
   have says so ("Upload it before sending it"), unless its message is
   stored already, which answers as any send under a stored id does. An
   upload whose message never comes is forgotten an hour after it was put
-  (`UPLOAD_KEPT_MS`), swept by the next upload anyone puts.
+  (`UPLOAD_KEPT_MS`), swept by the next upload anyone puts, and nobody keeps
+  more than their 10 newest (`UPLOADS_KEPT_EACH`): a page sends one message
+  at a time per chat, and nobody can fill the database with uploads no chat
+  shows.
 - **The upload's address is the API's, like `/graphql`.** The client builds
   it only to put, from the id it chose; it still reads only from `url`, which
   stays opaque. If media moves to object storage (ADR 12), uploads still come
   through here: only the server can check them (ADRs 7 and 8).
 - **Puts are from this site alone.** The session cookie is `SameSite=Lax` and
   a `PUT` from another site needs a preflight nobody answers, so no other
-  site can put; the server also refuses any `Origin` but `CORS_ORIGIN`
-  (403), as it does for sockets.
+  site can put; the server also refuses a browser whose `Origin` is neither
+  `CORS_ORIGIN` nor the address it asked (403), so a phone trying
+  `npm run dev` over the network still can.
 - An avatar still goes in `updateProfile`: 64×64 pixels, at most 1 KB, its
   address named by its contents rather than an id that exists before it.
 - `SendMessageInput.picture`, `movie` and `sound` stay, deprecated, for a

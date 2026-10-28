@@ -111,13 +111,14 @@ export async function mediaBytes(
  * else is a 404, whether missing, not theirs, or asked for without a session.
  *
  * And takes a message's picture, movie or sound, put to its address before
- * the message is sent (ADR 0018), from this site alone (`isOurs`).
+ * the message is sent (ADR 0018), from this site alone (`isOurs`: a
+ * browser's `Origin`, and the address it asked).
  */
 export function serveMedia(
   app: Express,
   deps: Dependencies,
   sessionOf: (req: Request) => string | undefined,
-  isOurs: (origin: string | undefined) => boolean
+  isOurs: (origin: string | undefined, host: string | undefined) => boolean
 ): void {
   const viewing = (req: Request) =>
     createContext(deps, {
@@ -139,7 +140,7 @@ export function serveMedia(
   routes.put('/media/:messageId/:part', async (req, res) => {
     const { messageId, part } = req.params;
     if (!isId(messageId) || !isMediaPart(part)) return missing(res);
-    if (!isOurs(req.headers.origin)) return empty(res, 403);
+    if (!isOurs(req.headers.origin, req.headers.host)) return empty(res, 403);
     // Asked before reading a byte: the session, then the length.
     const { viewer, services } = await viewing(req);
     if (!viewer) return empty(res, 401);
