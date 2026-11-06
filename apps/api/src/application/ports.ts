@@ -60,7 +60,7 @@ export interface UserRepository {
   /** Name or email contains `term` (case-insensitive), ordered by name. */
   search(
     term: SearchTerm,
-    options: { readonly excluding: UserId; readonly limit: number }
+    options: { readonly limit: number }
   ): Promise<User[]>;
 }
 

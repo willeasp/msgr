@@ -16,7 +16,10 @@ export function createUserService({
   profileEvents,
 }: Dependencies) {
   return {
-    /** People the viewer could start a chat with. Never includes the viewer. */
+    /**
+     * People the viewer could start a chat with, the viewer among them: with
+     * themselves, it's their self chat.
+     */
     async search(
       viewer: User,
       query: string
@@ -25,7 +28,6 @@ export function createUserService({
       if (!term.ok) return term;
       return ok(
         await repositories.users.search(term.value, {
-          excluding: viewer.id,
           limit: SearchTerm.RESULT_LIMIT,
         })
       );

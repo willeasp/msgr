@@ -91,29 +91,9 @@ export function NewChatModal() {
         />
         <div className={styles.results}>
           {!isSearching ? (
-            <>
-              <Muted>
-                Type at least {MIN_QUERY_LENGTH} letters, then press ↓ to
-                choose.
-              </Muted>
-              {viewer && (
-                // A chat with yourself, for notes: search never finds you.
-                <ActionListItem
-                  onClick={() =>
-                    findOrCreateChat({
-                      variables: { participantId: viewer.id },
-                    })
-                  }
-                >
-                  <RowSpaceBetween style={{ width: '100%', gap: '2ch' }}>
-                    <span className={styles.name}>
-                      <PixelText text={viewer.name} />
-                    </span>
-                    <Muted>Notes to yourself</Muted>
-                  </RowSpaceBetween>
-                </ActionListItem>
-              )}
-            </>
+            <Muted>
+              Type at least {MIN_QUERY_LENGTH} letters, then press ↓ to choose.
+            </Muted>
           ) : searching && !searchData ? (
             <LoadingState label="Searching" />
           ) : users.length > 0 ? (
@@ -127,6 +107,7 @@ export function NewChatModal() {
                 <RowSpaceBetween style={{ width: '100%', gap: '2ch' }}>
                   <span className={styles.name}>
                     <PixelText text={user.name} />
+                    {user.id === viewer?.id && ' (You)'}
                   </span>
                   <Muted>{user.email}</Muted>
                 </RowSpaceBetween>

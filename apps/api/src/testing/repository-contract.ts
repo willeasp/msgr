@@ -112,7 +112,7 @@ export function repositoryContract(
       ).toBeNull();
     });
 
-    it('searches names and emails case-insensitively, ordered by name, without the excluded user', async () => {
+    it('searches names and emails case-insensitively, ordered by name', async () => {
       const viewer = await fixtures.user({
         name: 'Ada Viewer',
         email: 'ada@example.com',
@@ -127,12 +127,12 @@ export function repositoryContract(
       });
       await fixtures.user({ name: 'Linus', email: 'linus@kernel.org' });
       const search = (query: string, limit = 10) =>
-        repositories.users.search(term(query), { excluding: viewer.id, limit });
+        repositories.users.search(term(query), { limit });
 
-      expect(await search('AD')).toEqual([adam]);
+      expect(await search('AD')).toEqual([viewer, adam]);
       expect(await search('NAVY')).toEqual([grace]);
-      expect(await search('a')).toEqual([adam, grace]);
-      expect(await search('a', 1)).toEqual([adam]);
+      expect(await search('a')).toEqual([viewer, adam, grace]);
+      expect(await search('a', 1)).toEqual([viewer]);
     });
 
     it('saves a profile: a new name, and a picture or none', async () => {
@@ -155,13 +155,9 @@ export function repositoryContract(
     });
 
     it('matches % and _ literally', async () => {
-      const viewer = await fixtures.user({ name: 'Viewer' });
       await fixtures.user({ name: 'Percy' });
       const search = (query: string) =>
-        repositories.users.search(term(query), {
-          excluding: viewer.id,
-          limit: 10,
-        });
+        repositories.users.search(term(query), { limit: 10 });
 
       expect(await search('%')).toEqual([]);
       expect(await search('_')).toEqual([]);

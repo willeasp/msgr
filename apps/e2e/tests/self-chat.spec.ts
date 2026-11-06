@@ -8,8 +8,8 @@ import {
 } from './support';
 
 /*
- * A self chat: New Chat offers the viewer themself, for notes, and what they
- * write there is theirs alone, never unread. The note-taker is new, signed up
+ * A self chat: New Chat's search finds the viewer too, marked (You), and what
+ * they write there is theirs alone, never unread. The note-taker is new, signed up
  * by invite, so the spec costs the login throttle one sign-in.
  */
 
@@ -36,7 +36,8 @@ test('someone opens a chat with themselves from New Chat and writes in it', asyn
 
   await chooseMenu(page, 'File', 'New Chat…');
   const newChat = page.getByRole('dialog', { name: 'New Chat' });
-  await newChat.getByText('Notes to yourself').click();
+  await newChat.getByLabel('Find someone to message').fill('Noter');
+  await newChat.getByText('Noter (You)').click();
 
   const notes = chatWindow(page, 'Noter');
   await expect(notes).toBeVisible();

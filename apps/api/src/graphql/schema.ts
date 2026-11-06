@@ -304,7 +304,7 @@ export const typeDefs = /* GraphQL */ `
   type Query {
     "The signed-in user, or null."
     me: User
-    "Users whose name or email contains the query, excluding the viewer."
+    "Users whose name or email contains the query, the viewer too: their chat with themselves is opened like anyone's."
     users(query: String!): [User!]!
     "The viewer's chats, most recently active first."
     chats: [Chat!]!

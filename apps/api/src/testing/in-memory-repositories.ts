@@ -110,15 +110,14 @@ export function createInMemoryRepositories(): {
       findCredentials: async (email) =>
         [...users.values()].find(({ user }) => user.email === email) ?? null,
 
-      search: async (term, { excluding, limit }) => {
+      search: async (term, { limit }) => {
         const needle = term.toLowerCase();
         return [...users.values()]
           .map(({ user }) => user)
           .filter(
             (user) =>
-              user.id !== excluding &&
-              (user.name.toLowerCase().includes(needle) ||
-                user.email.toLowerCase().includes(needle))
+              user.name.toLowerCase().includes(needle) ||
+              user.email.toLowerCase().includes(needle)
           )
           .sort((a, b) => compare(a.name, b.name) || compare(a.id, b.id))
           .slice(0, limit);

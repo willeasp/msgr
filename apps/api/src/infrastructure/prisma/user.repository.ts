@@ -46,12 +46,11 @@ export function prismaUserRepository(db: PrismaClient): UserRepository {
       return toUser(row);
     },
 
-    async search(term, { excluding, limit }) {
+    async search(term, { limit }) {
       // Prisma hands `contains` to LIKE as-is; escape so "%" and "_" match literally.
       const literal = term.replace(/[\\%_]/g, '\\$&');
       const rows = await db.user.findMany({
         where: {
-          id: { not: excluding },
           OR: [
             { name: { contains: literal, mode: 'insensitive' } },
             { email: { contains: literal, mode: 'insensitive' } },

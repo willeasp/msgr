@@ -4,7 +4,7 @@ import { createTestApp, expectOk, nextEvent } from '../testing/harness.js';
 import { pictureInput } from '../testing/pictures.js';
 
 describe('user search', () => {
-  it('finds other people by name or email, never the viewer', async () => {
+  it('finds people by name or email, the viewer too', async () => {
     const { fixtures, services } = createTestApp();
     const ada = await fixtures.user({ name: 'Ada Lovelace' });
     const adam = await fixtures.user({ name: 'Adam Smith' });
@@ -14,6 +14,7 @@ describe('user search', () => {
     });
 
     expect(expectOk(await services().users.search(ada, ' ada '))).toEqual([
+      ada,
       adam,
       grace,
     ]);
