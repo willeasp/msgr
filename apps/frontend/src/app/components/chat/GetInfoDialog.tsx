@@ -152,7 +152,7 @@ export function GetInfoDialog({ messageId }: { messageId: string }) {
             <dd>{messageSize(message)}</dd>
             <dt>Where:</dt>
             <dd>
-              <PixelText text={chatPlace(message.chat)} />
+              <PixelText text={chatPlace(message.chat, me?.me?.id)} />
             </dd>
           </dl>
           <dl className={styles.facts}>

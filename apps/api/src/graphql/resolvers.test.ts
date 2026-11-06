@@ -418,6 +418,27 @@ describe('chats', () => {
     ).toEqual({ chat: { counterpart: null } });
   });
 
+  it('shows a chat with yourself as a direct chat with you in it', async () => {
+    const { app, ada } = await world();
+
+    const opened = await execute(
+      app,
+      'mutation ($id: ID!) { findOrCreateChat(participantId: $id) { kind title counterpart { name } participants { name } unreadCount } }',
+      { as: ada, variables: { id: ada.id } }
+    );
+
+    expect(opened.errors).toBeUndefined();
+    expect(opened.data).toEqual({
+      findOrCreateChat: {
+        kind: 'DIRECT',
+        title: 'Ada',
+        counterpart: { name: 'Ada' },
+        participants: [{ name: 'Ada' }],
+        unreadCount: 0,
+      },
+    });
+  });
+
   it('counts what each viewer has yet to read, every chat in one batch', async () => {
     const { app, ada, grace, linus, team, direct } = await world();
     const services = app.services();
@@ -528,19 +549,6 @@ describe('chats', () => {
     expect(spies.users).toHaveBeenCalledTimes(2); // the viewer, then everyone else
     expect(spies.pages).toHaveBeenCalledTimes(1);
     expect(spies.chats).toHaveBeenCalledTimes(1);
-  });
-
-  it('refuses to open a chat with yourself', async () => {
-    const { app, ada } = await world();
-
-    const result = await execute(
-      app,
-      'mutation ($id: ID!) { findOrCreateChat(participantId: $id) { id } }',
-      { as: ada, variables: { id: ada.id } }
-    );
-
-    expect(codeOf(result)).toBe('BAD_USER_INPUT');
-    expect(result.errors?.[0]?.extensions['field']).toBe('participantId');
   });
 });
 

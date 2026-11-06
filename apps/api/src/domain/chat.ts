@@ -37,7 +37,18 @@ export interface ChannelChat {
   readonly participantIds: readonly UserId[];
 }
 
-export type Chat = DirectChat | GroupChat | ChannelChat;
+/**
+ * A chat with only its owner in it, for notes to themselves. Everyone has at
+ * most one. It's titled by their own name, and to clients it is a direct chat
+ * whose counterpart is the viewer.
+ */
+export interface SelfChat {
+  readonly kind: 'self';
+  readonly id: ChatId;
+  readonly participantIds: readonly [UserId];
+}
+
+export type Chat = DirectChat | GroupChat | ChannelChat | SelfChat;
 
 /**
  * A chat now includes someone who didn't open it themselves: the person they
@@ -90,10 +101,13 @@ export const visibleTo = (
     ? ok(chat)
     : err(notFound('Chat'));
 
-/** The other side of a direct chat, as seen by `viewer`. */
-export const counterpart = (chat: DirectChat, viewer: UserId): UserId => {
+/** The other side of a direct chat, as seen by `viewer`; in a self chat, its owner. */
+export const counterpart = (
+  chat: DirectChat | SelfChat,
+  viewer: UserId
+): UserId => {
   const [first, second] = chat.participantIds;
-  return first === viewer ? second : first;
+  return first === viewer && second !== undefined ? second : first;
 };
 
 /** Identifies the single direct chat two users share, regardless of who started it. */
@@ -103,6 +117,10 @@ export interface DirectPair {
   readonly key: DirectChatKey;
   readonly participantIds: readonly [UserId, UserId];
 }
+
+/** Identifies someone's self chat: their id alone, which no pair's key can be. */
+export const selfChatKey = (owner: UserId): DirectChatKey =>
+  owner as string as DirectChatKey;
 
 export const directPair = (
   initiator: UserId,

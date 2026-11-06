@@ -13,6 +13,7 @@ import { LoadingState } from '../LoadingState';
 import { DialogButtons, MacDialog } from '../MacDialog';
 import { Muted } from '../Muted';
 import { GET_CHATS } from '../../data/chats';
+import { ME } from '../../data/me';
 import styles from './NewChatModal.module.css';
 import { PixelText } from '../PixelText';
 
@@ -57,6 +58,8 @@ export function NewChatModal() {
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const isSearching = userSearchQuery.length >= MIN_QUERY_LENGTH;
 
+  const { data: meData } = useQuery(ME);
+  const viewer = meData?.me;
   const { data: searchData, loading: searching } = useQuery(SEARCH_USERS, {
     variables: { query: userSearchQuery },
     skip: !isSearching,
@@ -88,9 +91,29 @@ export function NewChatModal() {
         />
         <div className={styles.results}>
           {!isSearching ? (
-            <Muted>
-              Type at least {MIN_QUERY_LENGTH} letters, then press ↓ to choose.
-            </Muted>
+            <>
+              <Muted>
+                Type at least {MIN_QUERY_LENGTH} letters, then press ↓ to
+                choose.
+              </Muted>
+              {viewer && (
+                // A chat with yourself, for notes: search never finds you.
+                <ActionListItem
+                  onClick={() =>
+                    findOrCreateChat({
+                      variables: { participantId: viewer.id },
+                    })
+                  }
+                >
+                  <RowSpaceBetween style={{ width: '100%', gap: '2ch' }}>
+                    <span className={styles.name}>
+                      <PixelText text={viewer.name} />
+                    </span>
+                    <Muted>Notes to yourself</Muted>
+                  </RowSpaceBetween>
+                </ActionListItem>
+              )}
+            </>
           ) : searching && !searchData ? (
             <LoadingState label="Searching" />
           ) : users.length > 0 ? (

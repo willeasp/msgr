@@ -55,6 +55,15 @@ describe('counterpart', () => {
     expect(counterpart(direct, ada)).toBe(grace);
     expect(counterpart(direct, grace)).toBe(ada);
   });
+
+  it('is its owner in a chat with themselves', () => {
+    const notes = {
+      kind: 'self',
+      id: ChatId('n'),
+      participantIds: [ada],
+    } as const;
+    expect(counterpart(notes, ada)).toBe(ada);
+  });
 });
 
 describe('visibleTo', () => {

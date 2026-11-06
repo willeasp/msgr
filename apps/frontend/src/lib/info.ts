@@ -67,12 +67,22 @@ export function messageSize({ content, picture, movie, sound }: Body): string {
   return parts.join('; ');
 }
 
-/** Where it was sent: "#general", "Team", "Your chat with Ana". */
-export function chatPlace(chat: {
-  readonly kind: 'DIRECT' | 'GROUP' | 'CHANNEL';
-  readonly title: string;
-}): string {
-  return chat.kind === 'DIRECT' ? `Your chat with ${chat.title}` : chat.title;
+/**
+ * Where it was sent, as `viewerId` sees it: "#general", "Team", "Your chat
+ * with Ana", or "Your notes" in their chat with themselves.
+ */
+export function chatPlace(
+  chat: {
+    readonly kind: 'DIRECT' | 'GROUP' | 'CHANNEL';
+    readonly title: string;
+    readonly counterpart?: { readonly id: string } | null;
+  },
+  viewerId?: string
+): string {
+  if (chat.kind !== 'DIRECT') return chat.title;
+  return viewerId !== undefined && chat.counterpart?.id === viewerId
+    ? 'Your notes'
+    : `Your chat with ${chat.title}`;
 }
 
 /** Someone a message was for, and when they read it; null until they have. */

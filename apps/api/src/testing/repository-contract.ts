@@ -184,6 +184,28 @@ export function repositoryContract(
       });
     });
 
+    it("keeps one self chat per person, apart from everyone else's chats", async () => {
+      const ada = await fixtures.user({ name: 'Ada' });
+      const grace = await fixtures.user({ name: 'Grace' });
+      const direct = await repositories.chats.saveDirect(pairOf(ada, grace));
+
+      const notes = await repositories.chats.saveSelf(ada.id);
+      const again = await repositories.chats.saveSelf(ada.id);
+      const graces = await repositories.chats.saveSelf(grace.id);
+
+      expect(again).toEqual(notes);
+      expect(notes).toEqual({
+        kind: 'self',
+        id: notes.id,
+        participantIds: [ada.id],
+      });
+      expect(new Set([notes.id, graces.id, direct.id]).size).toBe(3);
+      expect(await repositories.chats.findByIds([notes.id])).toEqual([notes]);
+      expect(
+        sortById(await repositories.chats.findByParticipant(ada.id))
+      ).toEqual(sortById([notes, direct]));
+    });
+
     it('keeps a group of the same two people apart from their direct chat', async () => {
       const ada = await fixtures.user({ name: 'Ada' });
       const grace = await fixtures.user({ name: 'Grace' });

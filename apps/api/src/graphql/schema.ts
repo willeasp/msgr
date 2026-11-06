@@ -46,10 +46,10 @@ export const typeDefs = /* GraphQL */ `
   type Chat {
     id: ID!
     kind: ChatKind!
-    "A group's own title, a channel's name after a #, or for a direct chat the other participant's name."
+    "A group's own title, a channel's name after a #, or for a direct chat the other participant's name (the viewer's own, in their chat with themselves)."
     title: String!
     participants: [User!]!
-    "In a direct chat, the other person; null in any other."
+    "In a direct chat, the other person, or the viewer in their chat with themselves; null in any other."
     counterpart: User
     "How many messages others sent here after the last one the viewer read or sent."
     unreadCount: Int!
@@ -350,7 +350,7 @@ export const typeDefs = /* GraphQL */ `
     signUp(input: SignUpInput!): SignUpPayload!
     "A single-use invite from the viewer, valid for a week."
     createInvite: Invite!
-    "The viewer's direct chat with a user, created on first contact."
+    "The viewer's direct chat with a user, created on first contact; with their own id, their chat with themselves."
     findOrCreateChat(participantId: ID!): Chat!
     sendMessage(input: SendMessageInput!): Message!
     "The viewer has read a chat up to and including this message."

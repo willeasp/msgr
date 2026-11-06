@@ -2,11 +2,13 @@ import type { MessageMedia, Repositories } from '../application/ports.js';
 import {
   ChatId,
   isParticipant,
+  selfChatKey,
   type ChannelChat,
   type Chat,
   type DirectChat,
   type DirectChatKey,
   type GroupChat,
+  type SelfChat,
 } from '../domain/chat.js';
 import type { Invite, InviteCode } from '../domain/invite.js';
 import {
@@ -153,6 +155,20 @@ export function createInMemoryRepositories(): {
           kind: 'direct',
           id: ChatId(nextId()),
           participantIds,
+        };
+        chats.set(chat.id, { chat, directKey: key, activeAt: new Date() });
+        return chat;
+      },
+
+      saveSelf: async (owner) => {
+        const key = selfChatKey(owner);
+        const existing = [...chats.values()].find((r) => r.directKey === key);
+        if (existing?.chat.kind === 'self') return existing.chat;
+        requireUser(owner);
+        const chat: SelfChat = {
+          kind: 'self',
+          id: ChatId(nextId()),
+          participantIds: [owner],
         };
         chats.set(chat.id, { chat, directKey: key, activeAt: new Date() });
         return chat;
