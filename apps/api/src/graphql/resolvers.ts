@@ -161,7 +161,10 @@ export const resolvers: Resolvers = {
   },
 
   Chat: {
-    kind: (chat) => chat.kind.toUpperCase() as ChatKind,
+    // A self chat is a direct chat with the viewer as its counterpart, to
+    // clients: every shell, older ones too, shows it as one.
+    kind: (chat) =>
+      (chat.kind === 'self' ? 'DIRECT' : chat.kind.toUpperCase()) as ChatKind,
     title: async (chat, _, ctx) => {
       switch (chat.kind) {
         case 'group':
@@ -169,6 +172,7 @@ export const resolvers: Resolvers = {
         case 'channel':
           return `#${chat.name}`;
         case 'direct':
+        case 'self':
           return (
             await loadExisting(
               ctx.loaders.user,
@@ -178,7 +182,7 @@ export const resolvers: Resolvers = {
       }
     },
     counterpart: (chat, _, ctx) =>
-      chat.kind === 'direct'
+      chat.kind === 'direct' || chat.kind === 'self'
         ? loadExisting(
             ctx.loaders.user,
             counterpart(chat, requireViewer(ctx).id)

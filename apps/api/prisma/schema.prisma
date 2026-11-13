@@ -31,7 +31,8 @@ model User {
 /// what kind of chat it is (enforced by a CHECK constraint).
 model Chat {
   id           String      @id @default(cuid())
-  /// Direct chats only: the two participant ids, sorted and joined by ":".
+  /// Direct chats only: the two participant ids, sorted and joined by ":";
+  /// for someone's chat with themselves, their id alone.
   /// Unique, so two users share at most one direct chat.
   directKey    String?     @unique
   /// Group chats only. A direct chat is titled by its counterpart's name.

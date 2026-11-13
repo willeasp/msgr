@@ -68,13 +68,25 @@ describe('opening a direct chat', () => {
     expect(direct.id).not.toBe(group.id);
   });
 
-  it('refuses a chat with yourself', async () => {
-    const { services, ada } = await threePeople();
+  it('opens a chat with yourself, that nobody else can see', async () => {
+    const { services, ada, grace } = await threePeople();
 
-    expect(await services().chats.openDirect(ada, ada.id)).toMatchObject({
+    const notes = expectOk(await services().chats.openDirect(ada, ada.id));
+    const again = expectOk(await services().chats.openDirect(ada, ada.id));
+
+    expect(again).toEqual(notes);
+    expect(notes).toMatchObject({ kind: 'self', participantIds: [ada.id] });
+    expect(await services().chats.listFor(ada)).toEqual([notes]);
+    expect(await services().chats.find(grace, notes.id)).toEqual({
       ok: false,
-      error: { type: 'InvalidInput', field: 'participantId' },
+      error: { type: 'NotFound', entity: 'Chat' },
     });
+    expectOk(
+      await services().messages.send(ada, {
+        chatId: notes.id,
+        content: 'Buy milk',
+      })
+    );
   });
 
   it('refuses an unknown user', async () => {

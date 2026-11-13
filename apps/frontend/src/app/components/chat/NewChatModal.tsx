@@ -13,6 +13,7 @@ import { LoadingState } from '../LoadingState';
 import { DialogButtons, MacDialog } from '../MacDialog';
 import { Muted } from '../Muted';
 import { GET_CHATS } from '../../data/chats';
+import { ME } from '../../data/me';
 import styles from './NewChatModal.module.css';
 import { PixelText } from '../PixelText';
 
@@ -57,6 +58,8 @@ export function NewChatModal() {
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const isSearching = userSearchQuery.length >= MIN_QUERY_LENGTH;
 
+  const { data: meData } = useQuery(ME);
+  const viewer = meData?.me;
   const { data: searchData, loading: searching } = useQuery(SEARCH_USERS, {
     variables: { query: userSearchQuery },
     skip: !isSearching,
@@ -104,6 +107,7 @@ export function NewChatModal() {
                 <RowSpaceBetween style={{ width: '100%', gap: '2ch' }}>
                   <span className={styles.name}>
                     <PixelText text={user.name} />
+                    {user.id === viewer?.id && ' (You)'}
                   </span>
                   <Muted>{user.email}</Muted>
                 </RowSpaceBetween>

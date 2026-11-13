@@ -33,11 +33,17 @@ export function createChatService(deps: Dependencies, loaders: Loaders) {
       return visibleTo(await loaders.chat.load(ChatId(chatId)), viewer.id);
     },
 
-    /** The viewer's direct chat with `participantId`, created on first contact. */
+    /**
+     * The viewer's direct chat with `participantId`, created on first contact;
+     * with their own id, their self chat.
+     */
     async openDirect(
       viewer: User,
       participantId: string
     ): Promise<Result<Chat, InvalidInput | NotFound>> {
+      if (participantId === viewer.id) {
+        return ok(await repositories.chats.saveSelf(viewer.id));
+      }
       const pair = directPair(viewer.id, UserId(participantId));
       if (!pair.ok) return pair;
 

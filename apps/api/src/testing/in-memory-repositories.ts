@@ -2,11 +2,13 @@ import type { MessageMedia, Repositories } from '../application/ports.js';
 import {
   ChatId,
   isParticipant,
+  selfChatKey,
   type ChannelChat,
   type Chat,
   type DirectChat,
   type DirectChatKey,
   type GroupChat,
+  type SelfChat,
 } from '../domain/chat.js';
 import type { Invite, InviteCode } from '../domain/invite.js';
 import {
@@ -108,15 +110,14 @@ export function createInMemoryRepositories(): {
       findCredentials: async (email) =>
         [...users.values()].find(({ user }) => user.email === email) ?? null,
 
-      search: async (term, { excluding, limit }) => {
+      search: async (term, { limit }) => {
         const needle = term.toLowerCase();
         return [...users.values()]
           .map(({ user }) => user)
           .filter(
             (user) =>
-              user.id !== excluding &&
-              (user.name.toLowerCase().includes(needle) ||
-                user.email.toLowerCase().includes(needle))
+              user.name.toLowerCase().includes(needle) ||
+              user.email.toLowerCase().includes(needle)
           )
           .sort((a, b) => compare(a.name, b.name) || compare(a.id, b.id))
           .slice(0, limit);
@@ -153,6 +154,20 @@ export function createInMemoryRepositories(): {
           kind: 'direct',
           id: ChatId(nextId()),
           participantIds,
+        };
+        chats.set(chat.id, { chat, directKey: key, activeAt: new Date() });
+        return chat;
+      },
+
+      saveSelf: async (owner) => {
+        const key = selfChatKey(owner);
+        const existing = [...chats.values()].find((r) => r.directKey === key);
+        if (existing?.chat.kind === 'self') return existing.chat;
+        requireUser(owner);
+        const chat: SelfChat = {
+          kind: 'self',
+          id: ChatId(nextId()),
+          participantIds: [owner],
         };
         chats.set(chat.id, { chat, directKey: key, activeAt: new Date() });
         return chat;

@@ -75,6 +75,12 @@ describe('chatPlace', () => {
     expect(chatPlace({ kind: 'DIRECT', title: 'Ana' })).toBe(
       'Your chat with Ana'
     );
+    expect(
+      chatPlace(
+        { kind: 'DIRECT', title: 'Ana', counterpart: { id: 'ana' } },
+        'ana'
+      )
+    ).toBe('Your notes');
     expect(chatPlace({ kind: 'CHANNEL', title: '#general' })).toBe('#general');
     expect(chatPlace({ kind: 'GROUP', title: 'Team' })).toBe('Team');
   });

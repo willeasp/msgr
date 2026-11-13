@@ -4,7 +4,9 @@ import {
   type ChannelChat,
   type ChannelName,
   type Chat,
+  selfChatKey,
   type DirectChat,
+  type SelfChat,
 } from '../../domain/chat.js';
 import { UserId } from '../../domain/user.js';
 import { Prisma, type PrismaClient } from './client.js';
@@ -55,6 +57,24 @@ export function prismaChatRepository(db: PrismaClient): ChatRepository {
       } catch (error) {
         // A concurrent request created the pair's chat first; read theirs.
         if (isUniqueViolation(error)) return toDirectChat(await upsert());
+        throw error;
+      }
+    },
+
+    async saveSelf(owner) {
+      const key = selfChatKey(owner);
+      const upsert = () =>
+        db.chat.upsert({
+          where: { directKey: key },
+          update: {},
+          create: { directKey: key, participants: { connect: { id: owner } } },
+          select: chatFields,
+        });
+      try {
+        return toSelfChat(await upsert());
+      } catch (error) {
+        // A concurrent request created it first; read theirs.
+        if (isUniqueViolation(error)) return toSelfChat(await upsert());
         throw error;
       }
     },
@@ -113,7 +133,9 @@ export function prismaChatRepository(db: PrismaClient): ChatRepository {
 }
 
 function toChat(row: ChatRow): Chat {
-  if (row.directKey !== null) return toDirectChat(row);
+  if (row.directKey !== null) {
+    return row.participants.length === 1 ? toSelfChat(row) : toDirectChat(row);
+  }
   if (row.channelName !== null) return toChannel(row);
   if (row.title === null) {
     throw new Error(`Chat ${row.id} is neither direct, a group nor a channel`);
@@ -148,4 +170,12 @@ function toDirectChat(row: ChatRow): DirectChat {
     id: ChatId(row.id),
     participantIds: [first, second],
   };
+}
+
+function toSelfChat(row: ChatRow): SelfChat {
+  const [owner, ...rest] = row.participants.map(({ id }) => UserId(id));
+  if (owner === undefined || rest.length > 0 || row.directKey !== owner) {
+    throw new Error(`Self chat ${row.id} must have exactly its owner in it`);
+  }
+  return { kind: 'self', id: ChatId(row.id), participantIds: [owner] };
 }

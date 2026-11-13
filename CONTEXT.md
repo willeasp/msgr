@@ -36,12 +36,16 @@ _Avoid_: Invitation code, referral, token
 ### Conversations
 
 **Chat**:
-A conversation between participants. It is a direct chat, a group chat or a channel.
+A conversation between participants. It is a direct chat, a self chat, a group chat or a channel.
 _Avoid_: Conversation, room, thread
 
 **Direct chat**:
 A chat between exactly two users. Any two users share at most one. It has no title of its own and is titled by its counterpart's name.
 _Avoid_: 1-on-1, DM, private chat
+
+**Self chat**:
+A chat with only one user in it, for notes to themselves: opened from New Chat, titled by their own name, never unread and never notifying. Everyone has at most one. Clients see it as a direct chat whose counterpart is the viewer.
+_Avoid_: Saved messages, notes chat
 
 **Group chat**:
 A chat with its own title and any number of participants. Two people can share a group chat as well as their direct chat.

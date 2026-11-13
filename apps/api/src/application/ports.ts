@@ -5,6 +5,7 @@ import type {
   ChatAdded,
   ChatId,
   DirectChat,
+  SelfChat,
   DirectPair,
 } from '../domain/chat.js';
 import type { Unavailable } from '../domain/errors.js';
@@ -59,7 +60,7 @@ export interface UserRepository {
   /** Name or email contains `term` (case-insensitive), ordered by name. */
   search(
     term: SearchTerm,
-    options: { readonly excluding: UserId; readonly limit: number }
+    options: { readonly limit: number }
   ): Promise<User[]>;
 }
 
@@ -69,6 +70,8 @@ export interface ChatRepository {
   findByParticipant(userId: UserId): Promise<Chat[]>;
   /** Idempotent and race-safe: the pair's existing chat, or a new one. */
   saveDirect(pair: DirectPair): Promise<DirectChat>;
+  /** Idempotent and race-safe: `owner`'s self chat, or a new one. */
+  saveSelf(owner: UserId): Promise<SelfChat>;
   /** Every channel, ordered by name. */
   findChannels(): Promise<ChannelChat[]>;
   /**
